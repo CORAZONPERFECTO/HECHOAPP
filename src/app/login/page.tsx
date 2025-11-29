@@ -6,56 +6,89 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { LayoutGrid, Lock, Mail } from "lucide-react";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
     const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
+        setError("");
         try {
             await signInWithEmailAndPassword(auth, email, password);
             router.push("/");
         } catch (err: any) {
-            setError("Error al iniciar sesión: " + err.message);
+            console.error(err);
+            setError("Credenciales inválidas. Por favor intente de nuevo.");
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <Card className="w-[350px]">
-                <CardHeader>
-                    <CardTitle>Iniciar Sesión - HECHO SRL</CardTitle>
+        <div className="flex items-center justify-center min-h-screen bg-[#f1f5f9] p-4">
+            <Card className="w-full max-w-md shadow-lg border-0">
+                <CardHeader className="space-y-1 flex flex-col items-center text-center pb-6">
+                    <div className="bg-primary/10 p-3 rounded-full mb-4">
+                        <LayoutGrid className="h-10 w-10 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold tracking-tight">Bienvenido a HECHO SRL</CardTitle>
+                    <CardDescription>
+                        Ingrese sus credenciales para acceder al sistema
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">
-                        <div>
-                            <Input
-                                type="email"
-                                placeholder="Email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Correo Electrónico</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="nombre@empresa.com"
+                                    className="pl-9"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <Input
-                                type="password"
-                                placeholder="Contraseña"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Contraseña</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="pl-9"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
-                        {error && <p className="text-red-500 text-sm">{error}</p>}
-                        <Button type="submit" className="w-full">
-                            Entrar
+                        {error && (
+                            <div className="p-3 rounded-md bg-red-50 text-red-500 text-sm font-medium">
+                                {error}
+                            </div>
+                        )}
+                        <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+                            {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
                         </Button>
                     </form>
                 </CardContent>
+                <CardFooter className="flex justify-center text-xs text-gray-400">
+                    &copy; 2025 Hecho Nexus System
+                </CardFooter>
             </Card>
         </div>
     );
