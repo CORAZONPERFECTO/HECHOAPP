@@ -1,23 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
 import { Ticket } from "@/types/schema";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
+import { Plus, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
 
-export default function TicketListPage() {
+export default function TicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
@@ -25,99 +19,93 @@ export default function TicketListPage() {
     useEffect(() => {
         const q = query(collection(db, "tickets"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const ticketData = snapshot.docs.map((doc) => ({
+            const data = snapshot.docs.map((doc) => ({
                 id: doc.id,
                 ...doc.data(),
             })) as Ticket[];
-            setTickets(ticketData);
+            setTickets(data);
             setLoading(false);
         });
 
         return () => unsubscribe();
     }, []);
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "ABIERTO": return "default"; // Primary/Blue
-            case "EN_PROCESO": return "secondary"; // Gray/Yellowish
-            case "PENDIENTE_CLIENTE": return "outline";
-            case "CERRADO": return "secondary"; // Green? Custom needed
-            default: return "default";
-        }
-    };
-
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case "CRITICA": return "destructive";
-            case "ALTA": return "destructive";
-            case "MEDIA": return "default";
-            case "BAJA": return "secondary";
-            default: return "outline";
-        }
-    };
+    const columns = [
+        {
+            header: "ID",
+            accessorKey: "number" as keyof Ticket,
+            className: "font-medium w-[100px]",
+        },
+        {
+            header: "Cliente",
+            accessorKey: "clientName" as keyof Ticket,
+        },
+        {
+            header: "Servicio",
+            accessorKey: "serviceType" as keyof Ticket,
+            cell: (item: Ticket) => (
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                    {item.serviceType.replace(/_/g, ' ')}
+                </span>
+            )
+        },
+        {
+            header: "Técnico",
+            accessorKey: "technicianName" as keyof Ticket,
+            cell: (item: Ticket) => item.technicianName || <span className="text-gray-400 italic">Sin asignar</span>
+        },
+        {
+            header: "Prioridad",
+            accessorKey: "priority" as keyof Ticket,
+            cell: (item: Ticket) => {
+                const colors = {
+                    'BAJA': 'text-green-600',
+                    'MEDIA': 'text-yellow-600',
+                    'ALTA': 'text-orange-600',
+                    'CRITICA': 'text-red-600 font-bold'
+                };
+                return <span className={colors[item.priority] || ''}>{item.priority}</span>;
+            }
+        },
+        {
+            header: "Estado",
+            cell: (item: Ticket) => <TicketStatusBadge status={item.status} />,
+        },
+    ];
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">Gestión de Tickets</h1>
-                <Button onClick={() => router.push("/tickets/new")}>
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Ticket
-                </Button>
-            </div>
+        <div className="min-h-screen bg-slate-50 p-8">
+            <div className="max-w-7xl mx-auto space-y-6">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" onClick={() => router.push("/")}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900">Tickets de Servicio</h1>
+                            <p className="text-gray-500">Gestión operativa y seguimiento</p>
+                        </div>
+                    </div>
+                    <Link href="/tickets/new">
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Crear Ticket
+                        </Button>
+                    </Link>
+                </div>
 
-            <div className="rounded-md border bg-white">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Código</TableHead>
-                            <TableHead>Título</TableHead>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Prioridad</TableHead>
-                            <TableHead>Fecha</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8">
-                                    Cargando tickets...
-                                </TableCell>
-                            </TableRow>
-                        ) : tickets.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                    No hay tickets registrados.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            tickets.map((ticket) => (
-                                <TableRow
-                                    key={ticket.id}
-                                    className="cursor-pointer hover:bg-gray-50"
-                                    onClick={() => router.push(`/tickets/${ticket.id}`)}
-                                >
-                                    <TableCell className="font-medium">{ticket.codigo}</TableCell>
-                                    <TableCell>{ticket.titulo}</TableCell>
-                                    <TableCell>{ticket.clientId}</TableCell> {/* TODO: Resolve Client Name */}
-                                    <TableCell>
-                                        <Badge variant={getStatusColor(ticket.estado) as any}>
-                                            {ticket.estado.replace("_", " ")}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={getPriorityColor(ticket.prioridad) as any}>
-                                            {ticket.prioridad}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()}
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
+                {loading ? (
+                    <div className="text-center py-12">Cargando tickets...</div>
+                ) : (
+                    <DataTable
+                        data={tickets}
+                        columns={columns}
+                        searchKey="clientName"
+                        searchPlaceholder="Buscar por cliente..."
+                        onRowClick={(item) => router.push(`/tickets/${item.id}`)}
+                    />
+                )}
             </div>
         </div>
     );

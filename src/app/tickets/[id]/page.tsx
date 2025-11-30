@@ -1,446 +1,267 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc, addDoc, serverTimestamp } from "firebase/firestore";
-import { Ticket, TicketEvent, Client } from "@/types/schema";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Ticket, TicketEvent, TicketStatus } from "@/types/schema";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, User as UserIcon, MapPin, Edit, MessageSquare } from "lucide-react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
+import { ChecklistRenderer } from "@/components/tickets/checklist-renderer";
+import { PhotoUploader } from "@/components/tickets/photo-uploader";
+import { SignaturePad } from "@/components/tickets/signature-pad";
+import { TicketTimeline } from "@/components/tickets/ticket-timeline";
+import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2 } from "lucide-react";
 
-export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function TicketDetailPage() {
+    const params = useParams();
     const router = useRouter();
+    const ticketId = params.id as string;
+
     const [ticket, setTicket] = useState<Ticket | null>(null);
-    const [client, setClient] = useState<Client | null>(null);
     const [events, setEvents] = useState<TicketEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState("info");
 
-    // Status Update State
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [newStatus, setNewStatus] = useState<string>("");
-    const [statusComment, setStatusComment] = useState("");
-    const [updating, setUpdating] = useState(false);
+    // Auto-save integration
+    const { lastSaved, saving } = useTicketAutoSave(ticket || {}, {
+        ticketId,
+        onSave: (date) => console.log("Auto-saved at", date)
+    });
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // 1. Fetch Ticket
-                const ticketRef = doc(db, "tickets", id);
-                const ticketSnap = await getDoc(ticketRef);
+        if (!ticketId) return;
 
-                if (!ticketSnap.exists()) {
-                    alert("Ticket no encontrado");
-                    router.push("/tickets");
-                    return;
-                }
-
-                const ticketData = { id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
-                setTicket(ticketData);
-                setNewStatus(ticketData.estado);
-
-                // 2. Fetch Client (if exists)
-                if (ticketData.clientId) {
-                    // In a real app, fetch from 'clients' collection. 
-                    // For now, we simulate or fetch if we had the collection populated.
-                    // const clientSnap = await getDoc(doc(db, "clients", ticketData.clientId));
-                    // if (clientSnap.exists()) setClient({ id: clientSnap.id, ...clientSnap.data() } as Client);
-                }
-
-                // 3. Fetch Events
-                const eventsRef = collection(db, "ticketEvents");
-                const q = query(eventsRef, where("ticketId", "==", id), orderBy("fechaEvento", "desc"));
-                const eventsSnap = await getDocs(q);
-                const eventsData = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as TicketEvent));
-                setEvents(eventsData);
-
-            } catch (error) {
-                console.error("Error fetching ticket details:", error);
-            } finally {
-                setLoading(false);
+        // Subscribe to ticket changes
+        const unsubTicket = onSnapshot(doc(db, "tickets", ticketId), (doc) => {
+            if (doc.exists()) {
+                setTicket({ id: doc.id, ...doc.data() } as Ticket);
             }
+            setLoading(false);
+        });
+
+        // Subscribe to events
+        const q = query(collection(db, "ticketEvents"), where("ticketId", "==", ticketId));
+        const unsubEvents = onSnapshot(q, (snapshot) => {
+            setEvents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TicketEvent)));
+        });
+
+        return () => {
+            unsubTicket();
+            unsubEvents();
         };
+    }, [ticketId]);
 
-        if (id) fetchData();
-    }, [id, router]);
+    const handleStatusChange = async (newStatus: TicketStatus) => {
+        if (!ticket) return;
 
-    const handleStatusUpdate = async () => {
-        if (!ticket || !auth.currentUser) return;
-        setUpdating(true);
+        // In a real app, this would be an API call to ensure atomic updates
+        // For prototype, we just update the local state which triggers auto-save
+        // But for status changes, we should probably force an immediate update
 
-        try {
-            // 1. Update Ticket
-            const ticketRef = doc(db, "tickets", id);
-            await updateDoc(ticketRef, {
-                estado: newStatus,
-                updatedAt: serverTimestamp(),
-                actualizadoPorId: auth.currentUser.uid
-            });
-
-            // 2. Create Event
-            await addDoc(collection(db, "ticketEvents"), {
-                ticketId: id,
-                usuarioId: auth.currentUser.uid,
-                tipoEvento: "CAMBIO_ESTADO",
-                descripcion: `Estado cambiado de ${ticket.estado} a ${newStatus}. ${statusComment ? `Comentario: ${statusComment}` : ""}`,
-                estadoAnterior: ticket.estado,
-                estadoNuevo: newStatus,
-                fechaEvento: serverTimestamp(),
-            });
-
-            // 3. Update Local State
-            setTicket({ ...ticket, estado: newStatus as any });
-            setEvents([{
-                id: "temp-id",
-                ticketId: id,
-                usuarioId: auth.currentUser.uid,
-                tipoEvento: "CAMBIO_ESTADO",
-                descripcion: `Estado cambiado de ${ticket.estado} a ${newStatus}. ${statusComment ? `Comentario: ${statusComment}` : ""}`,
-                estadoAnterior: ticket.estado,
-                estadoNuevo: newStatus as any,
-                fechaEvento: { seconds: Date.now() / 1000, nanoseconds: 0 } as any
-            }, ...events]);
-
-            setIsDialogOpen(false);
-            setStatusComment("");
-        } catch (error) {
-            console.error("Error updating status:", error);
-            alert("Error al actualizar estado");
-        } finally {
-            setUpdating(false);
-        }
+        // Logic to add event would go here
     };
 
-    if (loading) return <div className="p-8">Cargando...</div>;
-    if (!ticket) return null;
+    if (loading) {
+        return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>;
+    }
+
+    if (!ticket) {
+        return <div className="p-8 text-center">Ticket no encontrado</div>;
+    }
 
     return (
-        <div className="container mx-auto py-8 px-4 max-w-4xl">
-            <Button variant="ghost" className="mb-6 pl-0" onClick={() => router.back()}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-            </Button>
+        <div className="min-h-screen bg-slate-50 pb-20">
+            {/* Header */}
+            <header className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => router.push("/tickets")}>
+                        <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                        <h1 className="font-bold text-gray-900">{ticket.number}</h1>
+                        <p className="text-xs text-gray-500">{ticket.clientName}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 hidden sm:flex"
+                        onClick={() => {
+                            const url = `${window.location.origin}/technician/tickets/${ticket.id}`;
+                            navigator.clipboard.writeText(url);
+                            alert("Enlace copiado al portapapeles:\n" + url);
+                        }}
+                    >
+                        <Share2 className="h-4 w-4" />
+                        Compartir
+                    </Button>
+                    {saving && <span className="text-xs text-gray-400 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Guardando...</span>}
+                    {!saving && lastSaved && <span className="text-xs text-gray-400">Guardado</span>}
+                    <TicketStatusBadge status={ticket.status} />
+                </div>
+            </header >
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Main Content */}
-                <div className="md:col-span-2 space-y-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-start justify-between">
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Badge variant="outline">{ticket.codigo}</Badge>
-                                    <Badge className={
-                                        ticket.prioridad === 'CRITICA' ? 'bg-red-600' :
-                                            ticket.prioridad === 'ALTA' ? 'bg-orange-500' :
-                                                ticket.prioridad === 'MEDIA' ? 'bg-yellow-500' : 'bg-green-500'
-                                    }>{ticket.prioridad}</Badge>
+            <main className="max-w-3xl mx-auto p-4 space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
+                        <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
+                        <TabsTrigger value="checklist" className="text-xs py-2">Checklist</TabsTrigger>
+                        <TabsTrigger value="evidence" className="text-xs py-2">Fotos</TabsTrigger>
+                        <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
+                        <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="info" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Detalles del Servicio</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-gray-500 block">Tipo de Servicio</span>
+                                        <span className="font-medium">{ticket.serviceType.replace(/_/g, ' ')}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500 block">Prioridad</span>
+                                        <span className={`font-medium ${ticket.priority === 'CRITICA' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-gray-500 block">Descripción Inicial</span>
+                                        <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>
+                                    </div>
                                 </div>
-                                <CardTitle className="text-2xl">{ticket.titulo}</CardTitle>
-                            </div>
-                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        <Edit className="mr-2 h-4 w-4" /> Cambiar Estado
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Actualizar Estado del Ticket</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            "use client";
+                            </CardContent>
+                        </Card>
 
-                                            import {useEffect, useState, use} from "react";
-                                            import {useRouter} from "next/navigation";
-                                            import {auth, db} from "@/lib/firebase";
-                                            import {doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc, addDoc, serverTimestamp} from "firebase/firestore";
-                                            import {Ticket, TicketEvent, Client} from "@/types/schema";
-                                            import {Button} from "@/components/ui/button";
-                                            import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
-                                            import {Badge} from "@/components/ui/badge";
-                                            import {ArrowLeft, Clock, User as UserIcon, MapPin, Edit, MessageSquare} from "lucide-react";
-                                            import {
-                                                Dialog,
-                                                DialogContent,
-                                                DialogHeader,
-                                                DialogTitle,
-                                                DialogTrigger,
-                                                DialogFooter,
-} from "@/components/ui/dialog";
-                                            import {
-                                                Select,
-                                                SelectContent,
-                                                SelectItem,
-                                                SelectTrigger,
-                                                SelectValue,
-} from "@/components/ui/select";
-                                            import {Textarea} from "@/components/ui/textarea";
-                                            import {Label} from "@/components/ui/label";
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Historial</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <TicketTimeline events={events} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                                            export default function TicketDetailPage({params}: {params: Promise<{ id: string }> }) {
-    const {id} = use(params);
-                                            const router = useRouter();
-                                            const [ticket, setTicket] = useState<Ticket | null>(null);
-                                            const [client, setClient] = useState<Client | null>(null);
-                                            const [events, setEvents] = useState<TicketEvent[]>([]);
-                                            const [loading, setLoading] = useState(true);
+                    <TabsContent value="checklist" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Lista de Verificación</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ChecklistRenderer
+                                    items={ticket.checklist || []}
+                                    onItemChange={(id, checked) => {
+                                        const newChecklist = ticket.checklist.map(item =>
+                                            item.id === id ? { ...item, checked } : item
+                                        );
+                                        setTicket({ ...ticket, checklist: newChecklist });
+                                    }}
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                                            // Status Update State
-                                            const [isDialogOpen, setIsDialogOpen] = useState(false);
-                                            const [newStatus, setNewStatus] = useState<string>("");
-                                                const [statusComment, setStatusComment] = useState("");
-                                                const [updating, setUpdating] = useState(false);
+                    <TabsContent value="evidence" className="space-y-4">
+                        <Card>
+                            <CardContent className="pt-6 space-y-6">
+                                <PhotoUploader
+                                    label="Fotos Antes"
+                                    type="BEFORE"
+                                    photos={ticket.photos || []}
+                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                />
+                                <div className="border-t" />
+                                <PhotoUploader
+                                    label="Fotos Durante"
+                                    type="DURING"
+                                    photos={ticket.photos || []}
+                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                />
+                                <div className="border-t" />
+                                <PhotoUploader
+                                    label="Fotos Después"
+                                    type="AFTER"
+                                    photos={ticket.photos || []}
+                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // 1. Fetch Ticket
-                const ticketRef = doc(db, "tickets", id);
-                                                const ticketSnap = await getDoc(ticketRef);
+                    <TabsContent value="diagnosis" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Reporte Técnico</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Diagnóstico</Label>
+                                    <Textarea
+                                        placeholder="¿Qué encontraste?"
+                                        value={ticket.diagnosis || ''}
+                                        onChange={(e) => setTicket({ ...ticket, diagnosis: e.target.value })}
+                                        className="min-h-[100px]"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Solución Aplicada</Label>
+                                    <Textarea
+                                        placeholder="¿Qué hiciste?"
+                                        value={ticket.solution || ''}
+                                        onChange={(e) => setTicket({ ...ticket, solution: e.target.value })}
+                                        className="min-h-[100px]"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Recomendaciones</Label>
+                                    <Textarea
+                                        placeholder="Sugerencias para el cliente..."
+                                        value={ticket.recommendations || ''}
+                                        onChange={(e) => setTicket({ ...ticket, recommendations: e.target.value })}
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                                                if (!ticketSnap.exists()) {
-                                                    alert("Ticket no encontrado");
-                                                router.push("/tickets");
-                                                return;
-                }
+                    <TabsContent value="closure" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Cierre y Conformidad</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800 flex gap-2">
+                                    <AlertCircle className="h-5 w-5 shrink-0" />
+                                    <p>Asegúrate de haber completado la checklist y subido todas las fotos antes de solicitar la firma.</p>
+                                </div>
 
-                                                const ticketData = {id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
-                                                setTicket(ticketData);
-                                                setNewStatus(ticketData.estado);
+                                <div className="space-y-2">
+                                    <Label>Firma del Cliente</Label>
+                                    <SignaturePad
+                                        value={ticket.clientSignature}
+                                        onChange={(sig) => setTicket({ ...ticket, clientSignature: sig })}
+                                    />
+                                </div>
 
-                                                // 2. Fetch Client (if exists)
-                                                if (ticketData.clientId) {
-                                                    // In a real app, fetch from 'clients' collection. 
-                                                    // For now, we simulate or fetch if we had the collection populated.
-                                                    // const clientSnap = await getDoc(doc(db, "clients", ticketData.clientId));
-                                                    // if (clientSnap.exists()) setClient({ id: clientSnap.id, ...clientSnap.data() } as Client);
-                                                }
-
-                // 3. Fetch Events
-                                                const eventsRef = collection(db, "ticketEvents");
-                                                const q = query(eventsRef, where("ticketId", "==", id), orderBy("fechaEvento", "desc"));
-                                                const eventsSnap = await getDocs(q);
-                const eventsData = eventsSnap.docs.map(d => ({id: d.id, ...d.data() } as TicketEvent));
-                                                setEvents(eventsData);
-
-            } catch (error) {
-                                                    console.error("Error fetching ticket details:", error);
-            } finally {
-                                                    setLoading(false);
-            }
-        };
-
-                                                if (id) fetchData();
-    }, [id, router]);
-
-    const handleStatusUpdate = async () => {
-        if (!ticket || !auth.currentUser) return;
-                                                setUpdating(true);
-
-                                                try {
-            // 1. Update Ticket
-            const ticketRef = doc(db, "tickets", id);
-                                                await updateDoc(ticketRef, {
-                                                    estado: newStatus,
-                                                updatedAt: serverTimestamp(),
-                                                actualizadoPorId: auth.currentUser.uid
-            });
-
-                                                // 2. Create Event
-                                                await addDoc(collection(db, "ticketEvents"), {
-                                                    ticketId: id,
-                                                usuarioId: auth.currentUser.uid,
-                                                tipoEvento: "CAMBIO_ESTADO",
-                                                descripcion: `Estado cambiado de ${ticket.estado} a ${newStatus}. ${statusComment ? `Comentario: ${statusComment}` : ""}`,
-                                                estadoAnterior: ticket.estado,
-                                                estadoNuevo: newStatus,
-                                                fechaEvento: serverTimestamp(),
-            });
-
-                                                // 3. Update Local State
-                                                setTicket({...ticket, estado: newStatus as any });
-                                                setEvents([{
-                                                    id: "temp-id",
-                                                ticketId: id,
-                                                usuarioId: auth.currentUser.uid,
-                                                tipoEvento: "CAMBIO_ESTADO",
-                                                descripcion: `Estado cambiado de ${ticket.estado} a ${newStatus}. ${statusComment ? `Comentario: ${statusComment}` : ""}`,
-                                                estadoAnterior: ticket.estado,
-                                                estadoNuevo: newStatus as any,
-                                                fechaEvento: {seconds: Date.now() / 1000, nanoseconds: 0 } as any
-            }, ...events]);
-
-                                                setIsDialogOpen(false);
-                                                setStatusComment("");
-        } catch (error) {
-                                                    console.error("Error updating status:", error);
-                                                alert("Error al actualizar estado");
-        } finally {
-                                                    setUpdating(false);
-        }
-    };
-
-                                                if (loading) return <div className="p-8">Cargando...</div>;
-                                                if (!ticket) return null;
-
-                                                return (
-                                                <div className="container mx-auto py-8 px-4 max-w-4xl">
-                                                    <Button variant="ghost" className="mb-6 pl-0" onClick={() => router.back()}>
-                                                        <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-                                                    </Button>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                        {/* Main Content */}
-                                                        <div className="md:col-span-2 space-y-6">
-                                                            <Card>
-                                                                <CardHeader className="flex flex-row items-start justify-between">
-                                                                    <div>
-                                                                        <div className="flex items-center gap-2 mb-2">
-                                                                            <Badge variant="outline">{ticket.codigo}</Badge>
-                                                                            <Badge className={
-                                                                                ticket.prioridad === 'CRITICA' ? 'bg-red-600' :
-                                                                                    ticket.prioridad === 'ALTA' ? 'bg-orange-500' :
-                                                                                        ticket.prioridad === 'MEDIA' ? 'bg-yellow-500' : 'bg-green-500'
-                                                                            }>{ticket.prioridad}</Badge>
-                                                                        </div>
-                                                                        <CardTitle className="text-2xl">{ticket.titulo}</CardTitle>
-                                                                    </div>
-                                                                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                                                        <DialogTrigger asChild>
-                                                                            <Button variant="outline" size="sm">
-                                                                                <Edit className="mr-2 h-4 w-4" /> Cambiar Estado
-                                                                            </Button>
-                                                                        </DialogTrigger>
-                                                                        <DialogContent>
-                                                                            <DialogHeader>
-                                                                                <DialogTitle>Actualizar Estado del Ticket</DialogTitle>
-                                                                            </DialogHeader>
-                                                                            <div className="space-y-4 py-4">
-                                                                                <div className="space-y-2">
-                                                                                    <Label>Nuevo Estado</Label>
-                                                                                    <Select value={newStatus} onValueChange={setNewStatus}>
-                                                                                        <SelectTrigger>
-                                                                                            <SelectValue />
-                                                                                        </SelectTrigger>
-                                                                                        <SelectContent>
-                                                                                            <SelectItem value="ABIERTO">Abierto</SelectItem>
-                                                                                            <SelectItem value="EN_PROCESO">En Proceso</SelectItem>
-                                                                                            <SelectItem value="PENDIENTE_CLIENTE">Pendiente Cliente</SelectItem>
-                                                                                            <SelectItem value="PENDIENTE_MATERIAL">Pendiente Material</SelectItem>
-                                                                                            <SelectItem value="CERRADO">Cerrado</SelectItem>
-                                                                                        </SelectContent>
-                                                                                    </Select>
-                                                                                </div>
-                                                                                <div className="space-y-2">
-                                                                                    <Label>Comentario (Opcional)</Label>
-                                                                                    <Textarea
-                                                                                        value={statusComment}
-                                                                                        onChange={(e) => setStatusComment(e.target.value)}
-                                                                                        placeholder="Explique la razón del cambio..."
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-                                                                            <DialogFooter>
-                                                                                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                                                                                <Button onClick={handleStatusUpdate} disabled={updating}>
-                                                                                    {updating ? "Actualizando..." : "Confirmar Cambio"}
-                                                                                </Button>
-                                                                            </DialogFooter>
-                                                                        </DialogContent>
-                                                                    </Dialog>
-                                                                </CardHeader>
-                                                                <CardContent className="space-y-4">
-                                                                    <div>
-                                                                        <h3 className="font-semibold mb-2">Descripción</h3>
-                                                                        <p className="text-gray-700 whitespace-pre-wrap">{ticket.descripcion}</p>
-                                                                    </div>
-
-                                                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                                                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                                            <UserIcon className="h-4 w-4" />
-                                                                            <span>{client?.nombreComercial || "Cliente General"}</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                                            <MapPin className="h-4 w-4" />
-                                                                            <span>{ticket.locationId}</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                                            <Clock className="h-4 w-4" />
-                                                                            <span>{new Date((ticket.createdAt as any).seconds * 1000).toLocaleDateString()}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </CardContent>
-                                                            </Card>
-
-                                                            {/* Timeline / Events */}
-                                                            <Card>
-                                                                <CardHeader>
-                                                                    <CardTitle className="text-lg flex items-center gap-2">
-                                                                        <MessageSquare className="h-5 w-5" /> Historial de Eventos
-                                                                    </CardTitle>
-                                                                </CardHeader>
-                                                                <CardContent>
-                                                                    <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-                                                                        {events.map((event) => (
-                                                                            <div key={event.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                                                                <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-300 group-[.is-active]:bg-blue-500 text-slate-500 group-[.is-active]:text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
-                                                                                    <Clock className="h-5 w-5" />
-                                                                                </div>
-                                                                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded border border-slate-200 bg-white shadow-sm">
-                                                                                    <div className="flex items-center justify-between space-x-2 mb-1">
-                                                                                        <div className="font-bold text-slate-900">{event.tipoEvento}</div>
-                                                                                        <time className="font-caveat font-medium text-indigo-500">
-                                                                                            {event.fechaEvento ? new Date((event.fechaEvento as any).seconds * 1000).toLocaleString() : 'Justo ahora'}
-                                                                                        </time>
-                                                                                    </div>
-                                                                                    <div className="text-slate-500 text-sm">{event.descripcion}</div>
-                                                                                </div>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </CardContent>
-                                                            </Card>
-                                                        </div>
-
-                                                        {/* Sidebar Info */}
-                                                        <div className="space-y-6">
-                                                            <Card>
-                                                                <CardHeader>
-                                                                    <CardTitle className="text-sm font-medium">Estado Actual</CardTitle>
-                                                                </CardHeader>
-                                                                <CardContent>
-                                                                    <div className="flex flex-col items-center py-4">
-                                                                        <div className={`text-lg font-bold px-4 py-2 rounded-full ${ticket.estado === 'ABIERTO' ? 'bg-green-100 text-green-800' :
-                                                                            ticket.estado === 'EN_PROCESO' ? 'bg-blue-100 text-blue-800' :
-                                                                                ticket.estado === 'CERRADO' ? 'bg-gray-100 text-gray-800' :
-                                                                                    'bg-yellow-100 text-yellow-800'
-                                                                            }`}>
-                                                                            {ticket.estado}
-                                                                        </div>
-                                                                    </div>
-                                                                </CardContent>
-                                                            </Card>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                );
+                                <Button className="w-full h-12 text-lg" size="lg">
+                                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                                    Finalizar Ticket
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </main>
+        </div >
+    );
 }

@@ -1,16 +1,3 @@
-export type UserRole = 'ADMIN' | 'COORDINADOR' | 'TECNICO';
-export type ClientType = 'HOTEL' | 'EMPRESA' | 'RESIDENCIAL';
-export type EquipmentType = 'MINISPLIT' | 'CASSETTE' | 'DUCTO' | 'VRF' | 'CHILLER' | 'OTRO';
-export type TicketPriority = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
-export type TicketStatus = 'ABIERTO' | 'EN_PROCESO' | 'PENDIENTE_CLIENTE' | 'PENDIENTE_MATERIAL' | 'CERRADO';
-export type ServiceType = 'MANTENIMIENTO' | 'INSTALACION' | 'EMERGENCIA' | 'INSPECCION';
-export type TicketOrigin = 'WHATSAPP' | 'LLAMADA' | 'EMAIL' | 'VISITA' | 'OTRO';
-export type EventType = 'CREACION' | 'CAMBIO_ESTADO' | 'COMENTARIO' | 'CAMBIO_TECNICO' | 'ADJUNTO' | 'OTRO';
-
-export interface Timestamp {
-    seconds: number;
-    nanoseconds: number;
-}
 
 export interface User {
     id: string;
@@ -61,37 +48,146 @@ export interface Equipment {
     updatedAt: Timestamp;
 }
 
-export interface Ticket {
+export interface TicketEvent {
     id: string;
-    codigo: string; // TCK-2025-0001
-    titulo: string;
-    descripcion: string;
-    prioridad: TicketPriority;
-    estado: TicketStatus;
-    tipoServicio: ServiceType;
-    origen: TicketOrigin;
+    ticketId: string;
+    userId: string;
+    userName?: string;
+    type: EventType;
+    description: string;
+    timestamp: Timestamp;
+}
+
+// --- Income Module Types ---
+
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'CANCELLED';
+export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'TARJETA' | 'OTRO';
+export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+
+export interface InvoiceItem {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxRate: number; // e.g., 0.18 for 18%
+    taxAmount: number;
+    total: number;
+}
+
+export interface Invoice {
+    id: string;
+    number: string; // Sequence number e.g., NCF or internal ID
+    ncf?: string; // Comprobante Fiscal
     clientId: string;
-    locationId: string;
-    equipmentId?: string;
-    tecnicoAsignadoId?: string;
-    fechaCompromiso?: Timestamp;
-    fechaCierre?: Timestamp;
-    slaHorasObjetivo?: number;
-    creadoPorId: string;
-    actualizadoPorId?: string;
-    canalContactoDetalle?: string;
-    externalConversationId?: string;
+    clientName: string;
+    clientRnc?: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    balance: number; // Amount remaining to be paid
+    status: InvoiceStatus;
+    issueDate: Timestamp;
+    dueDate: Timestamp;
+    notes?: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
 
-export interface TicketEvent {
+export interface Quote {
     id: string;
-    ticketId: string;
-    usuarioId: string;
-    tipoEvento: EventType;
-    descripcion: string;
-    estadoAnterior?: string;
-    estadoNuevo?: string;
-    fechaEvento: Timestamp;
+    number: string;
+    clientId: string;
+    clientName: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    status: QuoteStatus;
+    validUntil: Timestamp;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface Payment {
+    id: string;
+    number: string; // Receipt number
+    invoiceId?: string; // Optional if payment covers multiple or is on account
+    clientId: string;
+    clientName: string;
+    amount: number;
+    method: PaymentMethod;
+    reference?: string; // Check number, transfer ID
+    date: Timestamp;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export type RecurringFrequency = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type RecurringStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+
+export interface RecurringInvoice {
+    id: string;
+    clientId: string;
+    clientName: string;
+    frequency: RecurringFrequency;
+    startDate: Timestamp;
+    nextRunDate: Timestamp;
+    endDate?: Timestamp;
+    status: RecurringStatus;
+    items: InvoiceItem[];
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface CreditNote {
+    id: string;
+    number: string; // NCF or internal ID
+    ncf?: string; // Comprobante Fiscal Modificado
+    invoiceId?: string; // Related Invoice
+    clientId: string;
+    clientName: string;
+    items: InvoiceItem[];
+    subtotal: number;
+    taxTotal: number;
+    total: number;
+    status: InvoiceStatus; // Reusing InvoiceStatus for simplicity
+    issueDate: Timestamp;
+    reason: string;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface DeliveryNote {
+    id: string;
+    number: string;
+    clientId: string;
+    clientName: string;
+    items: InvoiceItem[]; // Maybe without prices, just quantities? Keeping generic for now.
+    status: 'DRAFT' | 'SENT' | 'DELIVERED' | 'CANCELLED';
+    issueDate: Timestamp;
+    deliveryDate?: Timestamp;
+    address?: string;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface Receipt {
+    id: string;
+    number: string;
+    clientId: string;
+    clientName: string;
+    amount: number;
+    concept: string;
+    date: Timestamp;
+    notes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
 }

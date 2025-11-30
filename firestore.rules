@@ -1,8 +1,125 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().rol == role;
+    }
+    
+    function isAdmin() {
+      // Allow Admin role OR hardcoded Super User email
+      return hasRole('ADMIN') || request.auth.token.email == 'lcaa27@gmail.com';
+    }
+    
+    function isCoordinator() {
+      return hasRole('COORDINADOR');
+    }
+    
+    function isTechnician() {
+      return hasRole('TECNICO');
+    }
+    
+    function isStaff() {
+      return isAdmin() || isCoordinator();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isStaff());
+      allow delete: if isAdmin();
+    }
+
+    // Tickets Collection
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && (
+        isStaff() || 
+        (isTechnician() && resource.data.tecnicoAsignadoId == request.auth.uid) ||
+        resource.data.creadoPorId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isStaff() || 
+        (isTechnician() && resource.data.tecnicoAsignadoId == request.auth.uid) ||
+        resource.data.creadoPorId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Master Data
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+    
+    match /locations/{locationId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+    
+    match /equipment/{equipmentId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+
+    // Settings Module
+    match /ticketTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /roles/{roleId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /permissions/{permissionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Income Module
+    match /invoices/{invoiceId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /quotes/{quoteId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /payments/{paymentId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /creditNotes/{noteId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /deliveryNotes/{noteId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /receipts/{receiptId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /recurringInvoices/{invoiceId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Default deny
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

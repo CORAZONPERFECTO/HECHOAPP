@@ -5,16 +5,8 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, getCountFromServer } from "firebase/firestore";
-import {
-  Ticket,
-  Users,
-  Settings,
-  LogOut,
-  LayoutGrid,
-  Wrench,
-  MessageSquare,
-  BarChart3
-} from "lucide-react";
+import { AppCard } from "@/components/ui/app-card";
+import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AppCardProps {
@@ -25,27 +17,7 @@ interface AppCardProps {
   onClick?: () => void;
 }
 
-function AppCard({ icon: Icon, label, href, color = "text-gray-700", onClick }: AppCardProps) {
-  const router = useRouter();
 
-  const handleClick = () => {
-    if (onClick) {
-      onClick();
-    } else {
-      router.push(href);
-    }
-  };
-
-  return (
-    <div
-      onClick={handleClick}
-      className="flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-gray-50 aspect-square border border-gray-100"
-    >
-      <Icon className={`h-12 w-12 mb-3 ${color}`} />
-      <span className="text-sm font-medium text-gray-700">{label}</span>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -104,17 +76,15 @@ export default function Dashboard() {
           <AppCard
             icon={Users}
             label="Clientes"
-            href="#"
+            href="/clients"
             color="text-blue-600"
-            onClick={() => alert("Módulo de Clientes en desarrollo")}
           />
 
           <AppCard
             icon={Wrench}
             label="Técnicos"
-            href="#"
+            href="/technicians"
             color="text-orange-600"
-            onClick={() => alert("Módulo de Técnicos en desarrollo")}
           />
 
           <AppCard
@@ -136,9 +106,8 @@ export default function Dashboard() {
           <AppCard
             icon={Settings}
             label="Ajustes"
-            href="#"
+            href="/settings"
             color="text-gray-600"
-            onClick={() => alert("Configuración en desarrollo")}
           />
 
         </div>
