@@ -3,14 +3,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Ticket } from "@/types/schema";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ChecklistRenderer } from "@/components/tickets/checklist-renderer";
-import { PhotoUploader } from "@/components/tickets/photo-uploader";
-import { MapPin, Phone, Calendar, Save, CheckCircle } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { MapPin, Phone, Calendar, Save, CheckCircle, Loader2 } from "lucide-react";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -19,23 +16,87 @@ export default function TechnicianTicketPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    const [user, setUser] = useState<any>(null);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [authLoading, setAuthLoading] = useState(true);
+
     useEffect(() => {
-        const fetchTicket = async () => {
-            if (!id) return;
-            try {
-                const docRef = doc(db, "tickets", id);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
-                }
-            } catch (error) {
-                console.error("Error fetching ticket:", error);
-            } finally {
-                setLoading(false);
+        const unsubscribe = auth.onAuthStateChanged((u) => {
+            setUser(u);
+            setAuthLoading(false);
+            if (u) {
+                fetchTicket();
             }
-        };
-        fetchTicket();
+        });
+        return () => unsubscribe();
     }, [id]);
+
+    const fetchTicket = async () => {
+        if (!id) return;
+        try {
+            const docRef = doc(db, "tickets", id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
+            }
+        } catch (error) {
+            console.error("Error fetching ticket:", error);
+            alert("Error: No tienes permiso para ver este ticket.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            alert("Error de autenticación: Verifique sus credenciales");
+        }
+    };
+
+    if (authLoading) return <div className="p-4 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto" /></div>;
+
+    if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader>
+                        <CardTitle className="text-center">Acceso Técnico</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Contraseña</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <Button type="submit" className="w-full">
+                                Iniciar Sesión
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     const handleSave = async () => {
         if (!ticket) return;
@@ -94,7 +155,7 @@ export default function TechnicianTicketPage() {
                             rel="noopener noreferrer"
                             className="text-blue-600 text-xs flex items-center gap-1 ml-6 hover:underline"
                         >
-                            Ver en Mapa ->
+                            Ver en Mapa &rarr;
                         </a>
                     </CardContent>
                 </Card>
@@ -124,18 +185,21 @@ export default function TechnicianTicketPage() {
                             type="BEFORE"
                             photos={ticket.photos || []}
                             onChange={(photos) => setTicket({ ...ticket, photos })}
+                            allowGallery={ticket.allowGalleryUpload}
                         />
                         <PhotoUploader
                             label="Durante el Servicio"
                             type="DURING"
                             photos={ticket.photos || []}
                             onChange={(photos) => setTicket({ ...ticket, photos })}
+                            allowGallery={ticket.allowGalleryUpload}
                         />
                         <PhotoUploader
                             label="Después del Servicio"
                             type="AFTER"
                             photos={ticket.photos || []}
                             onChange={(photos) => setTicket({ ...ticket, photos })}
+                            allowGallery={ticket.allowGalleryUpload}
                         />
                     </CardContent>
                 </Card>

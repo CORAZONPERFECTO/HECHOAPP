@@ -2,37 +2,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper Functions
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
     function hasRole(role) {
-      return isAuthenticated() && getUserData().rol == role;
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
     
     function isAdmin() {
-      // Allow Admin role OR hardcoded Super User email
-      return hasRole('ADMIN') || request.auth.token.email == 'lcaa27@gmail.com';
-    }
-    
-    function isCoordinator() {
-      return hasRole('COORDINADOR');
-    }
-    
-    function isTechnician() {
-      return hasRole('TECNICO');
-    }
-    
-    function isStaff() {
-      return isAdmin() || isCoordinator();
+      return request.auth.token.email == 'lcaa27@gmail.com' || hasRole('ADMIN');
     }
 
-    // Users Collection
+    function isStaff() {
+      return isAdmin() || hasRole('COORDINADOR') || hasRole('SUPERVISOR') || hasRole('GERENTE');
+    }
+
+    // Users
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -40,84 +28,64 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Tickets Collection
+    // Tickets
     match /tickets/{ticketId} {
-      allow read: if isAuthenticated() && (
-        isStaff() || 
-        (isTechnician() && resource.data.tecnicoAsignadoId == request.auth.uid) ||
-        resource.data.creadoPorId == request.auth.uid
-      );
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (
-        isStaff() || 
-        (isTechnician() && resource.data.tecnicoAsignadoId == request.auth.uid) ||
-        resource.data.creadoPorId == request.auth.uid
-      );
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+    
+    // Counters (for Ticket Numbering)
+    match /counters/{counterId} {
+      allow read, update: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+
+    // Ticket Events
+    match /ticketEvents/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;
       allow delete: if isAdmin();
     }
 
-    // Master Data
-    match /clients/{clientId} {
-      allow read: if isAuthenticated();
-      allow write: if isStaff();
+    // Resources
+    match /personnel/{personId} {
+      allow read, write: if isAuthenticated() && (isAdmin() || hasRole('SUPERVISOR') || hasRole('GERENTE'));
     }
+
+    match /acErrors/{errorId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (isAdmin() || hasRole('SUPERVISOR') || hasRole('GERENTE'));
+    }
+
+    // Master Data & Income
+    match /clients/{clientId} { allow read: if isAuthenticated(); allow write: if isStaff(); }
+    match /locations/{locationId} { allow read: if isAuthenticated(); allow write: if isStaff(); }
+    match /equipment/{equipmentId} { allow read: if isAuthenticated(); allow write: if isStaff(); }
+    match /invoices/{id} { allow read, write: if isAuthenticated(); }
+    match /quotes/{id} { allow read, write: if isAuthenticated(); }
+    match /payments/{id} { allow read, write: if isAuthenticated(); }
+    match /creditNotes/{id} { allow read, write: if isAuthenticated(); }
+    match /deliveryNotes/{id} { allow read, write: if isAuthenticated(); }
+    match /receipts/{id} { allow read, write: if isAuthenticated(); }
+    match /recurringInvoices/{id} { allow read, write: if isAuthenticated(); }
+
+    // Settings & Reports
+    match /ticketTypes/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /roles/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
+    match /permissions/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     
-    match /locations/{locationId} {
+    match /ticketReports/{reportId} {
+      allow read, write: if hasRole('ADMIN') || hasRole('SUPERVISOR') || hasRole('GERENTE') || request.auth.token.email == 'lcaa27@gmail.com';
+    }
+
+    match /settings/{settingId} {
       allow read: if isAuthenticated();
-      allow write: if isStaff();
-    }
-    
-    match /equipment/{equipmentId} {
-      allow read: if isAuthenticated();
-      allow write: if isStaff();
+      allow write: if hasRole('ADMIN') || hasRole('SUPERVISOR') || hasRole('GERENTE') || request.auth.token.email == 'lcaa27@gmail.com';
     }
 
-    // Settings Module
-    match /ticketTypes/{typeId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /roles/{roleId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /permissions/{permissionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Income Module
-    match /invoices/{invoiceId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /quotes/{quoteId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /payments/{paymentId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /creditNotes/{noteId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /deliveryNotes/{noteId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /receipts/{receiptId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /recurringInvoices/{invoiceId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // Default deny
     match /{document=**} {
       allow read, write: if false;
     }

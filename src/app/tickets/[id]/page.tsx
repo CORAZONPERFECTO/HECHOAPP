@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Ticket, TicketEvent, TicketStatus } from "@/types/schema";
+import { Ticket, TicketEvent, TicketStatus, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
@@ -16,7 +17,9 @@ import { ChecklistRenderer } from "@/components/tickets/checklist-renderer";
 import { PhotoUploader } from "@/components/tickets/photo-uploader";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
+import { ReportEditor } from "@/components/tickets/report-editor";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
+import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2 } from "lucide-react";
 
 export default function TicketDetailPage() {
@@ -27,6 +30,7 @@ export default function TicketDetailPage() {
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [events, setEvents] = useState<TicketEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentUserRole, setCurrentUserRole] = useState<UserRole | undefined>(undefined);
     const [activeTab, setActiveTab] = useState("info");
 
     // Auto-save integration
@@ -44,13 +48,40 @@ export default function TicketDetailPage() {
                 setTicket({ id: doc.id, ...doc.data() } as Ticket);
             }
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching ticket:", error);
+            setLoading(false);
         });
 
         // Subscribe to events
         const q = query(collection(db, "ticketEvents"), where("ticketId", "==", ticketId));
         const unsubEvents = onSnapshot(q, (snapshot) => {
             setEvents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TicketEvent)));
+        }, (error) => {
+            console.error("Error fetching events:", error);
         });
+
+        // Fetch current user role
+        const checkUserRole = async () => {
+            // Wait for auth to be ready (simple check)
+            // In a real app, use onAuthStateChanged, but here we assume auth is initialized or we check it
+            // Actually, we should use onAuthStateChanged here too or assume the parent layout handles it?
+            // The previous Technician page used onAuthStateChanged. Let's do that.
+            const { auth } = await import("@/lib/firebase"); // Dynamic import to avoid SSR issues if any
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
+                        setCurrentUserRole('ADMIN');
+                    } else {
+                        const userDoc = await getDoc(doc(db, "users", user.uid));
+                        if (userDoc.exists()) {
+                            setCurrentUserRole(userDoc.data().role as UserRole);
+                        }
+                    }
+                }
+            });
+        };
+        checkUserRole();
 
         return () => {
             unsubTicket();
@@ -64,7 +95,6 @@ export default function TicketDetailPage() {
         // In a real app, this would be an API call to ensure atomic updates
         // For prototype, we just update the local state which triggers auto-save
         // But for status changes, we should probably force an immediate update
-
         // Logic to add event would go here
     };
 
@@ -76,16 +106,18 @@ export default function TicketDetailPage() {
         return <div className="p-8 text-center">Ticket no encontrado</div>;
     }
 
+    const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE';
+
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
             {/* Header */}
-            <header className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
+            <header className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm print:hidden">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => router.push("/tickets")}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="font-bold text-gray-900">{ticket.number}</h1>
+                        <h1 className="font-bold text-gray-900">{ticket.ticketNumber || ticket.id?.slice(0, 6)}</h1>
                         <p className="text-xs text-gray-500">{ticket.clientName}</p>
                     </div>
                 </div>
@@ -109,14 +141,17 @@ export default function TicketDetailPage() {
                 </div>
             </header >
 
-            <main className="max-w-3xl mx-auto p-4 space-y-6">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
+            <main className="max-w-3xl mx-auto p-4 space-y-6 print:max-w-none print:p-0">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="print:hidden">
+                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
                         <TabsTrigger value="checklist" className="text-xs py-2">Checklist</TabsTrigger>
                         <TabsTrigger value="evidence" className="text-xs py-2">Fotos</TabsTrigger>
                         <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
                         <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
+                        {canViewFinalReport && (
+                            <TabsTrigger value="final-report" className="text-xs py-2 font-semibold text-blue-700">Informe Final</TabsTrigger>
+                        )}
                     </TabsList>
 
                     <TabsContent value="info" className="space-y-4">
@@ -137,6 +172,19 @@ export default function TicketDetailPage() {
                                     <div className="col-span-2">
                                         <span className="text-gray-500 block">Descripción Inicial</span>
                                         <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>
+                                    </div>
+
+                                    <div className="col-span-2 flex items-center gap-2 mt-2 p-3 border rounded-md bg-gray-50">
+                                        <input
+                                            type="checkbox"
+                                            id="allowGallery"
+                                            checked={ticket.allowGalleryUpload || false}
+                                            onChange={(e) => setTicket({ ...ticket, allowGalleryUpload: e.target.checked })}
+                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <Label htmlFor="allowGallery" className="cursor-pointer font-medium">
+                                            Permitir al técnico subir fotos desde Galería
+                                        </Label>
                                     </div>
                                 </div>
                             </CardContent>
@@ -179,6 +227,7 @@ export default function TicketDetailPage() {
                                     type="BEFORE"
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    allowGallery={true}
                                 />
                                 <div className="border-t" />
                                 <PhotoUploader
@@ -186,6 +235,7 @@ export default function TicketDetailPage() {
                                     type="DURING"
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    allowGallery={true}
                                 />
                                 <div className="border-t" />
                                 <PhotoUploader
@@ -193,6 +243,7 @@ export default function TicketDetailPage() {
                                     type="AFTER"
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    allowGallery={true}
                                 />
                             </CardContent>
                         </Card>
@@ -206,7 +257,7 @@ export default function TicketDetailPage() {
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>Diagnóstico</Label>
-                                    <Textarea
+                                    <VoiceTextarea
                                         placeholder="¿Qué encontraste?"
                                         value={ticket.diagnosis || ''}
                                         onChange={(e) => setTicket({ ...ticket, diagnosis: e.target.value })}
@@ -214,8 +265,16 @@ export default function TicketDetailPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Solución Aplicada</Label>
-                                    <Textarea
+                                    <div className="flex justify-between items-center">
+                                        <Label>Solución Aplicada</Label>
+                                        <ErrorSearchModal
+                                            onSelectSolution={(sol: string) => {
+                                                const current = ticket?.solution || "";
+                                                setTicket({ ...ticket!, solution: current + (current ? "\n\n" : "") + sol });
+                                            }}
+                                        />
+                                    </div>
+                                    <VoiceTextarea
                                         placeholder="¿Qué hiciste?"
                                         value={ticket.solution || ''}
                                         onChange={(e) => setTicket({ ...ticket, solution: e.target.value })}
@@ -224,7 +283,7 @@ export default function TicketDetailPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Recomendaciones</Label>
-                                    <Textarea
+                                    <VoiceTextarea
                                         placeholder="Sugerencias para el cliente..."
                                         value={ticket.recommendations || ''}
                                         onChange={(e) => setTicket({ ...ticket, recommendations: e.target.value })}
@@ -260,7 +319,19 @@ export default function TicketDetailPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+
+                    {canViewFinalReport && (
+                        <TabsContent value="final-report" className="h-[calc(100vh-200px)]">
+                            <ReportEditor ticket={ticket} currentUserRole={currentUserRole} />
+                        </TabsContent>
+                    )}
                 </Tabs>
+
+                {/* Print View Container (Only visible when printing) */}
+                <div className="hidden print:block">
+                    {/* The ReportEditor handles its own print view visibility via CSS */}
+                    {canViewFinalReport && <ReportEditor ticket={ticket} currentUserRole={currentUserRole} />}
+                </div>
             </main>
         </div >
     );

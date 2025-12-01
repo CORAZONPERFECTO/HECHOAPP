@@ -84,6 +84,32 @@ export default function LoginPage() {
                         <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
                             {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
                         </Button>
+                        <div className="text-center">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!email) {
+                                        setError("Escribe tu correo primero para restablecer la contraseña.");
+                                        return;
+                                    }
+                                    try {
+                                        const { sendPasswordResetEmail } = await import("firebase/auth");
+                                        await sendPasswordResetEmail(auth, email);
+                                        alert("Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.");
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        if (err.code === 'auth/user-not-found') {
+                                            setError("Este correo no está registrado.");
+                                        } else {
+                                            setError("Error al enviar el correo. Intenta de nuevo.");
+                                        }
+                                    }
+                                }}
+                                className="text-sm text-blue-600 hover:underline"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
                     </form>
                 </CardContent>
                 <CardFooter className="flex justify-center text-xs text-gray-400">

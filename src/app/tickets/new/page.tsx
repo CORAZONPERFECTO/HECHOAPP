@@ -14,6 +14,16 @@ import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 
 import { ClientSelector } from "@/components/shared/client-selector";
 import { TechnicianSelector } from "@/components/shared/technician-selector";
+import { generateNextTicketNumber } from "@/lib/tickets";
+
+const LOCATION_AREAS = [
+    "CAP CANA",
+    "PUNTA CANA RESORT",
+    "VILLAGE",
+    "VILLAGE WEST",
+    "BAVARO",
+    "OTROS"
+];
 
 export default function NewTicketPage() {
     const router = useRouter();
@@ -26,7 +36,8 @@ export default function NewTicketPage() {
         priority: 'MEDIA',
         checklist: [],
         photos: [],
-        materials: [],
+        locationArea: "",
+        specificLocation: "",
     });
 
     useEffect(() => {
@@ -55,7 +66,8 @@ export default function NewTicketPage() {
             ...prev,
             clientId,
             clientName,
-            locationId: "", // Reset location if client changes
+            // Keep location fields if manually entered, or reset if desired. 
+            // For now, we keep them as they are independent of client selection in this new flow.
         }));
     };
 
@@ -85,18 +97,27 @@ export default function NewTicketPage() {
     const handleSubmit = async () => {
         setLoading(true);
         try {
+            const ticketNumber = await generateNextTicketNumber();
+
+            // Construct full location name for display
+            const fullLocation = `${formData.locationArea || ''} - ${formData.specificLocation || ''}`.trim().replace(/^- |- $/g, '');
+
             const ticketData = {
                 ...formData,
-                number: `TCK-${Date.now().toString().slice(-6)}`, // Simple ID generation
+                number: ticketNumber,
+                ticketNumber: ticketNumber, // Ensure consistency with schema
+                locationName: fullLocation || formData.locationName || "Ubicación no especificada",
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-                createdBy: "SYSTEM", // Should be current user ID
+                createdBy: auth.currentUser?.uid || "SYSTEM",
+                creadoPorId: auth.currentUser?.uid, // Schema field
             };
 
             await addDoc(collection(db, "tickets"), ticketData);
             router.push("/tickets");
         } catch (error) {
             console.error("Error creating ticket:", error);
+            alert("Error al crear el ticket. Verifica tu conexión o permisos.");
         } finally {
             setLoading(false);
         }
@@ -127,8 +148,36 @@ export default function NewTicketPage() {
                                 />
                             </div>
 
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Ubicación (Zona)</Label>
+                                    <Select
+                                        value={formData.locationArea}
+                                        onValueChange={(val) => setFormData(prev => ({ ...prev, locationArea: val }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar zona" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {LOCATION_AREAS.map(area => (
+                                                <SelectItem key={area} value={area}>{area}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Lugar (Villa / Nombre)</Label>
+                                    <Input
+                                        value={formData.specificLocation || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, specificLocation: e.target.value }))}
+                                        placeholder="Ej. Villa 12, Apto 3B"
+                                    />
+                                </div>
+                            </div>
+
                             <div className="flex justify-end pt-4">
-                                <Button onClick={() => setStep(2)} disabled={!formData.clientId}>
+                                <Button onClick={() => setStep(2)} disabled={!formData.clientId || !formData.locationArea}>
                                     Siguiente <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>

@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase/firestore";
 
 export interface User {
     id: string;
@@ -18,23 +19,6 @@ export interface Client {
     personaContacto: string;
     telefonoContacto: string;
     emailContacto: string;
-    notas?: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
-}
-
-export interface Location {
-    id: string;
-    clientId: string;
-    nombre: string;
-    descripcion?: string;
-    direccion?: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
-}
-
-export interface Equipment {
-    id: string;
     clientId: string;
     locationId: string;
     marca: string;
@@ -190,4 +174,128 @@ export interface Receipt {
     notes?: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
+}
+
+export type EventType = 'STATUS_CHANGE' | 'COMMENT' | 'PHOTO_UPLOAD' | 'CHECKLIST_UPDATE' | 'ASSIGNMENT';
+
+export interface TicketPhoto {
+    url: string;
+    type: 'BEFORE' | 'DURING' | 'AFTER';
+    description?: string;
+    timestamp?: { seconds: number; nanoseconds: number };
+    area?: string;
+    details?: string;
+}
+
+export interface ChecklistItem {
+    id: string;
+    text: string;
+    checked: boolean;
+}
+
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_CLIENT' | 'WAITING_PARTS' | 'COMPLETED' | 'CANCELLED';
+
+export interface Ticket {
+    id: string;
+    ticketNumber?: string;
+    clientName: string;
+    locationName: string;
+    locationArea?: string; // e.g., "CAP CANA"
+    specificLocation?: string; // e.g., "Villa 12"
+    serviceType: string;
+    priority: string;
+    description: string;
+    status: TicketStatus;
+    checklist: ChecklistItem[];
+    photos: TicketPhoto[];
+    tecnicoAsignadoId?: string;
+    creadoPorId?: string;
+    diagnosis?: string;
+    solution?: string;
+    recommendations?: string;
+    clientSignature?: string;
+    allowGalleryUpload?: boolean;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'TECNICO';
+export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
+export type EquipmentType = 'AIRE_ACONDICIONADO' | 'REFRIGERACION' | 'LAVADORA' | 'SECADORA' | 'ESTUFA' | 'OTRO';
+
+export type ReportBlockType = 'h1' | 'h2' | 'h3' | 'text' | 'bullet-list' | 'numbered-list' | 'blockquote' | 'separator' | 'photo';
+
+export interface ReportBlockAttributes {
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+    align?: 'left' | 'center' | 'right' | 'justify';
+}
+
+export interface ReportSection {
+    id: string;
+    type: ReportBlockType;
+    content?: string; // For text, titles, lists
+    photoUrl?: string; // For photo sections
+    description?: string; // For photo sections
+    attributes?: ReportBlockAttributes;
+    // Legacy/Optional fields
+    area?: string;
+    details?: string;
+}
+
+// --- Resources Module ---
+
+export type PersonnelType = 'EMPLEADO' | 'CONTRATISTA' | 'TECNICO' | 'AYUDANTE' | 'GERENTE' | 'ADMINISTRATIVO';
+
+export interface PersonnelResource {
+    id: string;
+    type: PersonnelType;
+    fullName: string;
+    cedula: string; // Document ID number
+    cedulaText?: string; // Formatted for messages
+    licenseNumber?: string;
+    licenseExpiry?: string; // ISO Date string
+    phone: string;
+    secondaryPhone?: string;
+    email?: string;
+    notes?: string;
+    documents: string[]; // Array of URLs
+    active: boolean;
+    createdAt?: any;
+    updatedAt?: any;
+}
+
+export type ACErrorCriticality = 'BAJA' | 'MEDIA' | 'ALTA';
+
+export interface ACError {
+    id: string;
+    brand: string; // e.g., "Daikin", "Lennox"
+    model?: string;
+    systemType?: string; // "Split", "VRF", etc.
+    errorCode?: string; // "E5", "U4"
+    symptom: string; // "No enfría"
+    cause?: string;
+    solution?: string; // Steps to fix
+    criticality: ACErrorCriticality;
+    notes?: string;
+    tags?: string[]; // ["Presión", "Sensor"]
+    createdAt?: any;
+    updatedAt?: any;
+}
+
+export interface TicketReport {
+    id?: string;
+    ticketId: string;
+    header: {
+        clientName: string;
+        ticketNumber: string;
+        address: string;
+        date: string;
+        technicianName: string;
+        title: string;
+    };
+    sections: ReportSection[];
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
 }

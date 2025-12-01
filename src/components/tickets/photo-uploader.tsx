@@ -3,17 +3,26 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TicketPhoto } from "@/types/schema";
-import { Camera, X, Upload } from "lucide-react";
+import { Camera, X, Upload, Trash2 } from "lucide-react";
 import Image from "next/image";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+const AREAS = [
+    "Habitación", "Baño", "Cocina", "Sala", "Comedor",
+    "Área Exterior", "Cuarto de máquinas", "Pasillo", "Otro"
+];
 
 interface PhotoUploaderProps {
     photos: TicketPhoto[];
     onChange: (photos: TicketPhoto[]) => void;
     type: 'BEFORE' | 'DURING' | 'AFTER';
     label: string;
+    allowGallery?: boolean;
 }
 
-export function PhotoUploader({ photos, onChange, type, label }: PhotoUploaderProps) {
+export function PhotoUploader({ photos, onChange, type, label, allowGallery = false }: PhotoUploaderProps) {
     const currentPhotos = photos.filter(p => p.type === type);
 
     const addWatermark = (file: File): Promise<string> => {
@@ -76,10 +85,6 @@ export function PhotoUploader({ photos, onChange, type, label }: PhotoUploaderPr
         const x = width - 20;
         const y = height - 20;
 
-        // Draw background for readability
-        // ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        // ctx.fillRect(x - 300, y - (lines.length * lineHeight) - 10, 320, (lines.length * lineHeight) + 20);
-
         ctx.fillStyle = "white";
         lines.reverse().forEach((line, index) => {
             ctx.fillText(line, x, y - (index * lineHeight));
@@ -124,36 +129,106 @@ export function PhotoUploader({ photos, onChange, type, label }: PhotoUploaderPr
         <div className="space-y-3">
             <div className="flex justify-between items-center">
                 <h3 className="text-sm font-medium text-gray-700">{label}</h3>
-                <div className="relative">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        onChange={handleFileChange}
-                    />
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <Camera className="h-4 w-4" />
-                        Agregar Foto
-                    </Button>
+                <div className="flex gap-2">
+                    {/* Camera Button */}
+                    <div className="relative">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={handleFileChange}
+                        />
+                        <Button variant="outline" size="sm" className="gap-2">
+                            <Camera className="h-4 w-4" />
+                            <span className="hidden sm:inline">Cámara</span>
+                        </Button>
+                    </div>
+
+                    {/* Gallery Button - Only show if allowed */}
+                    {allowGallery && (
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={handleFileChange}
+                                multiple
+                            />
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <Upload className="h-4 w-4" />
+                                <span className="hidden sm:inline">Galería</span>
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {currentPhotos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {currentPhotos.map((photo, index) => (
-                        <div key={index} className="relative aspect-square rounded-lg overflow-hidden border bg-gray-100 group">
-                            <Image
-                                src={photo.url}
-                                alt="Evidence"
-                                fill
-                                className="object-cover"
-                            />
+                <div className="flex flex-col gap-4">
+                    {currentPhotos.map((photo) => (
+                        <div key={photo.url} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg bg-white shadow-sm relative group">
+                            {/* Photo Preview */}
+                            <div className="relative w-full sm:w-32 h-32 shrink-0 rounded-md overflow-hidden border bg-gray-100">
+                                <Image
+                                    src={photo.url}
+                                    alt="Evidence"
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+
+                            {/* Fields */}
+                            <div className="flex-1 space-y-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-gray-500">Área</Label>
+                                        <Select
+                                            value={photo.area || ""}
+                                            onValueChange={(val) => {
+                                                const newPhotos = photos.map(p =>
+                                                    p.url === photo.url ? { ...p, area: val } : p
+                                                );
+                                                onChange(newPhotos);
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-8">
+                                                <SelectValue placeholder="Seleccionar área" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {AREAS.map(area => (
+                                                    <SelectItem key={area} value={area}>{area}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-gray-500">Detalles</Label>
+                                        <Input
+                                            placeholder="Color, condición, notas..."
+                                            value={photo.details || ""}
+                                            onChange={(e) => {
+                                                const newPhotos = photos.map(p =>
+                                                    p.url === photo.url ? { ...p, details: e.target.value } : p
+                                                );
+                                                onChange(newPhotos);
+                                            }}
+                                            className="h-8"
+                                        />
+                                    </div>
+                                </div>
+                                {/* Timestamp display */}
+                                <div className="text-xs text-gray-400">
+                                    {new Date((photo.timestamp?.seconds || 0) * 1000).toLocaleString()}
+                                </div>
+                            </div>
+
+                            {/* Remove Button */}
                             <button
                                 onClick={() => removePhoto(photo.url)}
-                                className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"
                             >
-                                <X className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                             </button>
                         </div>
                     ))}

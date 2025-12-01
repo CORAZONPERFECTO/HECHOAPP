@@ -110,6 +110,13 @@ export default function Dashboard() {
             color="text-gray-600"
           />
 
+          <AppCard
+            icon={FileText}
+            label="Recursos"
+            href="/resources"
+            color="text-teal-600"
+          />
+
         </div>
       </main>
 
