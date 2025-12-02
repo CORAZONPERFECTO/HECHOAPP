@@ -42,7 +42,10 @@ export default function DeliveryNotesPage() {
         },
         {
             header: "Fecha Entrega",
-            cell: (item: DeliveryNote) => new Date(item.deliveryDate?.seconds * 1000 || item.issueDate.seconds * 1000).toLocaleDateString(),
+            cell: (item: DeliveryNote) => {
+                const seconds = item.deliveryDate ? item.deliveryDate.seconds : item.issueDate.seconds;
+                return new Date(seconds * 1000).toLocaleDateString();
+            },
         },
         {
             header: "Dirección",

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { collection, getDocs, addDoc, serverTimestamp, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, serverTimestamp, query, where, Timestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { User } from "@/types/schema";
 
@@ -89,8 +89,8 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                 ...newTechData,
                 rol: 'TECNICO',
                 activo: true,
-                createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
-                updatedAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
+                createdAt: Timestamp.fromMillis(Date.now()),
+                updatedAt: Timestamp.fromMillis(Date.now()),
             };
 
             setTechnicians(prev => [...prev, newTech]);

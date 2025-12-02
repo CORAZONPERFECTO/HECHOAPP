@@ -237,7 +237,12 @@ export default function TicketTypesPage() {
                                 </div>
                                 <Select onValueChange={(val) => {
                                     if (val && SERVICE_CHECKLISTS[val as keyof typeof SERVICE_CHECKLISTS]) {
-                                        setFormData({ ...formData, defaultChecklist: SERVICE_CHECKLISTS[val as keyof typeof SERVICE_CHECKLISTS] });
+                                        const items = SERVICE_CHECKLISTS[val as keyof typeof SERVICE_CHECKLISTS].map(text => ({
+                                            id: crypto.randomUUID(),
+                                            text,
+                                            checked: false
+                                        }));
+                                        setFormData({ ...formData, defaultChecklist: items });
                                     }
                                 }}>
                                     <SelectTrigger className="w-[200px] h-8 text-xs">

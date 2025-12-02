@@ -27,11 +27,8 @@ export function ChecklistRenderer({ items, onItemChange, readOnly = false }: Che
                             htmlFor={item.id}
                             className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${item.checked ? 'line-through text-gray-500' : 'text-gray-900'}`}
                         >
-                            {item.label}
+                            {item.text}
                         </Label>
-                        {item.required && (
-                            <p className="text-xs text-red-500 font-medium">Requerido</p>
-                        )}
                     </div>
                 </div>
             ))}

@@ -3,11 +3,17 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapPin, Phone, Calendar, Save, CheckCircle, Loader2 } from "lucide-react";
+import { Ticket, TicketPhoto } from "@/types/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
+import { PhotoUploader } from "@/components/technician/photo-uploader";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -118,6 +124,27 @@ export default function TechnicianTicketPage() {
         }
     };
 
+    const handlePhotoUpdate = async (newPhotos: TicketPhoto[]) => {
+        if (!ticket) return;
+
+        // Optimistic update
+        setTicket(prev => prev ? { ...prev, photos: newPhotos } : null);
+
+        // Auto-save specifically for photos
+        try {
+            const docRef = doc(db, "tickets", ticket.id!);
+            await updateDoc(docRef, {
+                photos: newPhotos,
+                updatedAt: serverTimestamp()
+            });
+            // Silent success or maybe a small toast if we had one
+        } catch (error) {
+            console.error("Error auto-saving photos:", error);
+            alert("Error al guardar la foto en la nube. Por favor intente de nuevo.");
+            // Revert on error? For now, let's keep it simple.
+        }
+    };
+
     if (loading) return <div className="p-4 text-center">Cargando ticket...</div>;
     if (!ticket) return <div className="p-4 text-center text-red-500">Ticket no encontrado</div>;
 
@@ -184,21 +211,21 @@ export default function TechnicianTicketPage() {
                             label="Antes del Servicio"
                             type="BEFORE"
                             photos={ticket.photos || []}
-                            onChange={(photos) => setTicket({ ...ticket, photos })}
+                            onChange={handlePhotoUpdate}
                             allowGallery={ticket.allowGalleryUpload}
                         />
                         <PhotoUploader
                             label="Durante el Servicio"
                             type="DURING"
                             photos={ticket.photos || []}
-                            onChange={(photos) => setTicket({ ...ticket, photos })}
+                            onChange={handlePhotoUpdate}
                             allowGallery={ticket.allowGalleryUpload}
                         />
                         <PhotoUploader
                             label="Después del Servicio"
                             type="AFTER"
                             photos={ticket.photos || []}
-                            onChange={(photos) => setTicket({ ...ticket, photos })}
+                            onChange={handlePhotoUpdate}
                             allowGallery={ticket.allowGalleryUpload}
                         />
                     </CardContent>

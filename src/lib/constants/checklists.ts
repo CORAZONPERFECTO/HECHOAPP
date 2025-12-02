@@ -111,10 +111,9 @@ export const SERVICE_CHECKLISTS: Record<ServiceType, string[]> = {
 
 export function getChecklistForService(type: ServiceType): ChecklistItem[] {
     const items = SERVICE_CHECKLISTS[type] || [];
-    return items.map((label, index) => ({
+    return items.map((text, index) => ({
         id: `chk-${Date.now()}-${index}`,
-        label,
-        checked: false,
-        required: true
+        text,
+        checked: false
     }));
 }

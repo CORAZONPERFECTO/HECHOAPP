@@ -28,12 +28,12 @@ export function EvidenceGallery({ locationId }: EvidenceGalleryProps) {
 
             snapshot.docs.forEach((doc) => {
                 const ticket = doc.data() as Ticket;
-                if (ticket.attachments && Array.isArray(ticket.attachments)) {
-                    ticket.attachments.forEach((url) => {
+                if (ticket.photos && Array.isArray(ticket.photos)) {
+                    ticket.photos.forEach((photo) => {
                         allImages.push({
-                            url,
+                            url: photo.url,
                             ticketId: doc.id,
-                            ticketCode: ticket.codigo,
+                            ticketCode: ticket.ticketNumber || ticket.id.slice(0, 6),
                             date: new Date(ticket.createdAt.seconds * 1000),
                         });
                     });

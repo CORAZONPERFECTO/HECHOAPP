@@ -96,8 +96,12 @@ const BlockRenderer = ({
                 return <blockquote style={style} className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{section.content}</blockquote>;
             case 'separator': return <hr className="my-6 border-gray-300" />;
             case 'photo':
+                const sizeClass = section.attributes?.size === 'small' ? 'w-1/3' :
+                    section.attributes?.size === 'medium' ? 'w-1/2' :
+                        section.attributes?.size === 'large' ? 'w-3/4' :
+                            'w-full';
                 return (
-                    <div className="mb-6 break-inside-avoid">
+                    <div className={`mb-6 break-inside-avoid ${sizeClass} mx-auto`}>
                         <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                             {/* Use standard img tag for better print compatibility */}
                             {section.photoUrl && (
@@ -133,6 +137,17 @@ const BlockRenderer = ({
             </div>
 
             <div className="pl-8">
+                {/* Toolbar for Photos */}
+                {section.type === 'photo' && (
+                    <div className="flex items-center gap-1 mb-2 border-b pb-2 overflow-x-auto">
+                        <span className="text-xs text-gray-500 mr-2">Tamaño:</span>
+                        <Button variant={section.attributes?.size === 'small' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'small' })}>Pequeño</Button>
+                        <Button variant={section.attributes?.size === 'medium' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'medium' })}>Mediano</Button>
+                        <Button variant={section.attributes?.size === 'large' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'large' })}>Grande</Button>
+                        <Button variant={!section.attributes?.size || section.attributes?.size === 'full' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'full' })}>Completo</Button>
+                    </div>
+                )}
+
                 {/* Toolbar for Text Blocks */}
                 {section.type !== 'photo' && section.type !== 'separator' && (
                     <div className="flex items-center gap-1 mb-2 border-b pb-2 overflow-x-auto">
@@ -216,6 +231,7 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+    const [hasNewPhotos, setHasNewPhotos] = useState(false);
     const [report, setReport] = useState<TicketReport>({
         ticketId: ticket.id,
         header: {
@@ -350,6 +366,19 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
         loadData();
     }, [ticket.id]);
 
+    // Check for new photos
+    useEffect(() => {
+        if (!loading && report.sections.length > 0) {
+            const reportPhotoCount = report.sections.filter(s => s.type === 'photo').length;
+            const ticketPhotoCount = ticket.photos?.length || 0;
+            if (ticketPhotoCount > reportPhotoCount) {
+                setHasNewPhotos(true);
+            } else {
+                setHasNewPhotos(false);
+            }
+        }
+    }, [loading, report.sections, ticket.photos]);
+
     const reloadFromTicket = () => {
         if (confirm("¿Recargar datos del ticket? Se perderán los cambios manuales.")) {
             const newSections = generateSectionsFromTicket(ticket);
@@ -362,6 +391,7 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                 },
                 sections: newSections
             }));
+            setHasNewPhotos(false);
         }
     };
 
@@ -443,6 +473,21 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                             </Button>
                         </div>
 
+                        {hasNewPhotos && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex flex-col gap-2">
+                                <div className="flex items-center gap-2 text-yellow-800 text-sm font-medium">
+                                    <ImageIcon className="h-4 w-4" />
+                                    <span>Nuevas fotos detectadas</span>
+                                </div>
+                                <p className="text-xs text-yellow-700">
+                                    Hay fotos en el ticket que no están en este reporte.
+                                </p>
+                                <Button size="sm" variant="outline" onClick={reloadFromTicket} className="w-full text-xs h-7 bg-white border-yellow-300 text-yellow-800 hover:bg-yellow-100">
+                                    Actualizar Reporte
+                                </Button>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
                                 <Label className="text-xs">Título</Label>
@@ -454,19 +499,19 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-1 pt-2">
-                            <Button variant="outline" size="sm" onClick={() => addBlock('text')} title="Texto"><Type className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('h2')} title="Título"><Heading2 className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('photo')} title="Foto"><ImageIcon className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('separator')} title="Separador"><Minus className="h-4 w-4" /></Button>
+                        <div className="grid grid-cols-4 gap-2 pt-2">
+                            <Button variant="outline" size="sm" onClick={() => addBlock('text')} title="Texto" className="h-10"><Type className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="sm" onClick={() => addBlock('h2')} title="Título" className="h-10"><Heading2 className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="sm" onClick={() => addBlock('photo')} title="Foto" className="h-10"><ImageIcon className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="sm" onClick={() => addBlock('separator')} title="Separador" className="h-10"><Minus className="h-4 w-4" /></Button>
                         </div>
 
                         <div className="flex gap-2 pt-2">
-                            <Button onClick={saveReport} disabled={saving} className="flex-1 gap-2 bg-green-600 hover:bg-green-700">
+                            <Button onClick={saveReport} disabled={saving} className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-10">
                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Guardar
                             </Button>
-                            <Button onClick={handlePrint} variant="secondary" className="flex-1 gap-2">
+                            <Button onClick={handlePrint} variant="secondary" className="flex-1 gap-2 h-10">
                                 <Printer className="h-4 w-4" />
                                 PDF
                             </Button>
@@ -496,7 +541,7 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                     {/* Corporate Header */}
                     <div className="absolute top-0 left-0 w-full h-3 bg-[#556B2F] print:block hidden"></div> {/* Green Band */}
 
-                    <div className="px-8 print:px-16">
+                    <div className="px-8 print:px-16 print:pb-32">
                         <div className="flex justify-between items-start mb-12 pt-8">
                             <div className="w-1/2">
                                 {/* Logo Placeholder */}

@@ -6,14 +6,21 @@ import { db } from "@/lib/firebase";
 import { Ticket } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
+import { TicketKanban } from "@/components/tickets/ticket-kanban";
+import { TicketCalendar } from "@/components/tickets/ticket-calendar";
+import { TicketMap } from "@/components/tickets/ticket-map";
+import { SLAIndicator } from "@/components/tickets/sla-indicator";
+import { SLADashboard } from "@/components/tickets/sla-dashboard";
 
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeView, setActiveView] = useState("list");
     const router = useRouter();
 
     useEffect(() => {
@@ -59,23 +66,31 @@ export default function TicketsPage() {
             accessorKey: "priority" as keyof Ticket,
             cell: (item: Ticket) => {
                 const colors = {
-                    'BAJA': 'text-green-600',
-                    'MEDIA': 'text-yellow-600',
-                    'ALTA': 'text-orange-600',
-                    'CRITICA': 'text-red-600 font-bold'
+                    'LOW': 'text-green-600',
+                    'MEDIUM': 'text-yellow-600',
+                    'HIGH': 'text-orange-600',
+                    'URGENT': 'text-red-600 font-bold'
                 };
-                return <span className={colors[item.priority] || ''}>{item.priority}</span>;
+                return <span className={colors[item.priority as keyof typeof colors] || ''}>{item.priority}</span>;
             }
         },
         {
             header: "Estado",
             cell: (item: Ticket) => <TicketStatusBadge status={item.status} />,
         },
+        {
+            header: "SLA",
+            cell: (item: Ticket) => <SLAIndicator ticket={item} />,
+        },
     ];
+
+    const handleTicketClick = (ticket: Ticket) => {
+        router.push(`/tickets/${ticket.id}`);
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="max-w-[1600px] mx-auto space-y-6">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" onClick={() => router.push("/")}>
@@ -98,13 +113,52 @@ export default function TicketsPage() {
                 {loading ? (
                     <div className="text-center py-12">Cargando tickets...</div>
                 ) : (
-                    <DataTable
-                        data={tickets}
-                        columns={columns}
-                        searchKey="clientName"
-                        searchPlaceholder="Buscar por cliente..."
-                        onRowClick={(item) => router.push(`/tickets/${item.id}`)}
-                    />
+                    <>
+                        <SLADashboard tickets={tickets} />
+
+                        <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+                            <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
+                                <TabsTrigger value="list" className="flex items-center gap-2">
+                                    <List className="h-4 w-4" />
+                                    Lista
+                                </TabsTrigger>
+                                <TabsTrigger value="kanban" className="flex items-center gap-2">
+                                    <LayoutGrid className="h-4 w-4" />
+                                    Kanban
+                                </TabsTrigger>
+                                <TabsTrigger value="calendar" className="flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4" />
+                                    Calendario
+                                </TabsTrigger>
+                                <TabsTrigger value="map" className="flex items-center gap-2">
+                                    <MapIcon className="h-4 w-4" />
+                                    Mapa
+                                </TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="list">
+                                <DataTable
+                                    data={tickets}
+                                    columns={columns}
+                                    searchKey="clientName"
+                                    searchPlaceholder="Buscar por cliente..."
+                                    onRowClick={handleTicketClick}
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="kanban">
+                                <TicketKanban tickets={tickets} onTicketClick={handleTicketClick} />
+                            </TabsContent>
+
+                            <TabsContent value="calendar">
+                                <TicketCalendar tickets={tickets} onTicketClick={handleTicketClick} />
+                            </TabsContent>
+
+                            <TabsContent value="map">
+                                <TicketMap tickets={tickets} onTicketClick={handleTicketClick} />
+                            </TabsContent>
+                        </Tabs>
+                    </>
                 )}
             </div>
         </div>

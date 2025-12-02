@@ -167,7 +167,7 @@ export default function TicketDetailPage() {
                                     </div>
                                     <div>
                                         <span className="text-gray-500 block">Prioridad</span>
-                                        <span className={`font-medium ${ticket.priority === 'CRITICA' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
+                                        <span className={`font-medium ${ticket.priority === 'URGENT' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
                                     </div>
                                     <div className="col-span-2">
                                         <span className="text-gray-500 block">Descripción Inicial</span>

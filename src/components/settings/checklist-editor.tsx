@@ -4,10 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, X, GripVertical } from "lucide-react";
+import { ChecklistItem } from "@/types/schema";
 
 interface ChecklistEditorProps {
-    items: string[];
-    onChange: (items: string[]) => void;
+    items: ChecklistItem[];
+    onChange: (items: ChecklistItem[]) => void;
 }
 
 export function ChecklistEditor({ items, onChange }: ChecklistEditorProps) {
@@ -15,7 +16,14 @@ export function ChecklistEditor({ items, onChange }: ChecklistEditorProps) {
 
     const handleAdd = () => {
         if (newItem.trim()) {
-            onChange([...items, newItem.trim()]);
+            onChange([
+                ...items,
+                {
+                    id: crypto.randomUUID(),
+                    text: newItem.trim(),
+                    checked: false
+                }
+            ]);
             setNewItem("");
         }
     };
@@ -68,7 +76,7 @@ export function ChecklistEditor({ items, onChange }: ChecklistEditorProps) {
 
             <div className="space-y-2">
                 {items.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-slate-50 rounded-md border group">
+                    <div key={item.id || index} className="flex items-center gap-2 p-2 bg-slate-50 rounded-md border group">
                         <div className="flex flex-col gap-1 mr-2">
                             <button
                                 type="button"
@@ -87,7 +95,7 @@ export function ChecklistEditor({ items, onChange }: ChecklistEditorProps) {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                             </button>
                         </div>
-                        <span className="flex-1 text-sm">{item}</span>
+                        <span className="flex-1 text-sm">{item.text}</span>
                         <Button
                             type="button"
                             variant="ghost"

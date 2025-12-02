@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { User } from "@/types/schema";
+import { db, firebaseConfig } from "@/lib/firebase";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { User, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Trash2, KeyRound } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { deleteDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 
 interface TechnicianFormProps {
     initialData?: User;
@@ -30,39 +34,91 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         nombre: initialData?.nombre || "",
         email: initialData?.email || "",
         telefono: initialData?.telefono || "",
-        rol: "TECNICO",
+        rol: initialData?.rol || "TECNICO",
         activo: initialData?.activo ?? true,
     });
+    const [password, setPassword] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
         try {
+            let uid = initialData?.id;
+
+            if (!isEditing) {
+                // Create Auth User using a secondary app instance to avoid logging out the admin
+                const secondaryAppName = "secondaryApp";
+                let secondaryApp;
+                try {
+                    secondaryApp = getApp(secondaryAppName);
+                } catch (e) {
+                    secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+                }
+
+                const secondaryAuth = getAuth(secondaryApp);
+                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email!, password);
+                uid = userCredential.user.uid;
+
+                // We don't need to sign out the secondary auth, it doesn't affect the main one
+            }
+
             const userData = {
                 ...formData,
                 updatedAt: serverTimestamp(),
             };
 
-            if (isEditing && initialData?.id) {
-                await setDoc(doc(db, "users", initialData.id), userData, { merge: true });
-            } else {
-                // Creating a new technician profile
-                // Ideally this should be linked to an Auth UID. 
-                // For now, we'll let Firestore generate an ID or use the email as ID if we want uniqueness.
-                // Let's use addDoc for auto-ID.
-                await addDoc(collection(db, "users"), {
+            if (uid) {
+                // Use setDoc with the UID (whether new or existing)
+                await setDoc(doc(db, "users", uid), {
                     ...userData,
-                    createdAt: serverTimestamp(),
-                });
+                    ...(!isEditing && { createdAt: serverTimestamp() }) // Only add createdAt for new users
+                }, { merge: true });
             }
+
+            router.push("/technicians");
+            router.refresh();
+        } catch (error: any) {
+            console.error("Error saving technician:", error);
+            if (error.code === 'auth/email-already-in-use') {
+                alert("El correo electrónico ya está en uso.");
+            } else if (error.code === 'auth/weak-password') {
+                alert("La contraseña es muy débil. Debe tener al menos 6 caracteres.");
+            } else {
+                alert("Error al guardar el técnico: " + error.message);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!initialData?.id || !confirm("¿Estás seguro de que deseas eliminar este técnico? Esta acción no se puede deshacer.")) return;
+
+        setLoading(true);
+        try {
+            await deleteDoc(doc(db, "users", initialData.id));
+            alert("Técnico eliminado correctamente.");
             router.push("/technicians");
             router.refresh();
         } catch (error) {
-            console.error("Error saving technician:", error);
-            alert("Error al guardar el técnico. Revisa la consola.");
+            console.error("Error deleting technician:", error);
+            alert("Error al eliminar el técnico.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePasswordReset = async () => {
+        if (!formData.email) return;
+        if (!confirm(`¿Enviar correo de restablecimiento de contraseña a ${formData.email}?`)) return;
+
+        try {
+            await sendPasswordResetEmail(auth, formData.email);
+            alert("Correo enviado correctamente.");
+        } catch (error: any) {
+            console.error("Error sending reset email:", error);
+            alert("Error al enviar el correo: " + error.message);
         }
     };
 
@@ -91,6 +147,21 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                     />
                 </div>
 
+                {!isEditing && (
+                    <div className="space-y-2">
+                        <Label>Contraseña</Label>
+                        <Input
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="******"
+                            required
+                            minLength={6}
+                        />
+                        <p className="text-xs text-gray-500">Mínimo 6 caracteres.</p>
+                    </div>
+                )}
+
                 <div className="space-y-2">
                     <Label>Teléfono</Label>
                     <Input
@@ -99,6 +170,23 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                         onChange={e => setFormData(prev => ({ ...prev, telefono: e.target.value }))}
                         placeholder="(809) 000-0000"
                     />
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Rol</Label>
+                    <Select
+                        value={formData.rol}
+                        onValueChange={(val) => setFormData(prev => ({ ...prev, rol: val as UserRole }))}
+                    >
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ADMIN">Administrador</SelectItem>
+                            <SelectItem value="TECNICO">Técnico</SelectItem>
+                            <SelectItem value="CLIENTE">Cliente</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -117,6 +205,24 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                     </Select>
                 </div>
             </div>
+
+            {isEditing && (
+                <div className="pt-4 border-t flex flex-col gap-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-medium text-gray-900">Acciones de Cuenta</h3>
+                    </div>
+                    <div className="flex gap-4">
+                        <Button type="button" variant="outline" onClick={handlePasswordReset} className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Resetear Contraseña
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={handleDelete}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar Técnico
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             <div className="flex justify-end gap-4 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>

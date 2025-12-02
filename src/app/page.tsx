@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, getCountFromServer } from "firebase/firestore";
+import { collection, getCountFromServer, doc, getDoc } from "firebase/firestore";
 import { AppCard } from "@/components/ui/app-card";
 import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { User as UserSchema } from "@/types/schema";
 
 interface AppCardProps {
   icon: React.ElementType;
@@ -21,15 +22,26 @@ interface AppCardProps {
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserSchema | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push("/login");
       } else {
         setUser(currentUser);
+        // Fetch user profile to get role
+        try {
+          const docRef = doc(db, "users", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserSchema);
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
       }
       setLoading(false);
     });
@@ -69,23 +81,27 @@ export default function Dashboard() {
           <AppCard
             icon={Ticket}
             label="Tickets"
-            href="/tickets"
+            href={userProfile?.rol === 'TECNICO' ? "/technician/tickets" : "/tickets"}
             color="text-purple-600"
           />
 
-          <AppCard
-            icon={Users}
-            label="Clientes"
-            href="/clients"
-            color="text-blue-600"
-          />
+          {userProfile?.rol !== 'TECNICO' && (
+            <>
+              <AppCard
+                icon={Users}
+                label="Clientes"
+                href="/clients"
+                color="text-blue-600"
+              />
 
-          <AppCard
-            icon={Wrench}
-            label="Técnicos"
-            href="/technicians"
-            color="text-orange-600"
-          />
+              <AppCard
+                icon={Wrench}
+                label="Técnicos"
+                href="/technicians"
+                color="text-orange-600"
+              />
+            </>
+          )}
 
           <AppCard
             icon={MessageSquare}
@@ -103,12 +119,14 @@ export default function Dashboard() {
             onClick={() => alert("Reportes en desarrollo")}
           />
 
-          <AppCard
-            icon={Settings}
-            label="Ajustes"
-            href="/settings"
-            color="text-gray-600"
-          />
+          {userProfile?.rol !== 'TECNICO' && (
+            <AppCard
+              icon={Settings}
+              label="Ajustes"
+              href="/settings"
+              color="text-gray-600"
+            />
+          )}
 
           <AppCard
             icon={FileText}

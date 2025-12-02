@@ -1,24 +1,8 @@
 import { Timestamp } from "firebase/firestore";
 
-export interface User {
+export interface Equipment {
     id: string;
     nombre: string;
-    email: string;
-    telefono: string;
-    rol: UserRole;
-    activo: boolean;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
-}
-
-export interface Client {
-    id: string;
-    nombreComercial: string;
-    tipoCliente: ClientType;
-    rnc?: string;
-    personaContacto: string;
-    telefonoContacto: string;
-    emailContacto: string;
     clientId: string;
     locationId: string;
     marca: string;
@@ -30,6 +14,41 @@ export interface Client {
     notas?: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
+}
+
+export interface User {
+    id: string;
+    nombre: string;
+    email: string;
+    telefono?: string;
+    rol: UserRole;
+    activo: boolean;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface Client {
+    id: string;
+    nombreComercial: string;
+    rnc?: string;
+    personaContacto: string;
+    telefonoContacto: string;
+    emailContacto?: string;
+    direccion?: string;
+    tipoCliente: 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL' | 'HOTEL' | 'EMPRESA';
+    notas?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface Location {
+    id: string;
+    nombre: string;
+    direccion?: string;
+    descripcion?: string;
+    clientId?: string;
+    createdAt?: any;
+    updatedAt?: any;
 }
 
 export interface TicketEvent {
@@ -194,20 +213,25 @@ export interface ChecklistItem {
 }
 
 export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_CLIENT' | 'WAITING_PARTS' | 'COMPLETED' | 'CANCELLED';
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 export interface Ticket {
     id: string;
     ticketNumber?: string;
+    clientId?: string;
     clientName: string;
+    ticketTypeId?: string;
     locationName: string;
     locationArea?: string; // e.g., "CAP CANA"
     specificLocation?: string; // e.g., "Villa 12"
     serviceType: string;
-    priority: string;
+    priority: TicketPriority;
     description: string;
     status: TicketStatus;
     checklist: ChecklistItem[];
     photos: TicketPhoto[];
+    technicianId?: string;
+    technicianName?: string;
     tecnicoAsignadoId?: string;
     creadoPorId?: string;
     diagnosis?: string;
@@ -215,6 +239,20 @@ export interface Ticket {
     recommendations?: string;
     clientSignature?: string;
     allowGalleryUpload?: boolean;
+    // SLA Fields
+    slaResponseDeadline?: Timestamp; // When first response is due
+    slaResolutionDeadline?: Timestamp; // When resolution is due
+    firstResponseAt?: Timestamp; // When technician first responded
+    resolvedAt?: Timestamp; // When ticket was completed
+    // Profitability Fields
+    laborHours?: number; // Hours worked on this ticket
+    laborRate?: number; // Hourly rate (RD$/hour)
+    materialsCost?: number; // Cost of materials used
+    otherCosts?: number; // Other expenses
+    totalCost?: number; // Calculated: (laborHours * laborRate) + materialsCost + otherCosts
+    linkedInvoiceId?: string; // ID of related invoice
+    revenue?: number; // Amount charged to client
+    profitMargin?: number; // Calculated: ((revenue - totalCost) / revenue) * 100
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
@@ -222,6 +260,7 @@ export interface Ticket {
 export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'TECNICO';
 export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
 export type EquipmentType = 'AIRE_ACONDICIONADO' | 'REFRIGERACION' | 'LAVADORA' | 'SECADORA' | 'ESTUFA' | 'OTRO';
+export type ServiceType = 'MANTENIMIENTO' | 'INSTALACION' | 'REPARACION' | 'LEVANTAMIENTO' | 'ARRANQUE_EQUIPOS' | 'VERIFICACION' | 'CHEQUEO_GENERAL' | 'DESINSTALACION' | 'EMERGENCIA' | 'PREVENTIVO' | 'DIAGNOSTICO' | 'INSPECCION';
 
 export type ReportBlockType = 'h1' | 'h2' | 'h3' | 'text' | 'bullet-list' | 'numbered-list' | 'blockquote' | 'separator' | 'photo';
 
@@ -230,6 +269,7 @@ export interface ReportBlockAttributes {
     italic?: boolean;
     underline?: boolean;
     align?: 'left' | 'center' | 'right' | 'justify';
+    size?: 'small' | 'medium' | 'large' | 'full';
 }
 
 export interface ReportSection {
@@ -284,6 +324,38 @@ export interface ACError {
     updatedAt?: any;
 }
 
+export interface Permission {
+    id: string;
+    key: string;
+    label: string;
+    group: string;
+}
+
+export interface Role {
+    id: string;
+    name: string;
+    description?: string;
+    permissions: string[];
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface TicketType {
+    id: string;
+    name: string;
+    key: string;
+    description?: string;
+    color: string;
+    active: boolean;
+    requiresPhotos: boolean;
+    requiresSignature: boolean;
+    requiresMaterials: boolean;
+    defaultChecklist: ChecklistItem[];
+    order?: number;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
 export interface TicketReport {
     id?: string;
     ticketId: string;
@@ -298,4 +370,37 @@ export interface TicketReport {
     sections: ReportSection[];
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
+}
+
+export type ApprovalRequestType = 'MATERIAL_PURCHASE' | 'PRICE_CHANGE' | 'SCOPE_CHANGE' | 'OVERTIME' | 'OTHER';
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ApprovalRequest {
+    id: string;
+    ticketId: string;
+    ticketNumber?: string;
+    requestedBy: string; // User ID
+    requestedByName: string;
+    type: ApprovalRequestType;
+    title: string;
+    description: string;
+    amount?: number; // For purchases or price changes
+    urgency: 'LOW' | 'MEDIUM' | 'HIGH';
+    status: ApprovalStatus;
+    reviewedBy?: string; // User ID
+    reviewedByName?: string;
+    reviewedAt?: Timestamp;
+    reviewNotes?: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface CompanySettings {
+    name: string;
+    rnc: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    logoUrl: string;
 }

@@ -32,8 +32,8 @@ export default function NewTicketPage() {
     const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
 
     const [formData, setFormData] = useState<Partial<Ticket>>({
-        status: 'PENDIENTE',
-        priority: 'MEDIA',
+        status: 'OPEN',
+        priority: 'MEDIUM',
         checklist: [],
         photos: [],
         locationArea: "",
@@ -76,11 +76,10 @@ export default function NewTicketPage() {
             ...prev,
             ticketTypeId: type.id,
             serviceType: type.key as any, // Fallback for enum
-            checklist: type.defaultChecklist.map((label, index) => ({
+            checklist: type.defaultChecklist.map((item, index) => ({
                 id: `chk-${Date.now()}-${index}`,
-                label,
-                checked: false,
-                required: true
+                text: item.text,
+                checked: false
             }))
         }));
     };
@@ -90,7 +89,7 @@ export default function NewTicketPage() {
             ...prev,
             technicianId: techId,
             technicianName: techName,
-            status: 'ASIGNADO'
+            status: 'IN_PROGRESS'
         }));
     };
 
@@ -257,10 +256,10 @@ export default function NewTicketPage() {
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="BAJA">Baja</SelectItem>
-                                            <SelectItem value="MEDIA">Media</SelectItem>
-                                            <SelectItem value="ALTA">Alta</SelectItem>
-                                            <SelectItem value="CRITICA">Crítica</SelectItem>
+                                            <SelectItem value="LOW">Baja</SelectItem>
+                                            <SelectItem value="MEDIUM">Media</SelectItem>
+                                            <SelectItem value="HIGH">Alta</SelectItem>
+                                            <SelectItem value="URGENT">Crítica</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

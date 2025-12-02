@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { Client } from "@/types/schema";
 
@@ -90,8 +90,8 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                 ...newClientData,
                 tipoCliente: 'EMPRESA',
                 personaContacto: newClientData.nombreComercial,
-                createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
-                updatedAt: { seconds: Date.now() / 1000, nanoseconds: 0 },
+                createdAt: Timestamp.fromMillis(Date.now()),
+                updatedAt: Timestamp.fromMillis(Date.now()),
             };
 
             setClients(prev => [...prev, newClient]);
