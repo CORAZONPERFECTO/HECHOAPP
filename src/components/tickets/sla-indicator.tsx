@@ -21,9 +21,22 @@ export function calculateSLAStatus(ticket: Ticket): {
     responseHoursRemaining: number;
     resolutionHoursRemaining: number;
 } {
+    // Handle missing or invalid priority
+    const priority = ticket.priority as TicketPriority;
+    const thresholds = SLA_THRESHOLDS[priority] || SLA_THRESHOLDS.MEDIUM; // Default to MEDIUM if invalid
+
+    // Handle missing createdAt
+    if (!ticket.createdAt || !ticket.createdAt.seconds) {
+        return {
+            responseStatus: "ON_TIME",
+            resolutionStatus: "ON_TIME",
+            responseHoursRemaining: 0,
+            resolutionHoursRemaining: 0,
+        };
+    }
+
     const now = Date.now();
     const createdAt = ticket.createdAt.seconds * 1000;
-    const thresholds = SLA_THRESHOLDS[ticket.priority];
 
     // Calculate response SLA
     const responseDeadline = createdAt + thresholds.response * 60 * 60 * 1000;
