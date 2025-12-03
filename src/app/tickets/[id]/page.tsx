@@ -20,6 +20,12 @@ import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { ReportEditor } from "@/components/tickets/report-editor";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
+import { StatusActionButtons } from "@/components/technician/status-action-buttons";
+import { FloatingActionButtons } from "@/components/technician/floating-action-buttons";
+import { EquipmentHistoryModal } from "@/components/technician/equipment-history-modal";
+import { MaterialRequestForm } from "@/components/technician/material-request-form";
+import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
+import { ProfitabilityCard } from "@/components/tickets/profitability-card";
 import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2 } from "lucide-react";
 
 export default function TicketDetailPage() {
@@ -31,6 +37,8 @@ export default function TicketDetailPage() {
     const [events, setEvents] = useState<TicketEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | undefined>(undefined);
+    const [currentUserId, setCurrentUserId] = useState<string>("");
+    const [currentUserName, setCurrentUserName] = useState<string>("");
     const [activeTab, setActiveTab] = useState("info");
 
     // Auto-save integration
@@ -70,6 +78,8 @@ export default function TicketDetailPage() {
             const { auth } = await import("@/lib/firebase"); // Dynamic import to avoid SSR issues if any
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
+                    setCurrentUserId(user.uid);
+                    setCurrentUserName(user.displayName || user.email || "Usuario");
                     if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
                         setCurrentUserRole('ADMIN');
                     } else {
@@ -141,6 +151,13 @@ export default function TicketDetailPage() {
                 </div>
             </header >
 
+            {/* Status Action Buttons for Technicians */}
+            {currentUserRole === 'TECHNICIAN' && (
+                <div className="max-w-3xl mx-auto px-4 pt-4 print:hidden">
+                    <StatusActionButtons ticket={ticket} />
+                </div>
+            )}
+
             <main className="max-w-3xl mx-auto p-4 space-y-6 print:max-w-none print:p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="print:hidden">
                     <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
@@ -198,6 +215,23 @@ export default function TicketDetailPage() {
                                 <TicketTimeline events={events} />
                             </CardContent>
                         </Card>
+
+                        {/* Equipment History */}
+                        {ticket.equipmentId && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Historial del Equipo</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <EquipmentHistoryModal equipmentId={ticket.equipmentId} />
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Profitability Card for Admins */}
+                        {canViewFinalReport && (
+                            <ProfitabilityCard ticket={ticket} />
+                        )}
                     </TabsContent>
 
                     <TabsContent value="checklist" className="space-y-4">
@@ -318,6 +352,36 @@ export default function TicketDetailPage() {
                                 </Button>
                             </CardContent>
                         </Card>
+
+                        {/* Material Request Form */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Solicitud de Materiales</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <MaterialRequestForm
+                                    ticketId={ticket.id!}
+                                    ticketNumber={ticket.ticketNumber}
+                                    userId={currentUserId}
+                                    userName={currentUserName}
+                                />
+                            </CardContent>
+                        </Card>
+
+                        {/* Approval Request Form */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Solicitud de Aprobación</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ApprovalRequestForm
+                                    ticketId={ticket.id!}
+                                    ticketNumber={ticket.ticketNumber}
+                                    userId={currentUserId}
+                                    userName={currentUserName}
+                                />
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {canViewFinalReport && (
@@ -333,6 +397,9 @@ export default function TicketDetailPage() {
                     {canViewFinalReport && <ReportEditor ticket={ticket} currentUserRole={currentUserRole} />}
                 </div>
             </main>
-        </div >
+
+            {/* Floating Action Buttons */}
+            <FloatingActionButtons ticket={ticket} />
+        </div>
     );
 }
