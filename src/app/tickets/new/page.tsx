@@ -101,16 +101,27 @@ export default function NewTicketPage() {
             // Construct full location name for display
             const fullLocation = `${formData.locationArea || ''} - ${formData.specificLocation || ''}`.trim().replace(/^- |- $/g, '');
 
-            const ticketData = {
+            const ticketData: any = {
                 ...formData,
                 number: ticketNumber,
-                ticketNumber: ticketNumber, // Ensure consistency with schema
+                ticketNumber: ticketNumber,
                 locationName: fullLocation || formData.locationName || "Ubicación no especificada",
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
                 createdBy: auth.currentUser?.uid || "SYSTEM",
-                creadoPorId: auth.currentUser?.uid, // Schema field
             };
+
+            // Only add creadoPorId if user is authenticated
+            if (auth.currentUser?.uid) {
+                ticketData.creadoPorId = auth.currentUser.uid;
+            }
+
+            // Remove any undefined fields from formData
+            Object.keys(ticketData).forEach(key => {
+                if (ticketData[key] === undefined) {
+                    delete ticketData[key];
+                }
+            });
 
             await addDoc(collection(db, "tickets"), ticketData);
             router.push("/tickets");
