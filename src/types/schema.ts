@@ -239,6 +239,7 @@ export interface Ticket {
     recommendations?: string;
     clientSignature?: string;
     allowGalleryUpload?: boolean;
+    equipmentId?: string; // ID of the equipment being serviced
     // SLA Fields
     slaResponseDeadline?: Timestamp; // When first response is due
     slaResolutionDeadline?: Timestamp; // When resolution is due
