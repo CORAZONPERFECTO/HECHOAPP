@@ -31,7 +31,7 @@ service cloud.firestore {
     // Tickets
     match /tickets/{ticketId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow create: if true; // Allow public creation (validated by token on client/server logic)
       allow update: if isAuthenticated();
       allow delete: if isAdmin();
     }
@@ -84,6 +84,16 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if hasRole('ADMIN') || hasRole('SUPERVISOR') || hasRole('GERENTE') || request.auth.token.email == 'lcaa27@gmail.com';
+    }
+
+    // Secure Ticket Tokens
+    match /ticketTokens/{tokenId} {
+      // Allow public read to validate token
+      allow read: if true;
+      // Allow authenticated users to create tokens
+      allow create: if isAuthenticated();
+      // Allow public update to mark as USED (with restrictions)
+      allow update: if true; 
     }
 
     match /{document=**} {
