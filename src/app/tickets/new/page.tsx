@@ -116,14 +116,16 @@ export default function NewTicketPage() {
                 ticketData.creadoPorId = auth.currentUser.uid;
             }
 
-            // Remove any undefined fields from formData
+            // Remove any undefined or null fields
+            const cleanedData: any = {};
             Object.keys(ticketData).forEach(key => {
-                if (ticketData[key] === undefined) {
-                    delete ticketData[key];
+                const value = ticketData[key];
+                if (value !== undefined && value !== null) {
+                    cleanedData[key] = value;
                 }
             });
 
-            await addDoc(collection(db, "tickets"), ticketData);
+            await addDoc(collection(db, "tickets"), cleanedData);
             router.push("/tickets");
         } catch (error) {
             console.error("Error creating ticket:", error);
