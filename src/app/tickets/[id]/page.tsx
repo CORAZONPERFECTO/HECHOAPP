@@ -1,4 +1,5 @@
 "use client";
+// Ticket Detail Page - Updated 2025-12-03
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
