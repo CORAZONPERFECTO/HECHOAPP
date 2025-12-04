@@ -129,7 +129,7 @@ export default function TicketDetailPage() {
                     </Button>
                     <div>
                         <h1 className="font-bold text-gray-900">{ticket.ticketNumber || ticket.id?.slice(0, 6)}</h1>
-                        <p className="text-xs text-gray-500">{ticket.clientName}</p>
+                        <p className="text-xs text-gray-500">{ticket.clientName} <span className="text-red-500 font-bold">[{currentUserRole || 'NO_ROLE'}]</span></p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
