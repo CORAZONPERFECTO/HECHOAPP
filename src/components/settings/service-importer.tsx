@@ -63,9 +63,15 @@ export function ServiceImporter() {
             const errors: string[] = [];
             const total = jsonData.length;
 
-            // Fetch existing ticket types to minimize reads inside loop? 
-            // Or just query one by one for simplicity and real-time accuracy?
-            // Let's query one by one for now as the list shouldn't be huge.
+            // Fetch all existing ticket types once to minimize reads
+            const existingTypesSnapshot = await getDocs(collection(db, "ticketTypes"));
+            const existingTypesMap = new Map();
+            existingTypesSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                // Map by name (lowercase for case-insensitive check if needed, or exact)
+                // Using exact name as per requirement
+                existingTypesMap.set(data.name, doc.id);
+            });
 
             for (let i = 0; i < total; i++) {
                 const row = jsonData[i];
@@ -90,10 +96,6 @@ export function ServiceImporter() {
                             checked: false
                         }));
 
-                    // Check if exists
-                    const q = query(collection(db, "ticketTypes"), where("name", "==", serviceName));
-                    const querySnapshot = await getDocs(q);
-
                     const serviceData = {
                         name: serviceName,
                         key: serviceName.toUpperCase().replace(/\s+/g, "_"),
@@ -108,9 +110,9 @@ export function ServiceImporter() {
                         requiresMaterials: false,
                     };
 
-                    if (!querySnapshot.empty) {
+                    if (existingTypesMap.has(serviceName)) {
                         // Update
-                        const docId = querySnapshot.docs[0].id;
+                        const docId = existingTypesMap.get(serviceName);
                         await updateDoc(doc(db, "ticketTypes", docId), {
                             description: description,
                             defaultChecklist: checklistItems,
@@ -119,10 +121,12 @@ export function ServiceImporter() {
                         updatedCount++;
                     } else {
                         // Create
-                        await addDoc(collection(db, "ticketTypes"), {
+                        const newDocRef = await addDoc(collection(db, "ticketTypes"), {
                             ...serviceData,
                             createdAt: serverTimestamp(),
                         });
+                        // Add to map so subsequent rows with same name (if any) update this one
+                        existingTypesMap.set(serviceName, newDocRef.id);
                         createdCount++;
                     }
 

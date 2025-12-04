@@ -405,3 +405,13 @@ export interface CompanySettings {
     website: string;
     logoUrl: string;
 }
+
+export interface TicketToken {
+    id: string;
+    token: string; // The unique token string (can be same as ID)
+    status: 'ACTIVE' | 'USED' | 'INVALID';
+    ticketId?: string | null;
+    createdAt: Timestamp;
+    expiresAt?: Timestamp;
+    createdBy: string; // User ID of admin who generated it
+}

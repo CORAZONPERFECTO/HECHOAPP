@@ -7,7 +7,9 @@ import { Ticket } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { TokenGenerator } from "@/components/tickets/token-generator";
+import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
@@ -102,12 +104,25 @@ export default function TicketsPage() {
                             <p className="text-gray-500">Gestión operativa y seguimiento</p>
                         </div>
                     </div>
-                    <Link href="/tickets/new">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Crear Ticket
-                        </Button>
-                    </Link>
+                    <div className="flex gap-2">
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline">
+                                    <ShieldCheck className="mr-2 h-4 w-4" />
+                                    Generar Enlace Seguro
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[425px]">
+                                <TokenGenerator />
+                            </DialogContent>
+                        </Dialog>
+                        <Link href="/tickets/new">
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Crear Ticket
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {loading ? (
