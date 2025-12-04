@@ -153,7 +153,7 @@ export default function TicketDetailPage() {
             </header >
 
             {/* Status Action Buttons for Technicians */}
-            {currentUserRole && currentUserRole === 'TECNICO' && (
+            {currentUserRole && (currentUserRole === 'TECNICO' || currentUserRole === 'ADMIN') && (
                 <div className="max-w-3xl mx-auto px-4 pt-4 print:hidden">
                     <StatusActionButtons ticket={ticket} />
                 </div>
