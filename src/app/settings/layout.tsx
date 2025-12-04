@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Settings, Users, FileText, Shield, ArrowLeft, Building2 } from "lucide-react";
+import { Settings, Users, FileText, Shield, ArrowLeft, Building2, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsLayout({
@@ -33,6 +33,11 @@ export default function SettingsLayout({
             title: "Perfil de Empresa",
             href: "/settings/company",
             icon: Building2,
+        },
+        {
+            title: "Importar Servicios",
+            href: "/settings/import-services",
+            icon: FileSpreadsheet,
         },
     ];
 
