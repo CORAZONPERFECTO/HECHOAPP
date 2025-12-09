@@ -323,7 +323,7 @@ export default function TicketReportPage() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-auto">
                 {activeTab === "edit" ? (
                     <TicketReportEditor
                         report={report}
