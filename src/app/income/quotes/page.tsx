@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppLayout } from "@/components/layout/app-layout";
 
 export default function QuotesPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -42,7 +44,7 @@ export default function QuotesPage() {
         },
         {
             header: "Fecha",
-            cell: (item: Quote) => new Date(item.createdAt.seconds * 1000).toLocaleDateString(),
+            cell: (item: Quote) => item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : 'N/A',
         },
         {
             header: "Total",
@@ -52,11 +54,15 @@ export default function QuotesPage() {
             header: "Estado",
             cell: (item: Quote) => <StatusBadge status={item.status} type="quote" />,
         },
+        {
+            header: "Vence",
+            cell: (item: Quote) => item.validUntil ? new Date(item.validUntil.seconds * 1000).toLocaleDateString() : 'N/A',
+        },
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-6xl mx-auto space-y-6">
+        <AppLayout>
+            <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" onClick={() => router.push("/income")}>
@@ -65,29 +71,36 @@ export default function QuotesPage() {
                         </Button>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">Cotizaciones</h1>
-                            <p className="text-gray-500">Gestión de presupuestos</p>
+                            <p className="text-gray-500">Gestiona propuestas y presupuestos</p>
                         </div>
                     </div>
-                    <Link href="/income/quotes/new">
-                        <Button>
+                    <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-md">
+                        <Link href="/income/quotes/new">
                             <Plus className="mr-2 h-4 w-4" />
                             Nueva Cotización
-                        </Button>
-                    </Link>
+                        </Link>
+                    </Button>
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-12">Cargando cotizaciones...</div>
+                    <div className="flex justify-center items-center h-64">
+                        <div className="animate-pulse flex flex-col items-center">
+                            <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
+                            <div className="h-4 w-48 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
                 ) : (
-                    <DataTable
-                        data={quotes}
-                        columns={columns}
-                        searchKey="clientName"
-                        searchPlaceholder="Buscar por cliente..."
-                        onRowClick={(item) => router.push(`/income/quotes/${item.id}`)}
-                    />
+                    <div className="glass-card rounded-xl overflow-hidden border border-gray-100 shadow-sm">
+                        <DataTable
+                            data={quotes}
+                            columns={columns}
+                            searchKey="clientName"
+                            searchPlaceholder="Buscar por cliente..."
+                            onRowClick={(item) => router.push(`/income/quotes/${item.id}`)}
+                        />
+                    </div>
                 )}
             </div>
-        </div>
+        </AppLayout>
     );
 }
