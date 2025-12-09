@@ -66,19 +66,35 @@ export function CompanyProfile() {
         try {
             setUploading(true);
 
-            // Compress image before upload (max 800px width, 0.8 quality)
+            // Compress image but preserve transparency for PNGs
             const compressedBlob = await compressImage(file, 800, 0.8);
 
+            // Create a reference with a better path structure
+            // Using a fixed name for the company logo can help overwrite old ones, but timestamps avoid caching issues.
             const storageRef = ref(storage, `company/logo_${Date.now()}_${file.name}`);
-            await uploadBytes(storageRef, compressedBlob);
-            const url = await getDownloadURL(storageRef);
+
+            const snapshot = await uploadBytes(storageRef, compressedBlob);
+            const url = await getDownloadURL(snapshot.ref);
 
             setSettings(prev => ({ ...prev, logoUrl: url }));
-        } catch (error) {
+            // Auto-save after upload
+            await setDoc(doc(db, "settings", "company"), { ...settings, logoUrl: url });
+
+            alert("Logo subido y guardado correctamente.");
+        } catch (error: any) {
             console.error("Error uploading logo:", error);
-            alert("Error al subir el logo. Intenta con una imagen más pequeña.");
+            // Check for common storage errors
+            if (error.code === 'storage/unauthorized') {
+                alert("No tienes permisos para subir archivos. Verifica tu sesión.");
+            } else if (error.code === 'storage/canceled') {
+                alert("Subida cancelada.");
+            } else {
+                alert("Error al subir el logo: " + (error.message || "Error desconocido"));
+            }
         } finally {
             setUploading(false);
+            // Reset input
+            e.target.value = "";
         }
     };
 

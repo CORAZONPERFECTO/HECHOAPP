@@ -415,3 +415,65 @@ export interface TicketToken {
     expiresAt?: Timestamp;
     createdBy: string; // User ID of admin who generated it
 }
+
+// --- New Report Module Types ---
+
+export type SectionType = 'h1' | 'h2' | 'text' | 'list' | 'photo' | 'divider';
+
+export interface BaseSection {
+    id: string;
+    type: SectionType;
+}
+
+export interface TitleSection extends BaseSection {
+    type: 'h1' | 'h2';
+    content: string;
+}
+
+export interface TextSection extends BaseSection {
+    type: 'text';
+    content: string;
+}
+
+export interface ListSection extends BaseSection {
+    type: 'list';
+    items: string[];
+}
+
+export interface PhotoSection extends BaseSection {
+    type: 'photo';
+    photoUrl: string;
+    description?: string;
+    photoMeta?: {
+        originalId?: string;
+        area?: string;
+        phase?: 'BEFORE' | 'DURING' | 'AFTER';
+    };
+}
+
+export interface DividerSection extends BaseSection {
+    type: 'divider';
+}
+
+export type TicketReportSection =
+    | TitleSection
+    | TextSection
+    | ListSection
+    | PhotoSection
+    | DividerSection;
+
+export interface TicketReportHeader {
+    clientName: string;
+    ticketNumber: string;
+    address?: string;
+    date: string;
+    technicianName?: string;
+    title: string;
+}
+
+export interface TicketReportNew {
+    ticketId: string;
+    header: TicketReportHeader;
+    sections: TicketReportSection[];
+    lastGeneratedFromTicketAt?: string;
+}

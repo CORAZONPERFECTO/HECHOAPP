@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { Client } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Users, Building2, Home, Hotel } from "lucide-react";
+import { Plus, Search, Users, Building2, Home, Hotel, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -14,7 +14,28 @@ export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [currentUserEmail, setCurrentUserEmail] = useState("");
     const router = useRouter();
+
+    useEffect(() => {
+        const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+            if (user) {
+                setCurrentUserEmail(user.email || "");
+            }
+        });
+        return () => unsubscribeAuth();
+    }, []);
+
+    const handleDeleteClient = async (clientId: string) => {
+        if (!confirm("¿ESTÁS SEGURO? Esta acción eliminará el cliente permanentemente.")) return;
+        try {
+            await deleteDoc(doc(db, "clients", clientId));
+            // Snapshot listener will update the list automatically
+        } catch (error) {
+            console.error("Error deleting client:", error);
+            alert("Error al eliminar el cliente.");
+        }
+    };
 
     useEffect(() => {
         const q = query(collection(db, "clients"), orderBy("createdAt", "desc"));
@@ -112,6 +133,24 @@ export default function ClientsPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Super User Delete Action */}
+                                {currentUserEmail.toLowerCase() === 'lcaa27@gmail.com' && (
+                                    <div className="mt-4 pt-4 border-t flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteClient(client.id);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Eliminar
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

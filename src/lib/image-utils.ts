@@ -33,6 +33,9 @@ export async function compressImage(file: File, maxWidth: number = 800, quality:
 
                 ctx.drawImage(img, 0, 0, width, height);
 
+                // Use the original file type or fallback to jpeg. Prefer png for transparency.
+                const outputType = file.type === 'image/png' || file.type === 'image/webp' ? file.type : 'image/jpeg';
+
                 canvas.toBlob(
                     (blob) => {
                         if (blob) {
@@ -41,7 +44,7 @@ export async function compressImage(file: File, maxWidth: number = 800, quality:
                             reject(new Error("Compression failed"));
                         }
                     },
-                    'image/jpeg',
+                    outputType,
                     quality
                 );
             };

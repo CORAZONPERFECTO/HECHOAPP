@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Ticket, TicketEvent, TicketStatus, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2 } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2 } from "lucide-react";
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -36,50 +36,36 @@ export default function TicketDetailPage() {
 
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [events, setEvents] = useState<TicketEvent[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [currentUserRole, setCurrentUserRole] = useState<UserRole | undefined>(undefined);
-    const [currentUserId, setCurrentUserId] = useState<string>("");
-    const [currentUserName, setCurrentUserName] = useState<string>("");
     const [activeTab, setActiveTab] = useState("info");
+    const [currentUserId, setCurrentUserId] = useState("");
+    const [currentUserEmail, setCurrentUserEmail] = useState("");
+    const [currentUserName, setCurrentUserName] = useState("");
+    const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
-    // Auto-save integration
-    const { lastSaved, saving } = useTicketAutoSave(ticket || {}, {
-        ticketId,
-        onSave: (date) => console.log("Auto-saved at", date)
-    });
+    const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR';
+
+    // Auto-save functionality
+    useEffect(() => {
+        if (!ticket || !ticketId) return;
+
+        const timeoutId = setTimeout(async () => {
+            try {
+                await setDoc(doc(db, "tickets", ticketId), ticket);
+            } catch (error) {
+                console.error("Error auto-saving ticket:", error);
+            }
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+    }, [ticket, ticketId]);
 
     useEffect(() => {
-        if (!ticketId) return;
-
-        // Subscribe to ticket changes
-        const unsubTicket = onSnapshot(doc(db, "tickets", ticketId), (doc) => {
-            if (doc.exists()) {
-                setTicket({ id: doc.id, ...doc.data() } as Ticket);
-            }
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching ticket:", error);
-            setLoading(false);
-        });
-
-        // Subscribe to events
-        const q = query(collection(db, "ticketEvents"), where("ticketId", "==", ticketId));
-        const unsubEvents = onSnapshot(q, (snapshot) => {
-            setEvents(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TicketEvent)));
-        }, (error) => {
-            console.error("Error fetching events:", error);
-        });
-
-        // Fetch current user role
-        const checkUserRole = async () => {
-            // Wait for auth to be ready (simple check)
-            // In a real app, use onAuthStateChanged, but here we assume auth is initialized or we check it
-            // Actually, we should use onAuthStateChanged here too or assume the parent layout handles it?
-            // The previous Technician page used onAuthStateChanged. Let's do that.
-            const { auth } = await import("@/lib/firebase"); // Dynamic import to avoid SSR issues if any
+        const loadAuth = async () => {
+            const { auth } = await import("@/lib/firebase");
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     setCurrentUserId(user.uid);
+                    setCurrentUserEmail(user.email || "");
                     setCurrentUserName(user.displayName || user.email || "Usuario");
                     if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
                         setCurrentUserRole('ADMIN');
@@ -92,32 +78,59 @@ export default function TicketDetailPage() {
                 }
             });
         };
-        checkUserRole();
+        loadAuth();
+    }, []);
 
-        return () => {
-            unsubTicket();
-            unsubEvents();
-        };
+    useEffect(() => {
+        if (!ticketId) return;
+
+        const unsubscribe = onSnapshot(doc(db, "tickets", ticketId), (docSnap) => {
+            if (docSnap.exists()) {
+                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
+            }
+        });
+
+        return () => unsubscribe();
     }, [ticketId]);
 
-    const handleStatusChange = async (newStatus: TicketStatus) => {
-        if (!ticket) return;
+    useEffect(() => {
+        if (!ticketId) return;
 
-        // In a real app, this would be an API call to ensure atomic updates
-        // For prototype, we just update the local state which triggers auto-save
-        // But for status changes, we should probably force an immediate update
-        // Logic to add event would go here
-    };
+        const q = query(
+            collection(db, "ticketEvents"),
+            where("ticketId", "==", ticketId)
+        );
 
-    if (loading) {
-        return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>;
-    }
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const evts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TicketEvent));
+            evts.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+            setEvents(evts);
+        });
+
+        return () => unsubscribe();
+    }, [ticketId]);
 
     if (!ticket) {
-        return <div className="p-8 text-center">Ticket no encontrado</div>;
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            </div>
+        );
     }
 
-    const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE';
+    const handleDeleteTicket = async () => {
+        if (!confirm("¿ESTÁS SEGURO? Esta acción eliminará el ticket permanentemente.")) return;
+
+        try {
+            await deleteDoc(doc(db, "tickets", ticketId));
+            // Optional: Delete related events/photos if strictly required, but usually subcollections persist or are loose.
+            // For now, just delete the main doc.
+            router.push("/tickets");
+        } catch (error) {
+            console.error("Error deleting ticket:", error);
+            alert("Error al eliminar el ticket.");
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
@@ -133,6 +146,19 @@ export default function TicketDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* SUPER USER DELETE BUTTON */}
+                    {currentUserEmail.toLowerCase() === 'lcaa27@gmail.com' && (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleDeleteTicket}
+                            className="mr-2"
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
+                        </Button>
+                    )}
+
                     <Button
                         variant="outline"
                         size="sm"
@@ -146,11 +172,9 @@ export default function TicketDetailPage() {
                         <Share2 className="h-4 w-4" />
                         Compartir
                     </Button>
-                    {saving && <span className="text-xs text-gray-400 flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> Guardando...</span>}
-                    {!saving && lastSaved && <span className="text-xs text-gray-400">Guardado</span>}
                     <TicketStatusBadge status={ticket.status} />
                 </div>
-            </header >
+            </header>
 
             {/* Status Action Buttons for Technicians */}
             {currentUserRole && (currentUserRole === 'TECNICO' || currentUserRole === 'ADMIN') && (

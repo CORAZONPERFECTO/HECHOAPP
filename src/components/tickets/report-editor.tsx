@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Ticket, TicketReport, ReportSection, UserRole, ReportBlockType, ReportBlockAttributes, CompanySettings } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,14 @@ import {
     AlignRight,
     AlignJustify,
     Heading2,
-    Minus
+    Minus,
+    List,
+    ListOrdered,
+    Quote,
+    Copy,
+    ChevronDown,
+    ChevronUp,
+    Share2
 } from "lucide-react";
 import Image from "next/image";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -47,6 +54,7 @@ const BlockRenderer = ({
     onDelete,
     onMoveUp,
     onMoveDown,
+    onDuplicate,
     isFirst,
     isLast,
     readOnly = false
@@ -56,6 +64,7 @@ const BlockRenderer = ({
     onDelete: () => void,
     onMoveUp: () => void,
     onMoveDown: () => void,
+    onDuplicate: () => void,
     isFirst: boolean,
     isLast: boolean,
     readOnly?: boolean
@@ -73,27 +82,25 @@ const BlockRenderer = ({
         };
 
         switch (section.type) {
-            case 'h1': return <h1 style={style} className="text-3xl font-bold text-gray-900 mb-4 mt-6">{section.content}</h1>;
-            case 'h2': return <h2 style={style} className="text-2xl font-bold text-gray-800 mb-3 mt-5">{section.content}</h2>;
-            case 'h3': return <h3 style={style} className="text-xl font-semibold text-gray-800 mb-2 mt-4">{section.content}</h3>;
+            case 'h1': return <h1 style={style} className="text-3xl font-bold text-gray-900 mb-4 mt-6 break-after-avoid">{section.content}</h1>;
+            case 'h2': return <h2 style={style} className="text-2xl font-bold text-gray-800 mb-3 mt-5 break-after-avoid">{section.content}</h2>;
+            case 'h3': return <h3 style={style} className="text-xl font-semibold text-gray-800 mb-2 mt-4 break-after-avoid">{section.content}</h3>;
             case 'bullet-list':
                 return (
-                    <ul style={style} className="list-disc pl-5 space-y-1 mb-4 print:grid print:grid-cols-2 print:gap-x-4 print:gap-y-1 print:pl-0 print:list-none">
-                        {section.content?.split('\n').map((item, i) => (
-                            <li key={i} className="break-inside-avoid">
-                                {item}
-                            </li>
+                    <ul style={style} className="list-disc pl-5 space-y-1 mb-4">
+                        {section.content?.split('\n').filter(item => item.trim()).map((item, i) => (
+                            <li key={i} className="break-inside-avoid">{item}</li>
                         ))}
                     </ul>
                 );
             case 'numbered-list':
                 return (
                     <ol style={style} className="list-decimal pl-5 space-y-1 mb-4">
-                        {section.content?.split('\n').map((item, i) => <li key={i}>{item}</li>)}
+                        {section.content?.split('\n').filter(item => item.trim()).map((item, i) => <li key={i} className="break-inside-avoid">{item}</li>)}
                     </ol>
                 );
             case 'blockquote':
-                return <blockquote style={style} className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4">{section.content}</blockquote>;
+                return <blockquote style={style} className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4 break-inside-avoid">{section.content}</blockquote>;
             case 'separator': return <hr className="my-6 border-gray-300" />;
             case 'photo':
                 const sizeClass = section.attributes?.size === 'small' ? 'w-1/3' :
@@ -103,7 +110,6 @@ const BlockRenderer = ({
                 return (
                     <div className={`mb-6 break-inside-avoid ${sizeClass} mx-auto`}>
                         <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                            {/* Use standard img tag for better print compatibility */}
                             {section.photoUrl && (
                                 <img
                                     src={section.photoUrl}
@@ -121,58 +127,141 @@ const BlockRenderer = ({
                     </div>
                 );
             default: // text / paragraph
-                return <p style={style} className="mb-3 text-gray-700 leading-relaxed whitespace-pre-wrap">{section.content}</p>;
+                return <p style={style} className="mb-3 text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{section.content}</p>;
         }
     }
 
     // Render for Editor
     return (
-        <div className="group relative border rounded-lg p-3 bg-white hover:shadow-sm transition-all mb-3">
-            {/* Block Controls (Left) */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-50 rounded-l-lg border-r">
-                <button onClick={onMoveUp} disabled={isFirst} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30"><MoveUp className="h-3 w-3" /></button>
-                <GripVertical className="h-3 w-3 text-gray-400 cursor-grab" />
-                <button onClick={onMoveDown} disabled={isLast} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30"><MoveDown className="h-3 w-3" /></button>
-                <button onClick={onDelete} className="p-1 hover:bg-red-100 text-red-500 rounded mt-2"><Trash2 className="h-3 w-3" /></button>
+        <div className="group relative border-2 border-transparent hover:border-blue-200 rounded-xl p-4 bg-white hover:shadow-md transition-all mb-4">
+            {/* Block Controls (Top Right) */}
+            <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={onDuplicate} className="p-1.5 hover:bg-blue-50 rounded text-blue-600" title="Duplicar">
+                    <Copy className="h-4 w-4" />
+                </button>
+                <button onClick={onMoveUp} disabled={isFirst} className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30" title="Subir">
+                    <MoveUp className="h-4 w-4" />
+                </button>
+                <button onClick={onMoveDown} disabled={isLast} className="p-1.5 hover:bg-gray-100 rounded disabled:opacity-30" title="Bajar">
+                    <MoveDown className="h-4 w-4" />
+                </button>
+                <button onClick={onDelete} className="p-1.5 hover:bg-red-50 text-red-500 rounded" title="Eliminar">
+                    <Trash2 className="h-4 w-4" />
+                </button>
             </div>
 
-            <div className="pl-8">
-                {/* Toolbar for Photos */}
-                {section.type === 'photo' && (
-                    <div className="flex items-center gap-1 mb-2 border-b pb-2 overflow-x-auto">
-                        <span className="text-xs text-gray-500 mr-2">Tamaño:</span>
-                        <Button variant={section.attributes?.size === 'small' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'small' })}>Pequeño</Button>
-                        <Button variant={section.attributes?.size === 'medium' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'medium' })}>Mediano</Button>
-                        <Button variant={section.attributes?.size === 'large' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'large' })}>Grande</Button>
-                        <Button variant={!section.attributes?.size || section.attributes?.size === 'full' ? "secondary" : "ghost"} size="sm" className="h-6 px-2 text-xs" onClick={() => updateAttr({ size: 'full' })}>Completo</Button>
-                    </div>
-                )}
+            {/* Drag Handle */}
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
+            </div>
 
-                {/* Toolbar for Text Blocks */}
+            <div className="pl-6">
+                {/* Inline Toolbar for Text Blocks */}
                 {section.type !== 'photo' && section.type !== 'separator' && (
-                    <div className="flex items-center gap-1 mb-2 border-b pb-2 overflow-x-auto">
-                        <Button variant={section.attributes?.bold ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ bold: !section.attributes?.bold })}><Bold className="h-3 w-3" /></Button>
-                        <Button variant={section.attributes?.italic ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ italic: !section.attributes?.italic })}><Italic className="h-3 w-3" /></Button>
-                        <Button variant={section.attributes?.underline ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ underline: !section.attributes?.underline })}><Underline className="h-3 w-3" /></Button>
-                        <div className="w-px h-4 bg-gray-200 mx-1" />
-                        <Button variant={section.attributes?.align === 'left' ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ align: 'left' })}><AlignLeft className="h-3 w-3" /></Button>
-                        <Button variant={section.attributes?.align === 'center' ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ align: 'center' })}><AlignCenter className="h-3 w-3" /></Button>
-                        <Button variant={section.attributes?.align === 'right' ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ align: 'right' })}><AlignRight className="h-3 w-3" /></Button>
-                        <Button variant={section.attributes?.align === 'justify' ? "secondary" : "ghost"} size="icon" className="h-6 w-6" onClick={() => updateAttr({ align: 'justify' })}><AlignJustify className="h-3 w-3" /></Button>
-                        <div className="w-px h-4 bg-gray-200 mx-1" />
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap">
                         <select
-                            className="text-xs border rounded px-1 h-6 bg-transparent"
+                            className="text-sm border rounded-lg px-3 py-1.5 bg-white font-medium"
                             value={section.type}
                             onChange={(e) => onChange({ ...section, type: e.target.value as ReportBlockType })}
                         >
-                            <option value="text">Normal</option>
-                            <option value="h1">Título 1</option>
-                            <option value="h2">Título 2</option>
-                            <option value="h3">Título 3</option>
-                            <option value="bullet-list">Lista Puntos</option>
-                            <option value="numbered-list">Lista Num.</option>
+                            <option value="text">Párrafo</option>
+                            <option value="h1">Título Principal</option>
+                            <option value="h2">Título Sección</option>
+                            <option value="h3">Subtítulo</option>
+                            <option value="bullet-list">Lista con Viñetas</option>
+                            <option value="numbered-list">Lista Numerada</option>
                             <option value="blockquote">Cita</option>
                         </select>
+
+                        <div className="h-6 w-px bg-gray-200" />
+
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.bold ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ bold: !section.attributes?.bold })}
+                            title="Negrita"
+                        >
+                            <Bold className="h-4 w-4" />
+                        </button>
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.italic ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ italic: !section.attributes?.italic })}
+                            title="Cursiva"
+                        >
+                            <Italic className="h-4 w-4" />
+                        </button>
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.underline ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ underline: !section.attributes?.underline })}
+                            title="Subrayado"
+                        >
+                            <Underline className="h-4 w-4" />
+                        </button>
+
+                        <div className="h-6 w-px bg-gray-200" />
+
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.align === 'left' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ align: 'left' })}
+                            title="Alinear Izquierda"
+                        >
+                            <AlignLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.align === 'center' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ align: 'center' })}
+                            title="Centrar"
+                        >
+                            <AlignCenter className="h-4 w-4" />
+                        </button>
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.align === 'right' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ align: 'right' })}
+                            title="Alinear Derecha"
+                        >
+                            <AlignRight className="h-4 w-4" />
+                        </button>
+                        <button
+                            className={`p-1.5 rounded ${section.attributes?.align === 'justify' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                            onClick={() => updateAttr({ align: 'justify' })}
+                            title="Justificar"
+                        >
+                            <AlignJustify className="h-4 w-4" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Photo Size Toolbar */}
+                {section.type === 'photo' && (
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b">
+                        <span className="text-sm font-medium text-gray-700">Tamaño:</span>
+                        <Button
+                            variant={section.attributes?.size === 'small' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateAttr({ size: 'small' })}
+                        >
+                            Pequeño
+                        </Button>
+                        <Button
+                            variant={section.attributes?.size === 'medium' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateAttr({ size: 'medium' })}
+                        >
+                            Mediano
+                        </Button>
+                        <Button
+                            variant={section.attributes?.size === 'large' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateAttr({ size: 'large' })}
+                        >
+                            Grande
+                        </Button>
+                        <Button
+                            variant={!section.attributes?.size || section.attributes?.size === 'full' ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateAttr({ size: 'full' })}
+                        >
+                            Completo
+                        </Button>
                     </div>
                 )}
 
@@ -181,39 +270,50 @@ const BlockRenderer = ({
                     <hr className="my-4 border-gray-300" />
                 ) : section.type === 'photo' ? (
                     <div className="flex gap-4">
-                        <div className="relative w-24 h-24 bg-gray-100 rounded border shrink-0">
+                        <div className="relative w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 shrink-0 overflow-hidden">
                             {section.photoUrl ? (
-                                <Image src={section.photoUrl} alt="Preview" fill className="object-cover rounded" />
+                                <Image src={section.photoUrl} alt="Preview" fill className="object-cover" />
                             ) : (
-                                <div className="flex items-center justify-center h-full text-gray-400"><ImageIcon className="h-6 w-6" /></div>
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    <ImageIcon className="h-8 w-8" />
+                                </div>
                             )}
                         </div>
-                        <div className="flex-1 space-y-2">
-                            <Input
-                                value={section.photoUrl || ''}
-                                onChange={(e) => onChange({ ...section, photoUrl: e.target.value })}
-                                placeholder="URL de la imagen"
-                                className="text-xs"
-                            />
-                            <Textarea
-                                value={section.description || section.details || ''}
-                                onChange={(e) => onChange({ ...section, description: e.target.value, details: e.target.value })}
-                                placeholder="Descripción o pie de foto..."
-                                className="text-sm min-h-[60px]"
-                            />
+                        <div className="flex-1 space-y-3">
+                            <div>
+                                <Label className="text-sm font-medium mb-1 block">URL de la imagen</Label>
+                                <Input
+                                    value={section.photoUrl || ''}
+                                    onChange={(e) => onChange({ ...section, photoUrl: e.target.value })}
+                                    placeholder="https://..."
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium mb-1 block">Descripción</Label>
+                                <Textarea
+                                    value={section.description || section.details || ''}
+                                    onChange={(e) => onChange({ ...section, description: e.target.value, details: e.target.value })}
+                                    placeholder="Descripción o pie de foto..."
+                                    className="min-h-[80px]"
+                                />
+                            </div>
                         </div>
                     </div>
                 ) : (
                     <Textarea
                         value={section.content || ''}
                         onChange={(e) => updateContent(e.target.value)}
-                        className={`min-h-[40px] resize-y border-none shadow-none focus-visible:ring-0 p-0 text-gray-800 ${section.type === 'h1' ? 'text-2xl font-bold' :
-                            section.type === 'h2' ? 'text-xl font-bold' :
-                                section.type === 'h3' ? 'text-lg font-semibold' :
-                                    section.type === 'blockquote' ? 'italic text-gray-600 pl-4 border-l-2' :
+                        className={`min-h-[120px] resize-y border-none shadow-none focus-visible:ring-0 p-0 text-gray-800 ${section.type === 'h1' ? 'text-3xl font-bold' :
+                            section.type === 'h2' ? 'text-2xl font-bold' :
+                                section.type === 'h3' ? 'text-xl font-semibold' :
+                                    section.type === 'blockquote' ? 'italic text-gray-600 pl-4 border-l-4 border-gray-300' :
                                         'text-base'
                             }`}
-                        placeholder="Escribe aquí..."
+                        placeholder={
+                            section.type === 'bullet-list' ? 'Escribe cada punto en una línea nueva...' :
+                                section.type === 'numbered-list' ? 'Escribe cada ítem en una línea nueva...' :
+                                    'Escribe aquí...'
+                        }
                         style={{
                             textAlign: section.attributes?.align,
                             fontWeight: section.attributes?.bold ? 'bold' : 'normal',
@@ -232,15 +332,16 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
     const [saving, setSaving] = useState(false);
     const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
     const [hasNewPhotos, setHasNewPhotos] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [report, setReport] = useState<TicketReport>({
         ticketId: ticket.id,
         header: {
             clientName: ticket.clientName,
             ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 6),
             address: ticket.locationName || "",
-            date: new Date().toLocaleDateString(),
-            technicianName: "Técnico Asignado",
-            title: "Reporte Técnico"
+            date: new Date().toLocaleDateString('es-DO', { year: 'numeric', month: 'long', day: 'numeric' }),
+            technicianName: ticket.technicianName || "Técnico Asignado",
+            title: "REPORTE TÉCNICO"
         },
         sections: []
     });
@@ -314,13 +415,9 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
             }
         }
 
-        // 4. Checklist (New!)
+        // 4. Checklist
         if (t.checklist && t.checklist.length > 0) {
             sections.push({ id: crypto.randomUUID(), type: 'h2', content: 'Lista de Verificación' });
-            // Use a special format for checklist to render it better
-            // We'll store it as a JSON string in content to parse it in the renderer, or just formatted text
-            // For now, let's stick to text but ensure we access the right property
-            // The schema says 'text', but let's be safe
             const checklistText = t.checklist.map(item => {
                 const text = item.text || (item as any).label || "Item sin nombre";
                 return `${item.checked ? '✅' : '⬜'} ${text}`;
@@ -403,7 +500,12 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                 ...report,
                 updatedAt: serverTimestamp()
             });
-            alert("Informe guardado correctamente.");
+            // Show success toast (you could use a toast library here)
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in';
+            toast.textContent = '✓ Informe guardado correctamente';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         } catch (error) {
             console.error("Error saving report:", error);
             alert("Error al guardar el informe.");
@@ -416,8 +518,8 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
         const newBlock: ReportSection = {
             id: crypto.randomUUID(),
             type,
-            content: type === 'text' ? '' : type === 'photo' ? '' : 'Nuevo Bloque',
-            photoUrl: type === 'photo' ? 'https://placehold.co/600x400?text=Foto' : undefined
+            content: type === 'text' ? '' : type === 'photo' ? '' : type === 'separator' ? '' : 'Nuevo Bloque',
+            photoUrl: type === 'photo' ? '' : undefined
         };
         setReport(prev => ({ ...prev, sections: [...prev.sections, newBlock] }));
     };
@@ -435,6 +537,14 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
         }
     };
 
+    const duplicateSection = (index: number) => {
+        const sectionToDuplicate = report.sections[index];
+        const duplicated = { ...sectionToDuplicate, id: crypto.randomUUID() };
+        const newSections = [...report.sections];
+        newSections.splice(index + 1, 0, duplicated);
+        setReport({ ...report, sections: newSections });
+    };
+
     const moveSection = (index: number, direction: 'up' | 'down') => {
         const newSections = [...report.sections];
         if (direction === 'up' && index > 0) {
@@ -449,6 +559,16 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
         window.print();
     };
 
+    const handleShare = () => {
+        const url = `${window.location.origin}/tickets/${ticket.id}`;
+        navigator.clipboard.writeText(url);
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        toast.textContent = '✓ Enlace copiado al portapapeles';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    };
+
     if (currentUserRole === 'TECNICO') {
         return <div className="p-8 text-center text-red-500">No tienes permiso para ver este informe.</div>;
     }
@@ -458,126 +578,218 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 h-full">
-            {/* Editor Sidebar */}
-            <div className="w-full lg:w-1/3 space-y-4 print:hidden overflow-y-auto max-h-[calc(100vh-200px)] pr-2">
-                <Card>
-                    <CardContent className="p-4 space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-semibold flex items-center gap-2">
-                                <FileDown className="h-4 w-4" />
-                                Configuración
-                            </h3>
-                            <Button variant="ghost" size="sm" onClick={reloadFromTicket} title="Recargar datos">
-                                <RefreshCw className="h-4 w-4" />
-                            </Button>
-                        </div>
-
+        <div className="flex flex-col h-full bg-gray-50">
+            {/* Sticky Action Bar */}
+            <div className="sticky top-0 z-20 bg-white border-b shadow-sm print:hidden">
+                <div className="flex items-center justify-between px-6 py-3">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-lg font-semibold text-gray-900">Editor de Informe</h2>
                         {hasNewPhotos && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex flex-col gap-2">
-                                <div className="flex items-center gap-2 text-yellow-800 text-sm font-medium">
-                                    <ImageIcon className="h-4 w-4" />
-                                    <span>Nuevas fotos detectadas</span>
-                                </div>
-                                <p className="text-xs text-yellow-700">
-                                    Hay fotos en el ticket que no están en este reporte.
-                                </p>
-                                <Button size="sm" variant="outline" onClick={reloadFromTicket} className="w-full text-xs h-7 bg-white border-yellow-300 text-yellow-800 hover:bg-yellow-100">
-                                    Actualizar Reporte
-                                </Button>
-                            </div>
+                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full flex items-center gap-1">
+                                <ImageIcon className="h-3 w-3" />
+                                Nuevas fotos disponibles
+                            </span>
                         )}
-
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                                <Label className="text-xs">Título</Label>
-                                <Input value={report.header.title} onChange={(e) => setReport({ ...report, header: { ...report.header, title: e.target.value } })} className="h-8" />
-                            </div>
-                            <div className="space-y-1">
-                                <Label className="text-xs">Técnico</Label>
-                                <Input value={report.header.technicianName} onChange={(e) => setReport({ ...report, header: { ...report.header, technicianName: e.target.value } })} className="h-8" />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-2 pt-2">
-                            <Button variant="outline" size="sm" onClick={() => addBlock('text')} title="Texto" className="h-10"><Type className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('h2')} title="Título" className="h-10"><Heading2 className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('photo')} title="Foto" className="h-10"><ImageIcon className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => addBlock('separator')} title="Separador" className="h-10"><Minus className="h-4 w-4" /></Button>
-                        </div>
-
-                        <div className="flex gap-2 pt-2">
-                            <Button onClick={saveReport} disabled={saving} className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-10">
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                Guardar
-                            </Button>
-                            <Button onClick={handlePrint} variant="secondary" className="flex-1 gap-2 h-10">
-                                <Printer className="h-4 w-4" />
-                                PDF
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div className="space-y-2 pb-20">
-                    {report.sections.map((section, index) => (
-                        <BlockRenderer
-                            key={section.id}
-                            section={section}
-                            onChange={(s) => updateSection(index, s)}
-                            onDelete={() => deleteSection(index)}
-                            onMoveUp={() => moveSection(index, 'up')}
-                            onMoveDown={() => moveSection(index, 'down')}
-                            isFirst={index === 0}
-                            isLast={index === report.sections.length - 1}
-                        />
-                    ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handleShare} className="gap-2">
+                            <Share2 className="h-4 w-4" />
+                            Compartir
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={reloadFromTicket} className="gap-2">
+                            <RefreshCw className="h-4 w-4" />
+                            Recargar
+                        </Button>
+                        <Button onClick={saveReport} disabled={saving} className="gap-2 bg-green-600 hover:bg-green-700">
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Guardar
+                        </Button>
+                        <Button onClick={handlePrint} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                            <Printer className="h-4 w-4" />
+                            Exportar PDF
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            {/* Preview / Print View */}
-            <div className="flex-1 bg-white shadow-lg rounded-lg p-8 print:shadow-none print:p-0 print:w-full overflow-y-auto max-h-[calc(100vh-200px)] print:max-h-none">
-                <div className="max-w-[21cm] mx-auto print:max-w-none min-h-[29.7cm] relative">
-                    {/* Corporate Header */}
-                    <div className="absolute top-0 left-0 w-full h-3 bg-[#556B2F] print:block hidden"></div> {/* Green Band */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* Editor Sidebar */}
+                <div className={`${sidebarCollapsed ? 'w-16' : 'w-96'} bg-white border-r transition-all duration-300 print:hidden flex flex-col`}>
+                    <div className="p-4 border-b flex items-center justify-between">
+                        {!sidebarCollapsed && <h3 className="font-semibold text-gray-900">Bloques de Contenido</h3>}
+                        <button
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                            className="p-2 hover:bg-gray-100 rounded-lg"
+                        >
+                            {sidebarCollapsed ? <ChevronDown className="h-5 w-5 rotate-90" /> : <ChevronUp className="h-5 w-5 -rotate-90" />}
+                        </button>
+                    </div>
 
-                    <div className="px-8 print:px-16 print:pb-32">
-                        <div className="flex justify-between items-start mb-12 pt-8">
-                            <div className="w-1/2">
-                                {/* Logo Placeholder */}
-                                {companySettings?.logoUrl ? (
-                                    <div className="h-16 w-48 relative mb-4">
-                                        <img
-                                            src={companySettings.logoUrl}
-                                            alt="Logo"
-                                            className="h-full w-full object-contain object-left"
-                                            crossOrigin="anonymous"
+                    {!sidebarCollapsed && (
+                        <>
+                            {/* Header Config */}
+                            <div className="p-4 border-b space-y-3">
+                                <div>
+                                    <Label className="text-xs font-medium text-gray-700">Título del Reporte</Label>
+                                    <Input
+                                        value={report.header.title}
+                                        onChange={(e) => setReport({ ...report, header: { ...report.header, title: e.target.value } })}
+                                        className="mt-1"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <Label className="text-xs font-medium text-gray-700">Técnico</Label>
+                                        <Input
+                                            value={report.header.technicianName}
+                                            onChange={(e) => setReport({ ...report, header: { ...report.header, technicianName: e.target.value } })}
+                                            className="mt-1"
                                         />
                                     </div>
-                                ) : (
-                                    <div className="h-16 w-48 bg-gray-200 flex items-center justify-center text-gray-500 text-xs mb-4">
-                                        LOGO HECHO SRL
+                                    <div>
+                                        <Label className="text-xs font-medium text-gray-700">Fecha</Label>
+                                        <Input
+                                            value={report.header.date}
+                                            onChange={(e) => setReport({ ...report, header: { ...report.header, date: e.target.value } })}
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Add Block Buttons */}
+                            <div className="p-4 border-b">
+                                <Label className="text-xs font-medium text-gray-700 mb-2 block">Agregar Bloque</Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('text')} className="justify-start gap-2">
+                                        <Type className="h-4 w-4" />
+                                        Texto
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('h2')} className="justify-start gap-2">
+                                        <Heading2 className="h-4 w-4" />
+                                        Título
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('bullet-list')} className="justify-start gap-2">
+                                        <List className="h-4 w-4" />
+                                        Lista
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('numbered-list')} className="justify-start gap-2">
+                                        <ListOrdered className="h-4 w-4" />
+                                        Numerada
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('photo')} className="justify-start gap-2">
+                                        <ImageIcon className="h-4 w-4" />
+                                        Foto
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => addBlock('separator')} className="justify-start gap-2">
+                                        <Minus className="h-4 w-4" />
+                                        Separador
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Blocks List */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                {report.sections.map((section, index) => (
+                                    <BlockRenderer
+                                        key={section.id}
+                                        section={section}
+                                        onChange={(s) => updateSection(index, s)}
+                                        onDelete={() => deleteSection(index)}
+                                        onDuplicate={() => duplicateSection(index)}
+                                        onMoveUp={() => moveSection(index, 'up')}
+                                        onMoveDown={() => moveSection(index, 'down')}
+                                        isFirst={index === 0}
+                                        isLast={index === report.sections.length - 1}
+                                    />
+                                ))}
+                                {report.sections.length === 0 && (
+                                    <div className="text-center py-12 text-gray-400">
+                                        <FileDown className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                                        <p className="text-sm">No hay bloques aún</p>
+                                        <p className="text-xs mt-1">Usa los botones de arriba para agregar contenido</p>
                                     </div>
                                 )}
-                                <h1 className="text-3xl font-bold text-[#556B2F] uppercase tracking-wide">{report.header.title}</h1>
                             </div>
-                            <div className="w-1/2 text-right space-y-1 text-sm text-gray-600">
-                                <p className="font-bold text-gray-900 text-lg mb-2">#{report.header.ticketNumber}</p>
-                                <p><span className="font-semibold">Cliente:</span> {report.header.clientName}</p>
-                                <p><span className="font-semibold">Ubicación:</span> {report.header.address}</p>
-                                <p><span className="font-semibold">Fecha:</span> {report.header.date}</p>
-                                <p><span className="font-semibold">Técnico:</span> {report.header.technicianName}</p>
+                        </>
+                    )}
+                </div>
+
+                {/* Live Preview */}
+                <div className="flex-1 overflow-y-auto bg-gray-100 p-8 print:p-0 print:bg-white">
+                    {/* Print-only Header (Fixed on every page) */}
+                    <div id="print-header" className="hidden print:block print:fixed print:top-0 print:left-0 print:right-0 print:z-50 bg-white">
+                        <div className="h-3 bg-[#556B2F]"></div>
+                        <div className="px-16 pt-6 pb-4 bg-white border-b-2 border-gray-200">
+                            <div className="flex justify-between items-start">
+                                <div className="w-1/2">
+                                    {companySettings?.logoUrl ? (
+                                        <div className="h-10 w-32 relative mb-2">
+                                            <img
+                                                src={companySettings.logoUrl}
+                                                alt="Logo"
+                                                className="h-full w-full object-contain object-left"
+                                                crossOrigin="anonymous"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="h-10 w-32 bg-gray-200 flex items-center justify-center text-gray-500 text-xs mb-2">
+                                            LOGO
+                                        </div>
+                                    )}
+                                    <h1 className="text-xl font-bold text-[#556B2F] uppercase">{report.header.title}</h1>
+                                </div>
+                                <div className="w-1/2 text-right space-y-0.5 text-xs text-gray-600">
+                                    <p className="font-bold text-gray-900 text-sm">#{report.header.ticketNumber}</p>
+                                    <p><span className="font-semibold">Cliente:</span> {report.header.clientName}</p>
+                                    <p><span className="font-semibold">Ubicación:</span> {report.header.address}</p>
+                                    <p><span className="font-semibold">Fecha:</span> {report.header.date}</p>
+                                    <p><span className="font-semibold">Técnico:</span> {report.header.technicianName}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-[21cm] mx-auto bg-white shadow-2xl print:shadow-none print:max-w-none">
+                        {/* Screen Header - Only on screen */}
+                        <div className="print:hidden px-16 pt-12 pb-8">
+                            <div className="flex justify-between items-start">
+                                <div className="w-1/2">
+                                    {companySettings?.logoUrl ? (
+                                        <div className="h-16 w-48 relative mb-4">
+                                            <img
+                                                src={companySettings.logoUrl}
+                                                alt="Logo"
+                                                className="h-full w-full object-contain object-left"
+                                                crossOrigin="anonymous"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="h-16 w-48 bg-gray-200 flex items-center justify-center text-gray-500 text-xs mb-4">
+                                            LOGO HECHO SRL
+                                        </div>
+                                    )}
+                                    <h1 className="text-3xl font-bold text-[#556B2F] uppercase tracking-wide">{report.header.title}</h1>
+                                </div>
+                                <div className="w-1/2 text-right space-y-1 text-sm text-gray-600">
+                                    <p className="font-bold text-gray-900 text-lg mb-2">#{report.header.ticketNumber}</p>
+                                    <p><span className="font-semibold">Cliente:</span> {report.header.clientName}</p>
+                                    <p><span className="font-semibold">Ubicación:</span> {report.header.address}</p>
+                                    <p><span className="font-semibold">Fecha:</span> {report.header.date}</p>
+                                    <p><span className="font-semibold">Técnico:</span> {report.header.technicianName}</p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Content Blocks */}
-                        <div className="space-y-2">
+                        {/* Content */}
+                        <div className="px-16 py-8 print:pt-[140px] min-h-[800px]">
                             {report.sections.map((section) => (
                                 <BlockRenderer
                                     key={section.id}
                                     section={section}
                                     onChange={() => { }}
                                     onDelete={() => { }}
+                                    onDuplicate={() => { }}
                                     onMoveUp={() => { }}
                                     onMoveDown={() => { }}
                                     isFirst={false}
@@ -587,31 +799,33 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
                             ))}
                         </div>
 
-                        {/* Footer */}
-                        <div className="mt-20 pt-8 border-t-2 border-gray-100 grid grid-cols-2 gap-12 break-inside-avoid">
-                            <div className="text-center">
-                                <div className="h-24 border-b border-gray-300 mb-2"></div>
-                                <p className="font-semibold text-gray-700">Firma del Técnico</p>
-                            </div>
-                            <div className="text-center">
-                                <div className="h-24 border-b border-gray-300 mb-2 flex items-end justify-center">
-                                    {ticket.clientSignature && (
-                                        <img src={ticket.clientSignature} alt="Firma Cliente" className="h-16 object-contain" />
-                                    )}
+                        {/* Footer - Only on last page */}
+                        <div className="px-16 pb-12 mt-12 break-inside-avoid">
+                            <div className="pt-8 border-t-2 border-gray-100 grid grid-cols-2 gap-12">
+                                <div className="text-center">
+                                    <div className="h-24 border-b border-gray-300 mb-2"></div>
+                                    <p className="font-semibold text-gray-700">Firma del Técnico</p>
                                 </div>
-                                <p className="font-semibold text-gray-700">Firma del Cliente</p>
+                                <div className="text-center">
+                                    <div className="h-24 border-b border-gray-300 mb-2 flex items-end justify-center">
+                                        {ticket.clientSignature && (
+                                            <img src={ticket.clientSignature} alt="Firma Cliente" className="h-16 object-contain" />
+                                        )}
+                                    </div>
+                                    <p className="font-semibold text-gray-700">Firma del Cliente</p>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="mt-12 text-center text-xs text-gray-400 print:fixed print:bottom-4 print:left-0 print:w-full">
-                            <p>{companySettings?.name || "HECHO SRL - Servicios Generales y Mantenimiento"}</p>
-                            <p>
-                                {companySettings?.phone && `Tel: ${companySettings.phone} | `}
-                                {companySettings?.email && `Email: ${companySettings.email} | `}
-                                {companySettings?.rnc && `RNC: ${companySettings.rnc}`}
-                            </p>
-                            {companySettings?.address && <p>{companySettings.address}</p>}
-                            {companySettings?.website && <p>{companySettings.website}</p>}
+                            <div className="mt-8 text-center text-xs text-gray-400">
+                                <p>{companySettings?.name || "HECHO SRL - Servicios Generales y Mantenimiento"}</p>
+                                <p>
+                                    {companySettings?.phone && `Tel: ${companySettings.phone} | `}
+                                    {companySettings?.email && `Email: ${companySettings.email} | `}
+                                    {companySettings?.rnc && `RNC: ${companySettings.rnc}`}
+                                </p>
+                                {companySettings?.address && <p>{companySettings.address}</p>}
+                                {companySettings?.website && <p>{companySettings.website}</p>}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -619,15 +833,58 @@ export function ReportEditor({ ticket, currentUserRole }: ReportEditorProps) {
 
             <style jsx global>{`
                 @media print {
-                    @page { margin: 0; size: auto; }
-                    body { -webkit-print-color-adjust: exact; }
-                    .print\\:hidden { display: none !important; }
-                    .print\\:block { display: block !important; }
-                    .print\\:max-w-none { max-width: none !important; }
-                    .print\\:shadow-none { box-shadow: none !important; }
-                    .print\\:p-0 { padding: 0 !important; }
-                    .print\\:w-full { width: 100% !important; }
-                    .print\\:max-h-none { max-height: none !important; }
+                    @page { 
+                        margin: 140px 0 0 0;
+                        size: letter;
+                    }
+                    
+                    body { 
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    #print-header {
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        z-index: 9999 !important;
+                        background: white !important;
+                    }
+                    
+                    .print\\:fixed {
+                        position: fixed !important;
+                    }
+                    
+                    .print\\:top-0 {
+                        top: 0 !important;
+                    }
+                    
+                    .print\\:left-0 {
+                        left: 0 !important;
+                    }
+                    
+                    .print\\:right-0 {
+                        right: 0 !important;
+                    }
+                    
+                    .print\\:z-50 {
+                        z-index: 9999 !important;
+                    }
+                    
+                    .print\\:pt-\\[140px\\] {
+                        padding-top: 140px !important;
+                    }
+                    
+                    .break-inside-avoid {
+                        break-inside: avoid;
+                        page-break-inside: avoid;
+                    }
+                    
+                    .break-after-avoid {
+                        break-after: avoid;
+                        page-break-after: avoid;
+                    }
                 }
             `}</style>
         </div>
