@@ -70,8 +70,29 @@ export default function TicketReportPage() {
                 throw new Error("Datos del informe incompletos");
             }
 
-            console.log("Guardando informe:", ticketId, updatedReport);
-            await setDoc(doc(db, "ticketReports", ticketId), updatedReport);
+            // Sanitizar datos: remover undefined values que Firestore no acepta
+            const sanitizeData = (obj: any): any => {
+                if (obj === null || obj === undefined) return null;
+                if (Array.isArray(obj)) {
+                    return obj.map(item => sanitizeData(item)).filter(item => item !== null && item !== undefined);
+                }
+                if (typeof obj === 'object') {
+                    const cleaned: any = {};
+                    Object.keys(obj).forEach(key => {
+                        const value = sanitizeData(obj[key]);
+                        if (value !== undefined && value !== null) {
+                            cleaned[key] = value;
+                        }
+                    });
+                    return cleaned;
+                }
+                return obj;
+            };
+
+            const cleanedReport = sanitizeData(updatedReport);
+
+            console.log("Guardando informe:", ticketId, cleanedReport);
+            await setDoc(doc(db, "ticketReports", ticketId), cleanedReport);
             setReport(updatedReport);
 
             // Show success toast
