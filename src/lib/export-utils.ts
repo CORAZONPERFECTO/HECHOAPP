@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
-import { TicketReportNew, PhotoSection } from '@/types/schema';
+import { TicketReportNew, PhotoSection, Quote } from '@/types/schema';
 
 /**
  * Exporta el informe usando el método estándar de impresión del navegador
@@ -436,4 +436,113 @@ function loadImage(url: string): Promise<HTMLImageElement> {
         img.onerror = reject;
         img.src = url;
     });
+}
+/**
+ * Genera un PDF básico para una Cotización
+ */
+export function generateQuotePDF(quote: Quote) {
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const margin = 20;
+    let yPos = margin;
+
+    // 1. Encabezado
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("COTIZACIÓN", pageWidth - margin, yPos, { align: 'right' });
+
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(quote.number || "Borrador", pageWidth - margin, yPos + 6, { align: 'right' });
+
+    // Logo / Empresa (Mockup)
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("HECHO", margin, yPos);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text("Servicios Generales & Mantenimiento", margin, yPos + 6);
+
+    yPos += 25;
+
+    // 2. Info Cliente
+    pdf.setDrawColor(200);
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 10;
+
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("Cliente:", margin, yPos);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(quote.clientName, margin + 20, yPos);
+
+    if (quote.validUntil) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text("Válida hasta:", pageWidth / 2, yPos);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(new Date(quote.validUntil.seconds * 1000).toLocaleDateString(), (pageWidth / 2) + 30, yPos);
+    }
+
+    yPos += 20;
+
+    // 3. Tabla de Ítems (Manual basic table)
+    // Header
+    pdf.setFillColor(240, 240, 240);
+    pdf.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.text("DESCRIPCIÓN", margin + 2, yPos + 5.5);
+    pdf.text("CANT.", pageWidth - margin - 45, yPos + 5.5, { align: 'right' });
+    pdf.text("PRECIO", pageWidth - margin - 25, yPos + 5.5, { align: 'right' });
+    pdf.text("TOTAL", pageWidth - margin - 2, yPos + 5.5, { align: 'right' });
+    yPos += 12;
+
+    // Rows
+    pdf.setFont('helvetica', 'normal');
+
+    quote.items.forEach((item) => {
+        const descLines = pdf.splitTextToSize(item.description, 100);
+        pdf.text(descLines, margin + 2, yPos);
+
+        pdf.text(item.quantity.toString(), pageWidth - margin - 45, yPos, { align: 'right' });
+        pdf.text(item.unitPrice.toLocaleString(), pageWidth - margin - 25, yPos, { align: 'right' });
+        pdf.text(item.total.toLocaleString(), pageWidth - margin - 2, yPos, { align: 'right' });
+
+        yPos += Math.max(descLines.length * 4, 6) + 2;
+    });
+
+    yPos += 5;
+    pdf.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 10;
+
+    // 4. Totales
+    const xTotals = pageWidth - margin - 40;
+
+    pdf.text("Subtotal:", xTotals, yPos);
+    pdf.text(quote.subtotal.toLocaleString(), pageWidth - margin - 2, yPos, { align: 'right' });
+    yPos += 6;
+
+    pdf.text("ITBIS:", xTotals, yPos);
+    pdf.text(quote.taxTotal.toLocaleString(), pageWidth - margin - 2, yPos, { align: 'right' });
+    yPos += 8;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text("TOTAL:", xTotals, yPos);
+    pdf.text(`RD$ ${quote.total.toLocaleString()}`, pageWidth - margin - 2, yPos, { align: 'right' });
+
+    // 5. Footer / Notas
+    if (quote.notes) {
+        yPos += 20;
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text("Notas:", margin, yPos);
+        yPos += 5;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        const noteLines = pdf.splitTextToSize(quote.notes, pageWidth - 2 * margin);
+        pdf.text(noteLines, margin, yPos);
+    }
+
+    pdf.save(`cotizacion-${quote.number || 'borrador'}.pdf`);
 }

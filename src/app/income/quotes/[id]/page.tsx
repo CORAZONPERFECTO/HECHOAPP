@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/income/status-badge";
 import { ArrowLeft, FileCheck, Printer, Mail, XCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { generateQuotePDF } from "@/lib/export-utils";
 
 export default function QuoteDetailPage() {
     const params = useParams();
@@ -127,7 +128,7 @@ export default function QuoteDetailPage() {
                     </div>
 
                     <div className="flex gap-2">
-                        <Button variant="outline" className="gap-2">
+                        <Button variant="outline" className="gap-2" onClick={() => quote && generateQuotePDF(quote)}>
                             <Printer className="h-4 w-4" /> Imprimir
                         </Button>
                         <Button variant="outline" className="gap-2">
