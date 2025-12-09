@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Invoice, InvoiceItem, Client } from "@/types/schema";
+import { Invoice, InvoiceItem, Client, Quote } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, Save, Loader2, Check } from "lucide-react";
@@ -22,20 +22,31 @@ const STEPS = [
     { id: "review", title: "Revisar" }
 ];
 
-export function InvoiceWizard() {
+interface InvoiceWizardProps {
+    mode?: 'invoice' | 'quote';
+}
+
+export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
     const router = useRouter();
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
 
+    // Determine collections and labels based on mode
+    const isQuote = mode === 'quote';
+    const collectionName = isQuote ? "quotes" : "invoices";
+    const redirectPath = isQuote ? "/income/quotes" : "/income/invoices";
+    const submitLabel = isQuote ? "Finalizar Cotización" : "Finalizar Factura";
+
     // Form Data State
-    const [formData, setFormData] = useState<Partial<Invoice>>({
+    // We use Partial<Invoice> but it also fits Partial<Quote> roughly as fields overlap
+    const [formData, setFormData] = useState<Partial<Invoice | Quote>>({
         number: "",
         clientId: "",
         clientName: "",
         items: [],
         notes: "",
-        status: "DRAFT",
+        status: "DRAFT", // Will be overriden or matches both
     });
 
     // Load clients
@@ -74,16 +85,22 @@ export function InvoiceWizard() {
                 subtotal: totals.subtotal,
                 taxTotal: totals.taxTotal,
                 total: totals.total,
-                balance: totals.total,
+                // Specific fields depending on mode
+                ...(isQuote ? {
+                    status: 'DRAFT', // QuoteStatus
+                    validUntil: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)), // 15 days validity
+                } : {
+                    balance: totals.total,
+                    issueDate: Timestamp.now(),
+                    dueDate: Timestamp.now(),
+                }),
                 createdAt: serverTimestamp(),
-                issueDate: Timestamp.now(),
-                dueDate: Timestamp.now(), // Default due date
             };
 
-            await addDoc(collection(db, "invoices"), finalData);
-            router.push("/income/invoices");
+            await addDoc(collection(db, collectionName), finalData);
+            router.push(redirectPath);
         } catch (error) {
-            console.error("Error creating invoice:", error);
+            console.error(`Error creating ${mode}:`, error);
         } finally {
             setLoading(false);
         }
@@ -155,7 +172,7 @@ export function InvoiceWizard() {
                         {currentStep === STEPS.length - 1 ? (
                             <Button onClick={handleSave} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20">
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                <Save className="mr-2 h-4 w-4" /> Finalizar Factura
+                                <Save className="mr-2 h-4 w-4" /> {submitLabel}
                             </Button>
                         ) : (
                             <Button onClick={handleNext} className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20">
