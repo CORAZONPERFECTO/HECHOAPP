@@ -220,7 +220,28 @@ export function TicketReportEditor({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-auto p-6 custom-scrollbar">
+                <style jsx global>{`
+                    .custom-scrollbar::-webkit-scrollbar {
+                        width: 12px;
+                        height: 12px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-track {
+                        background: #f1f1f1;
+                        border-radius: 10px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                        background: #888;
+                        border-radius: 10px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                        background: #555;
+                    }
+                    .custom-scrollbar {
+                        scrollbar-width: thin;
+                        scrollbar-color: #888 #f1f1f1;
+                    }
+                `}</style>
                 <div className="max-w-4xl mx-auto space-y-6">
                     {/* Header Editor */}
                     <Card>
