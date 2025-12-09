@@ -23,6 +23,8 @@ interface AppCardProps {
 
 
 
+import { AppLayout } from "@/components/layout/app-layout";
+
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserSchema | null>(null);
@@ -63,126 +65,107 @@ export default function Dashboard() {
   const isTechnician = userProfile?.rol === 'TECNICO';
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] p-4 md:p-8">
-      {/* Header */}
-      <header className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="h-6 w-6 text-gray-400" />
-          <h1 className="text-xl font-semibold text-gray-700">HECHO SRL</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-900">{userProfile?.nombre || "Usuario"}</p>
-            <p className="text-xs text-gray-500">{userProfile?.rol || "Invitado"}</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5 text-gray-400 hover:text-red-500" />
-          </Button>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto space-y-8">
-
-        {/* 1. Command Center Layer */}
-        <section>
-          {isTechnician ? (
-            <ActiveTicketCard />
-          ) : (
-            <div className="space-y-6">
-              <DashboardStats />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2">
-                  {/* Placeholder for a chart or recent activity list in future */}
-                  <div className="bg-white p-6 rounded-xl border shadow-sm h-full flex items-center justify-center text-gray-400 text-sm">
-                    Gráfico de Rendimiento (Próximamente)
+    <AppLayout>
+      {/* 1. Command Center Layer */}
+      <section>
+        {isTechnician ? (
+          <ActiveTicketCard />
+        ) : (
+          <div className="space-y-6">
+            <DashboardStats />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <div className="glass-card p-6 h-full flex flex-col justify-center items-center text-center space-y-4">
+                  <div className="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center">
+                    <BarChart3 className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Rendimiento Financiero</h3>
+                    <p className="text-sm text-gray-500">Gráfico de ingresos vs gastos (Próximamente)</p>
                   </div>
                 </div>
-                <div>
-                  <UrgentTicketsList />
-                </div>
+              </div>
+              <div>
+                <UrgentTicketsList />
               </div>
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* 2. Quick Access Grid */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4 px-1">Acceso Rápido</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+
+          <AppCard
+            icon={Ticket}
+            label="Tickets"
+            href={isTechnician ? "/technician/tickets" : "/tickets"}
+            color="text-purple-600"
+          />
+
+          {!isTechnician && (
+            <>
+              <AppCard
+                icon={Users}
+                label="Clientes"
+                href="/clients"
+                color="text-blue-600"
+              />
+
+              <AppCard
+                icon={Wrench}
+                label="Técnicos"
+                href="/technicians"
+                color="text-orange-600"
+              />
+            </>
           )}
-        </section>
 
-        {/* 2. Quick Access Grid */}
-        <section>
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Acceso Rápido</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+          <AppCard
+            icon={MessageSquare}
+            label="Mensajes"
+            href="#"
+            color="text-green-600"
+            onClick={() => alert("Integración WhatsApp en desarrollo")}
+          />
 
+          <AppCard
+            icon={BarChart3}
+            label="Reportes"
+            href="#"
+            color="text-indigo-600"
+            onClick={() => alert("Reportes en desarrollo")}
+          />
+
+          {!isTechnician && (
             <AppCard
-              icon={Ticket}
-              label="Tickets"
-              href={isTechnician ? "/technician/tickets" : "/tickets"}
-              color="text-purple-600"
+              icon={Settings}
+              label="Ajustes"
+              href="/settings"
+              color="text-gray-600"
             />
+          )}
 
-            {!isTechnician && (
-              <>
-                <AppCard
-                  icon={Users}
-                  label="Clientes"
-                  href="/clients"
-                  color="text-blue-600"
-                />
+          <AppCard
+            icon={FileText}
+            label="Recursos"
+            href="/resources"
+            color="text-teal-600"
+          />
 
-                <AppCard
-                  icon={Wrench}
-                  label="Técnicos"
-                  href="/technicians"
-                  color="text-orange-600"
-                />
-              </>
-            )}
-
-            <AppCard
-              icon={MessageSquare}
-              label="Mensajes"
-              href="#"
-              color="text-green-600"
-              onClick={() => alert("Integración WhatsApp en desarrollo")}
-            />
-
+          {!isTechnician && (
             <AppCard
               icon={BarChart3}
-              label="Reportes"
-              href="#"
-              color="text-indigo-600"
-              onClick={() => alert("Reportes en desarrollo")}
+              label="Ingresos"
+              href="/income"
+              color="text-emerald-600"
             />
+          )}
 
-            {!isTechnician && (
-              <AppCard
-                icon={Settings}
-                label="Ajustes"
-                href="/settings"
-                color="text-gray-600"
-              />
-            )}
-
-            <AppCard
-              icon={FileText}
-              label="Recursos"
-              href="/resources"
-              color="text-teal-600"
-            />
-
-            {!isTechnician && (
-              <AppCard
-                icon={BarChart3}
-                label="Ingresos"
-                href="/income"
-                color="text-emerald-600"
-              />
-            )}
-
-          </div>
-        </section>
-      </main>
-
-      <footer className="mt-12 text-center text-xs text-gray-400">
-        Hecho Nexus v4.0 &copy; 2025
-      </footer>
-    </div>
+        </div>
+      </section>
+    </AppLayout>
   );
 }
