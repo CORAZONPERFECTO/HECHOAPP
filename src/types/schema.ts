@@ -418,7 +418,7 @@ export interface TicketToken {
 
 // --- New Report Module Types ---
 
-export type SectionType = 'h1' | 'h2' | 'text' | 'list' | 'photo' | 'divider';
+export type SectionType = 'h1' | 'h2' | 'text' | 'list' | 'photo' | 'divider' | 'beforeAfter';
 
 export interface BaseSection {
     id: string;
@@ -455,12 +455,28 @@ export interface DividerSection extends BaseSection {
     type: 'divider';
 }
 
+export interface BeforeAfterSection extends BaseSection {
+    type: 'beforeAfter';
+    beforePhotoUrl: string;
+    afterPhotoUrl: string;
+    beforeMeta?: {
+        originalId?: string;
+        area?: string;
+    };
+    afterMeta?: {
+        originalId?: string;
+        area?: string;
+    };
+    description?: string;
+}
+
 export type TicketReportSection =
     | TitleSection
     | TextSection
     | ListSection
     | PhotoSection
-    | DividerSection;
+    | DividerSection
+    | BeforeAfterSection;
 
 export interface TicketReportHeader {
     clientName: string;

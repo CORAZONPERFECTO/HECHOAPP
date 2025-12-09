@@ -11,7 +11,9 @@ import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Eye, Edit, Printer, ArrowLeft } from "lucide-react";
+import { Loader2, Eye, Edit, Printer, ArrowLeft, Undo2, Redo2 } from "lucide-react";
+import { useUndoRedo } from "@/hooks/use-undo-redo";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 export default function TicketReportPage() {
     const params = useParams();
@@ -21,8 +23,20 @@ export default function TicketReportPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [ticket, setTicket] = useState<Ticket | null>(null);
-    const [report, setReport] = useState<TicketReportNew | null>(null);
     const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+
+    // Undo/Redo para el reporte
+    const {
+        state: report,
+        setState: setReport,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
+    } = useUndoRedo<TicketReportNew | null>({
+        initialState: null,
+        maxHistory: 50,
+    });
 
     useEffect(() => {
         loadData();
@@ -190,6 +204,41 @@ export default function TicketReportPage() {
         }, 500);
     };
 
+    // Atajos de teclado
+    useKeyboardShortcuts([
+        {
+            key: 's',
+            ctrl: true,
+            handler: () => {
+                if (report) {
+                    handleSave(report);
+                }
+            },
+            description: 'Guardar'
+        },
+        {
+            key: 'z',
+            ctrl: true,
+            handler: undo,
+            description: 'Deshacer'
+        },
+        {
+            key: 'y',
+            ctrl: true,
+            handler: redo,
+            description: 'Rehacer'
+        },
+        {
+            key: 'p',
+            ctrl: true,
+            shift: true,
+            handler: () => {
+                setActiveTab(prev => prev === 'edit' ? 'preview' : 'edit');
+            },
+            description: 'Alternar vista previa'
+        },
+    ], activeTab === 'edit'); // Solo activos en modo edición
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -226,6 +275,35 @@ export default function TicketReportPage() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Undo/Redo Buttons */}
+                    {activeTab === "edit" && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={undo}
+                                disabled={!canUndo}
+                                className="gap-2"
+                                title="Deshacer (Ctrl+Z)"
+                            >
+                                <Undo2 className="h-4 w-4" />
+                                Deshacer
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={redo}
+                                disabled={!canRedo}
+                                className="gap-2"
+                                title="Rehacer (Ctrl+Y)"
+                            >
+                                <Redo2 className="h-4 w-4" />
+                                Rehacer
+                            </Button>
+                            <div className="h-6 w-px bg-gray-300" />
+                        </>
+                    )}
+
                     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "edit" | "preview")}>
                         <TabsList>
                             <TabsTrigger value="edit" className="gap-2">
