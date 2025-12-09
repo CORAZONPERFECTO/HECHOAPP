@@ -11,30 +11,30 @@ export function TicketReportView({ report }: TicketReportViewProps) {
         switch (section.type) {
             case 'h1':
                 return (
-                    <h1 key={section.id} className="text-3xl font-bold text-gray-900 mb-4 mt-6">
+                    <h1 key={section.id} className="text-3xl font-bold text-gray-900 dark:text-zinc-50 mb-4 mt-6">
                         {(section as TitleSection).content}
                     </h1>
                 );
 
             case 'h2':
                 return (
-                    <h2 key={section.id} className="text-2xl font-bold text-gray-800 mb-3 mt-5">
+                    <h2 key={section.id} className="text-2xl font-bold text-gray-800 dark:text-zinc-200 mb-3 mt-5">
                         {(section as TitleSection).content}
                     </h2>
                 );
 
             case 'text':
                 return (
-                    <p key={section.id} className="mb-3 text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <p key={section.id} className="mb-3 text-gray-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
                         {(section as TextSection).content}
                     </p>
                 );
 
             case 'list':
                 return (
-                    <ul key={section.id} className="list-disc pl-5 space-y-1 mb-4">
+                    <ul key={section.id} className="list-disc pl-5 space-y-1 mb-4 text-gray-700 dark:text-zinc-300">
                         {(section as ListSection).items.filter(item => item.trim()).map((item, i) => (
-                            <li key={i} className="text-gray-700">{item}</li>
+                            <li key={i}>{item}</li>
                         ))}
                     </ul>
                 );
@@ -53,7 +53,7 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                                         console.error("Error cargando imagen:", photoSection.photoUrl);
                                         e.currentTarget.style.display = 'none';
                                     }}
-                                    loading="eager"
+                                    loading="lazy"
                                 />
                             )}
                             {!photoSection.photoUrl && (
@@ -70,6 +70,50 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                     </div>
                 );
 
+            case 'beforeAfter':
+                const baSection = section as any; // Cast temporarily until import is updated
+                return (
+                    <div key={section.id} className="mb-6 break-inside-avoid">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Antes</span>
+                                <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                                    {baSection.beforePhotoUrl ? (
+                                        <img
+                                            src={baSection.beforePhotoUrl}
+                                            alt="Antes"
+                                            className="w-full h-full object-cover photo-print"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-gray-400 text-xs">Sin foto</div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Después</span>
+                                <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                                    {baSection.afterPhotoUrl ? (
+                                        <img
+                                            src={baSection.afterPhotoUrl}
+                                            alt="Después"
+                                            className="w-full h-full object-cover photo-print"
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-gray-400 text-xs">Sin foto</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        {baSection.description && (
+                            <p className="mt-3 text-sm text-gray-600 text-center italic">
+                                {baSection.description}
+                            </p>
+                        )}
+                    </div>
+                );
+
             case 'divider':
                 return <hr key={section.id} className="my-6 border-gray-300" />;
 
@@ -79,22 +123,22 @@ export function TicketReportView({ report }: TicketReportViewProps) {
     };
 
     return (
-        <div className="report-page bg-white">
+        <div className="report-page bg-white dark:bg-zinc-950 transition-colors duration-200">
             {/* Header */}
-            <header className="mb-8 pb-6 border-b-2 border-gray-200">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">{report.header.title}</h1>
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+            <header className="mb-8 pb-6 border-b-2 border-gray-200 dark:border-zinc-800">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-50 mb-4">{report.header.title}</h1>
+                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-zinc-400">
                     <div>
-                        <p><span className="font-semibold">Cliente:</span> {report.header.clientName}</p>
-                        <p><span className="font-semibold">Ticket:</span> {report.header.ticketNumber}</p>
+                        <p><span className="font-semibold text-gray-900 dark:text-zinc-200">Cliente:</span> {report.header.clientName}</p>
+                        <p><span className="font-semibold text-gray-900 dark:text-zinc-200">Ticket:</span> {report.header.ticketNumber}</p>
                     </div>
                     <div>
                         {report.header.address && (
-                            <p><span className="font-semibold">Dirección:</span> {report.header.address}</p>
+                            <p><span className="font-semibold text-gray-900 dark:text-zinc-200">Dirección:</span> {report.header.address}</p>
                         )}
-                        <p><span className="font-semibold">Fecha:</span> {report.header.date}</p>
+                        <p><span className="font-semibold text-gray-900 dark:text-zinc-200">Fecha:</span> {report.header.date}</p>
                         {report.header.technicianName && (
-                            <p><span className="font-semibold">Técnico:</span> {report.header.technicianName}</p>
+                            <p><span className="font-semibold text-gray-900 dark:text-zinc-200">Técnico:</span> {report.header.technicianName}</p>
                         )}
                     </div>
                 </div>

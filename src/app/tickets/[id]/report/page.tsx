@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, Edit, Printer, ArrowLeft, Undo2, Redo2 } from "lucide-react";
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function TicketReportPage() {
     const params = useParams();
@@ -38,6 +39,20 @@ export default function TicketReportPage() {
         maxHistory: 50,
     });
 
+    const [lastSavedReport, setLastSavedReport] = useState<TicketReportNew | null>(null);
+    const debouncedReport = useDebounce(report, 2000); // 2 seconds debounce for auto-save
+
+    // Auto-save effect
+    useEffect(() => {
+        if (debouncedReport && lastSavedReport) {
+            // Compare stringified versions to avoid deep object equality issues or unnecessary saves
+            const hasChanges = JSON.stringify(debouncedReport) !== JSON.stringify(lastSavedReport);
+            if (hasChanges) {
+                handleSave(debouncedReport, true); // true = auto-save (silent)
+            }
+        }
+    }, [debouncedReport]);
+
     useEffect(() => {
         loadData();
     }, [ticketId]);
@@ -59,15 +74,17 @@ export default function TicketReportPage() {
             // Load or generate report
             const reportDoc = await getDoc(doc(db, "ticketReports", ticketId));
 
+            let currentReport: TicketReportNew;
             if (reportDoc.exists()) {
                 // Load existing report
-                setReport(reportDoc.data() as TicketReportNew);
+                currentReport = reportDoc.data() as TicketReportNew;
             } else {
                 // Generate new report
-                const newReport = generateReportFromTicket(ticketData);
-                await setDoc(doc(db, "ticketReports", ticketId), newReport);
-                setReport(newReport);
+                currentReport = generateReportFromTicket(ticketData);
+                await setDoc(doc(db, "ticketReports", ticketId), currentReport);
             }
+            setReport(currentReport);
+            setLastSavedReport(currentReport); // Initialize last saved state
         } catch (error) {
             console.error("Error loading data:", error);
             alert("Error al cargar el informe");
@@ -76,9 +93,9 @@ export default function TicketReportPage() {
         }
     };
 
-    const handleSave = async (updatedReport: TicketReportNew) => {
+    const handleSave = async (updatedReport: TicketReportNew, isAutoSave = false) => {
         try {
-            setSaving(true);
+            if (!isAutoSave) setSaving(true);
 
             // Validación
             if (!updatedReport.ticketId || !updatedReport.sections) {
@@ -106,31 +123,30 @@ export default function TicketReportPage() {
 
             const cleanedReport = sanitizeData(updatedReport);
 
-            console.log("Guardando informe:", ticketId, cleanedReport);
+            if (!isAutoSave) console.log("Guardando informe:", ticketId, cleanedReport);
             await setDoc(doc(db, "ticketReports", ticketId), cleanedReport);
-            setReport(updatedReport);
 
-            // Show success toast
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-            toast.textContent = '✓ Informe guardado correctamente';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            // Only update local state if it's a manual save to avoid resetting undo history (?)
+            // Actually, we don't need to update state here because it's already updated via onChange.
+            // We just update the lastSaved reference.
+            setLastSavedReport(updatedReport);
+
+            if (!isAutoSave) {
+                // Show success toast for manual save
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-500';
+                toast.textContent = '✓ Informe guardado correctamente';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 500);
+                }, 3000);
+            }
         } catch (error: any) {
             console.error("Error completo al guardar:", error);
-            console.error("Código de error:", error?.code);
-            console.error("Mensaje:", error?.message);
-
-            let errorMsg = "Error al guardar el informe";
-            if (error?.code === 'permission-denied') {
-                errorMsg = "Sin permisos para guardar. Contacta al administrador.";
-            } else if (error?.message) {
-                errorMsg = `Error: ${error.message}`;
-            }
-
-            alert(errorMsg);
+            if (!isAutoSave) alert("Error al guardar el informe");
         } finally {
-            setSaving(false);
+            if (!isAutoSave) setSaving(false);
         }
     };
 
@@ -142,6 +158,7 @@ export default function TicketReportPage() {
             const updatedReport = updatePhotosFromTicket(report, ticket);
             await setDoc(doc(db, "ticketReports", ticketId), updatedReport);
             setReport(updatedReport);
+            setLastSavedReport(updatedReport);
 
             // Show success toast
             const toast = document.createElement('div');
@@ -165,6 +182,7 @@ export default function TicketReportPage() {
             const newReport = generateReportFromTicket(ticket);
             await setDoc(doc(db, "ticketReports", ticketId), newReport);
             setReport(newReport);
+            setLastSavedReport(newReport);
 
             // Show success toast
             const toast = document.createElement('div');
@@ -180,30 +198,6 @@ export default function TicketReportPage() {
         }
     };
 
-    const handlePrint = async () => {
-        // Pre-cargar todas las imágenes antes de imprimir
-        const images = document.querySelectorAll('.photo-print');
-        const imagePromises = Array.from(images).map((img: any) => {
-            return new Promise((resolve) => {
-                if (img.complete) {
-                    resolve(true);
-                } else {
-                    img.onload = () => resolve(true);
-                    img.onerror = () => resolve(false);
-                    // Timeout después de 5 segundos
-                    setTimeout(() => resolve(false), 5000);
-                }
-            });
-        });
-
-        await Promise.all(imagePromises);
-
-        // Pequeño delay para asegurar renderizado
-        setTimeout(() => {
-            window.print();
-        }, 500);
-    };
-
     // Atajos de teclado
     useKeyboardShortcuts([
         {
@@ -211,7 +205,7 @@ export default function TicketReportPage() {
             ctrl: true,
             handler: () => {
                 if (report) {
-                    handleSave(report);
+                    handleSave(report); // Manual save
                 }
             },
             description: 'Guardar'
@@ -227,21 +221,12 @@ export default function TicketReportPage() {
             ctrl: true,
             handler: redo,
             description: 'Rehacer'
-        },
-        {
-            key: 'p',
-            ctrl: true,
-            shift: true,
-            handler: () => {
-                setActiveTab(prev => prev === 'edit' ? 'preview' : 'edit');
-            },
-            description: 'Alternar vista previa'
-        },
-    ], activeTab === 'edit'); // Solo activos en modo edición
+        }
+    ], true);
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center h-screen bg-gray-50">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
         );
@@ -249,96 +234,71 @@ export default function TicketReportPage() {
 
     if (!ticket || !report) {
         return (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center h-screen bg-gray-50">
                 <p className="text-gray-500">No se pudo cargar el informe</p>
             </div>
         );
     }
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50">
+        <div className="h-screen flex flex-col bg-gray-50 dark:bg-black overflow-hidden">
             {/* Top Navigation */}
-            <div className="bg-white border-b px-6 py-3 flex items-center justify-between print:hidden">
+            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-6 py-3 flex items-center justify-between print:hidden">
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => router.push(`/tickets/${ticketId}`)}
-                        className="gap-2"
+                        className="gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Volver al Ticket
                     </Button>
-                    <div className="h-6 w-px bg-gray-300" />
-                    <h1 className="text-lg font-semibold">
+                    <div className="h-6 w-px bg-gray-300 dark:bg-zinc-700" />
+                    <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                         Informe: {ticket.ticketNumber || ticket.id.slice(0, 6)}
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Undo/Redo Buttons */}
-                    {activeTab === "edit" && (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={undo}
-                                disabled={!canUndo}
-                                className="gap-2"
-                                title="Deshacer (Ctrl+Z)"
-                            >
-                                <Undo2 className="h-4 w-4" />
-                                Deshacer
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={redo}
-                                disabled={!canRedo}
-                                className="gap-2"
-                                title="Rehacer (Ctrl+Y)"
-                            >
-                                <Redo2 className="h-4 w-4" />
-                                Rehacer
-                            </Button>
-                            <div className="h-6 w-px bg-gray-300" />
-                        </>
-                    )}
+                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-md p-1 mr-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={undo}
+                            disabled={!canUndo}
+                            className="h-8 w-8 text-gray-600 dark:text-gray-300"
+                            title="Deshacer (Ctrl+Z)"
+                        >
+                            <Undo2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={redo}
+                            disabled={!canRedo}
+                            className="h-8 w-8 text-gray-600 dark:text-gray-300"
+                            title="Rehacer (Ctrl+Y)"
+                        >
+                            <Redo2 className="h-4 w-4" />
+                        </Button>
+                    </div>
 
-                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "edit" | "preview")}>
-                        <TabsList>
-                            <TabsTrigger value="edit" className="gap-2">
-                                <Edit className="h-4 w-4" />
-                                Editar
-                            </TabsTrigger>
-                            <TabsTrigger value="preview" className="gap-2">
-                                <Eye className="h-4 w-4" />
-                                Vista Previa
-                            </TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                    {activeTab === "preview" && (
-                        <ExportMenu report={report} />
-                    )}
+                    <ExportMenu report={report} />
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-auto">
-                {activeTab === "edit" ? (
-                    <TicketReportEditor
-                        report={report}
-                        onSave={handleSave}
-                        onUpdatePhotos={handleUpdatePhotos}
-                        onRegenerate={handleRegenerate}
-                        saving={saving}
-                    />
-                ) : (
-                    <div className="h-full overflow-y-auto p-8 print:p-0">
-                        <div className="max-w-4xl mx-auto bg-white shadow-lg p-12 print:shadow-none">
-                            <TicketReportView report={report} />
-                        </div>
-                    </div>
-                )}
+            {/* Content - Now managed fully by TicketReportEditor */}
+            <div className="flex-1 overflow-hidden">
+                <TicketReportEditor
+                    report={report}
+                    onChange={setReport}
+                    onSave={async (r) => handleSave(r)}
+                    onUpdatePhotos={handleUpdatePhotos}
+                    onRegenerate={handleRegenerate}
+                    availablePhotos={ticket.photos || []}
+                    saving={saving}
+                />
             </div>
         </div>
     );

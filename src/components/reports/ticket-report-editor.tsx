@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection } from "@/types/schema";
+import { useState, useEffect } from "react";
+import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, TicketPhoto } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,13 +11,18 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2 } from "lucide-react";
+import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout } from "lucide-react";
+import { TicketReportView } from "./ticket-report-view";
+import { BeforeAfterSelector } from "./before-after-selector";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 interface TicketReportEditorProps {
     report: TicketReportNew;
+    onChange: (report: TicketReportNew) => void; // Controlled component
     onSave: (report: TicketReportNew) => Promise<void>;
     onUpdatePhotos: () => Promise<void>;
     onRegenerate: () => Promise<void>;
+    availablePhotos?: TicketPhoto[]; // Photos from the ticket for selection
     saving?: boolean;
 }
 
@@ -27,15 +32,21 @@ function SortableSection({
     onChange,
     onDelete,
     onDuplicate,
+    onClick,
+    isActive,
     isFirst,
-    isLast
+    isLast,
+    availablePhotos = []
 }: {
     section: TicketReportSection;
     onChange: (section: TicketReportSection) => void;
     onDelete: () => void;
     onDuplicate: () => void;
+    onClick: () => void;
+    isActive: boolean;
     isFirst: boolean;
     isLast: boolean;
+    availablePhotos?: TicketPhoto[];
 }) {
     const {
         attributes,
@@ -51,7 +62,17 @@ function SortableSection({
     };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
+            className={`transition-all duration-200 rounded-lg ${isActive ? 'ring-2 ring-blue-500 shadow-md bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-800'}`}
+        >
             <SectionEditor
                 section={section}
                 onChange={onChange}
@@ -62,19 +83,69 @@ function SortableSection({
                 isFirst={isFirst}
                 isLast={isLast}
             />
+
+            {/* Custom Editor for Before/After Block */}
+            {section.type === 'beforeAfter' && (
+                <div className="px-4 pb-4">
+                    <Card className="border-dashed">
+                        <CardContent className="pt-4 grid grid-cols-2 gap-4">
+                            <BeforeAfterSelector
+                                label="Foto Antes"
+                                photoUrl={(section as BeforeAfterSection).beforePhotoUrl}
+                                onSelect={(url, meta) => onChange({ ...section, beforePhotoUrl: url, beforeMeta: meta } as BeforeAfterSection)}
+                                availablePhotos={availablePhotos}
+                            />
+                            <BeforeAfterSelector
+                                label="Foto Después"
+                                photoUrl={(section as BeforeAfterSection).afterPhotoUrl}
+                                onSelect={(url, meta) => onChange({ ...section, afterPhotoUrl: url, afterMeta: meta } as BeforeAfterSection)}
+                                availablePhotos={availablePhotos}
+                            />
+                            <div className="col-span-2">
+                                <Label className="text-xs text-gray-500">Descripción / Comentario</Label>
+                                <Input
+                                    className="mt-1"
+                                    placeholder="Descripción de la mejora..."
+                                    value={(section as BeforeAfterSection).description || ''}
+                                    onChange={(e) => onChange({ ...section, description: e.target.value } as BeforeAfterSection)}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }
 
 export function TicketReportEditor({
     report,
+    onChange,
     onSave,
     onUpdatePhotos,
     onRegenerate,
+    availablePhotos = [],
     saving = false
 }: TicketReportEditorProps) {
-    const [localReport, setLocalReport] = useState<TicketReportNew>(report);
-    const [hasChanges, setHasChanges] = useState(false);
+    const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+    const [darkMode, setDarkMode] = useState(false);
+    const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
+
+    // Initialize dark mode from system/local storage if needed
+    useEffect(() => {
+        const isDark = document.documentElement.classList.contains('dark');
+        setDarkMode(isDark);
+    }, []);
+
+    const toggleDarkMode = () => {
+        const newMode = !darkMode;
+        setDarkMode(newMode);
+        if (newMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -83,36 +154,34 @@ export function TicketReportEditor({
         })
     );
 
-    const updateHeader = (field: keyof typeof localReport.header, value: string) => {
-        setLocalReport(prev => ({
-            ...prev,
-            header: { ...prev.header, [field]: value }
-        }));
-        setHasChanges(true);
+    const updateHeader = (field: keyof typeof report.header, value: string) => {
+        onChange({
+            ...report,
+            header: { ...report.header, [field]: value }
+        });
     };
 
     const updateSection = (index: number, updatedSection: TicketReportSection) => {
-        const newSections = [...localReport.sections];
+        const newSections = [...report.sections];
         newSections[index] = updatedSection;
-        setLocalReport(prev => ({ ...prev, sections: newSections }));
-        setHasChanges(true);
+        onChange({ ...report, sections: newSections });
     };
 
     const deleteSection = (index: number) => {
         if (confirm("¿Eliminar este bloque?")) {
-            const newSections = localReport.sections.filter((_, i) => i !== index);
-            setLocalReport(prev => ({ ...prev, sections: newSections }));
-            setHasChanges(true);
+            const newSections = report.sections.filter((_, i) => i !== index);
+            onChange({ ...report, sections: newSections });
+            setActiveBlockId(null);
         }
     };
 
     const duplicateSection = (index: number) => {
-        const sectionToDuplicate = localReport.sections[index];
+        const sectionToDuplicate = report.sections[index];
         const duplicated = { ...sectionToDuplicate, id: crypto.randomUUID() };
-        const newSections = [...localReport.sections];
+        const newSections = [...report.sections];
         newSections.splice(index + 1, 0, duplicated);
-        setLocalReport(prev => ({ ...prev, sections: newSections }));
-        setHasChanges(true);
+        onChange({ ...report, sections: newSections });
+        setActiveBlockId(duplicated.id);
     };
 
     const addSection = (type: TicketReportSection['type']) => {
@@ -131,6 +200,15 @@ export function TicketReportEditor({
             case 'photo':
                 newSection = { id: crypto.randomUUID(), type: 'photo', photoUrl: '', description: '' } as PhotoSection;
                 break;
+            case 'beforeAfter':
+                newSection = {
+                    id: crypto.randomUUID(),
+                    type: 'beforeAfter',
+                    beforePhotoUrl: '',
+                    afterPhotoUrl: '',
+                    description: ''
+                } as BeforeAfterSection;
+                break;
             case 'divider':
                 newSection = { id: crypto.randomUUID(), type: 'divider' } as DividerSection;
                 break;
@@ -138,80 +216,144 @@ export function TicketReportEditor({
                 return;
         }
 
-        setLocalReport(prev => ({ ...prev, sections: [...prev.sections, newSection] }));
-        setHasChanges(true);
+        onChange({ ...report, sections: [...report.sections, newSection] });
+        setActiveBlockId(newSection.id);
+
+        // Auto scroll to bottom
+        setTimeout(() => {
+            const element = document.getElementById('report-bottom');
+            element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
         if (over && active.id !== over.id) {
-            setLocalReport(prev => {
-                const oldIndex = prev.sections.findIndex(s => s.id === active.id);
-                const newIndex = prev.sections.findIndex(s => s.id === over.id);
+            const oldIndex = report.sections.findIndex(s => s.id === active.id);
+            const newIndex = report.sections.findIndex(s => s.id === over.id);
 
-                return {
-                    ...prev,
-                    sections: arrayMove(prev.sections, oldIndex, newIndex)
-                };
+            onChange({
+                ...report,
+                sections: arrayMove(report.sections, oldIndex, newIndex)
             });
-            setHasChanges(true);
         }
     };
 
-    const handleSave = async () => {
-        await onSave(localReport);
-        setHasChanges(false);
-    };
+    // Keyboard shortcuts handler for blocks
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!activeBlockId) return;
 
-    const handleUpdatePhotos = async () => {
-        await onUpdatePhotos();
-        setHasChanges(false);
-    };
+            // Only trigger if not typing in an input
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
-    const handleRegenerate = async () => {
-        if (confirm("¿Regenerar el informe desde el ticket? Esto borrará todos tus cambios manuales.")) {
-            await onRegenerate();
-            setHasChanges(false);
-        }
-    };
+            if (e.key === 'Delete') {
+                const index = report.sections.findIndex(s => s.id === activeBlockId);
+                if (index !== -1) deleteSection(index);
+            }
+
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault(); // Prevent bookmark
+                const index = report.sections.findIndex(s => s.id === activeBlockId);
+                if (index !== -1) duplicateSection(index);
+            }
+
+            if (e.ctrlKey && e.key === 'ArrowUp') {
+                e.preventDefault();
+                const index = report.sections.findIndex(s => s.id === activeBlockId);
+                if (index > 0) {
+                    const newSections = [...report.sections];
+                    [newSections[index - 1], newSections[index]] = [newSections[index], newSections[index - 1]];
+                    onChange({ ...report, sections: newSections });
+                }
+            }
+
+            if (e.ctrlKey && e.key === 'ArrowDown') {
+                e.preventDefault();
+                const index = report.sections.findIndex(s => s.id === activeBlockId);
+                if (index < report.sections.length - 1) {
+                    const newSections = [...report.sections];
+                    [newSections[index + 1], newSections[index]] = [newSections[index], newSections[index + 1]];
+                    onChange({ ...report, sections: newSections });
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeBlockId, report.sections]);
 
     return (
-        <div className="flex flex-col h-full bg-gray-50">
+        <div className="flex flex-col h-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 transition-colors duration-200">
             {/* Sticky Action Bar */}
-            <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-                <div className="flex items-center justify-between px-6 py-3">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-lg font-semibold text-gray-900">Editor de Informe</h2>
-                        {hasChanges && (
-                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                                Cambios sin guardar
-                            </span>
-                        )}
+            <div className="sticky top-0 z-20 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 shadow-sm">
+                <div className="flex items-center justify-between px-4 py-2">
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleDarkMode}
+                            title={darkMode ? "Modo Claro" : "Modo Oscuro"}
+                        >
+                            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                        </Button>
+
+                        <div className="h-6 w-px bg-gray-200 dark:bg-zinc-700" />
+
+                        {/* View Mode Toggles for Desktop/Mobile */}
+                        <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
+                            <Button
+                                variant={viewMode === 'edit' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setViewMode('edit')}
+                            >
+                                Editor
+                            </Button>
+                            <Button
+                                variant={viewMode === 'split' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className="h-7 px-3 text-xs hidden md:flex"
+                                onClick={() => setViewMode('split')}
+                            >
+                                Split
+                            </Button>
+                            <Button
+                                variant={viewMode === 'preview' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setViewMode('preview')}
+                            >
+                                Preview
+                            </Button>
+                        </div>
                     </div>
+
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleUpdatePhotos}
-                            className="gap-2"
+                            onClick={onUpdatePhotos}
+                            className="gap-2 hidden sm:flex dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
                             <RefreshCw className="h-4 w-4" />
-                            Actualizar Fotos
+                            <span className="hidden lg:inline">Actualizar Fotos</span>
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={handleRegenerate}
-                            className="gap-2 text-orange-600 hover:text-orange-700"
+                            onClick={onRegenerate}
+                            className="gap-2 text-orange-600 hover:text-orange-700 dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
                             <RotateCcw className="h-4 w-4" />
-                            Regenerar Todo
+                            <span className="hidden lg:inline">Regenerar</span>
                         </Button>
                         <Button
-                            onClick={handleSave}
-                            disabled={saving || !hasChanges}
-                            className="gap-2 bg-green-600 hover:bg-green-700"
+                            onClick={() => onSave(report)}
+                            disabled={saving}
+                            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             Guardar
@@ -220,159 +362,134 @@ export function TicketReportEditor({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-6 custom-scrollbar">
-                <style jsx global>{`
-                    .custom-scrollbar::-webkit-scrollbar {
-                        width: 12px;
-                        height: 12px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-track {
-                        background: #f1f1f1;
-                        border-radius: 10px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb {
-                        background: #888;
-                        border-radius: 10px;
-                    }
-                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                        background: #555;
-                    }
-                    .custom-scrollbar {
-                        scrollbar-width: thin;
-                        scrollbar-color: #888 #f1f1f1;
-                    }
-                `}</style>
-                <div className="max-w-4xl mx-auto space-y-6">
-                    {/* Header Editor */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Encabezado del Informe</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <Label>Título del Informe</Label>
-                                <Input
-                                    value={localReport.header.title}
-                                    onChange={(e) => updateHeader('title', e.target.value)}
-                                    className="mt-1"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label>Cliente</Label>
-                                    <Input
-                                        value={localReport.header.clientName}
-                                        onChange={(e) => updateHeader('clientName', e.target.value)}
-                                        className="mt-1"
-                                    />
-                                </div>
-                                <div>
-                                    <Label>Ticket</Label>
-                                    <Input
-                                        value={localReport.header.ticketNumber}
-                                        onChange={(e) => updateHeader('ticketNumber', e.target.value)}
-                                        className="mt-1"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label>Técnico</Label>
-                                    <Input
-                                        value={localReport.header.technicianName || ''}
-                                        onChange={(e) => updateHeader('technicianName', e.target.value)}
-                                        className="mt-1"
-                                    />
-                                </div>
-                                <div>
-                                    <Label>Fecha</Label>
-                                    <Input
-                                        value={localReport.header.date}
-                                        onChange={(e) => updateHeader('date', e.target.value)}
-                                        className="mt-1"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <Label>Dirección</Label>
-                                <Input
-                                    value={localReport.header.address || ''}
-                                    onChange={(e) => updateHeader('address', e.target.value)}
-                                    className="mt-1"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-hidden flex">
+                {/* Editor Panel */}
+                {(viewMode === 'edit' || viewMode === 'split') && (
+                    <div className={`flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar ${viewMode === 'split' ? 'w-1/2 border-r dark:border-zinc-800' : 'w-full'}`}>
+                        <div className="max-w-3xl mx-auto space-y-6">
+                            {/* Header Editor */}
+                            <Card className="dark:bg-zinc-900 dark:border-zinc-800">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base">Encabezado</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid gap-3">
+                                        <div className="grid gap-1">
+                                            <Label>Título</Label>
+                                            <Input
+                                                value={report.header.title}
+                                                onChange={(e) => updateHeader('title', e.target.value)}
+                                                className="dark:bg-zinc-800 dark:border-zinc-700"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid gap-1">
+                                                <Label>Cliente</Label>
+                                                <Input
+                                                    value={report.header.clientName}
+                                                    onChange={(e) => updateHeader('clientName', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label>Ticket</Label>
+                                                <Input
+                                                    value={report.header.ticketNumber}
+                                                    onChange={(e) => updateHeader('ticketNumber', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid gap-1">
+                                                <Label>Técnico</Label>
+                                                <Input
+                                                    value={report.header.technicianName || ''}
+                                                    onChange={(e) => updateHeader('technicianName', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label>Fecha</Label>
+                                                <Input
+                                                    value={report.header.date}
+                                                    onChange={(e) => updateHeader('date', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                    {/* Add Block Menu */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-sm">Agregar Bloque</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" size="sm" onClick={() => addSection('h2')} className="gap-2">
-                                    <Type className="h-4 w-4" />
-                                    Título
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => addSection('text')} className="gap-2">
-                                    <Type className="h-4 w-4" />
-                                    Texto
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => addSection('list')} className="gap-2">
-                                    <List className="h-4 w-4" />
-                                    Lista
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => addSection('photo')} className="gap-2">
-                                    <ImageIcon className="h-4 w-4" />
-                                    Foto
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => addSection('divider')} className="gap-2">
-                                    <Minus className="h-4 w-4" />
-                                    Separador
-                                </Button>
+                            {/* Add Block Menu */}
+                            <Card className="dark:bg-zinc-900 dark:border-zinc-800 sticky top-0 z-10 shadow-md">
+                                <CardContent className="p-3">
+                                    <div className="flex flex-wrap gap-2 justify-center">
+                                        <Button variant="outline" size="sm" onClick={() => addSection('h2')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
+                                            <Type className="h-3.5 w-3.5" /> Título
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => addSection('text')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
+                                            <Type className="h-3.5 w-3.5" /> Texto
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => addSection('list')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
+                                            <List className="h-3.5 w-3.5" /> Lista
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => addSection('photo')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
+                                            <ImageIcon className="h-3.5 w-3.5" /> Foto
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => addSection('beforeAfter')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                                            <Columns className="h-3.5 w-3.5" /> Antes/Después
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => addSection('divider')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
+                                            <Minus className="h-3.5 w-3.5" /> Separador
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Sortable Sections */}
+                            <div className="space-y-4 pb-20">
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext
+                                        items={report.sections.map(s => s.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        {report.sections.map((section, index) => (
+                                            <SortableSection
+                                                key={section.id}
+                                                section={section}
+                                                onChange={(updated) => updateSection(index, updated)}
+                                                onDelete={() => deleteSection(index)}
+                                                onDuplicate={() => duplicateSection(index)}
+                                                onClick={() => setActiveBlockId(section.id)}
+                                                isActive={activeBlockId === section.id}
+                                                isFirst={index === 0}
+                                                isLast={index === report.sections.length - 1}
+                                                availablePhotos={availablePhotos}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
+                                <div id="report-bottom" className="h-10" />
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Sections */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-medium text-gray-700">
-                            Contenido del Informe ({localReport.sections.length} bloques)
-                        </h3>
-
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={localReport.sections.map(s => s.id)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                {localReport.sections.map((section, index) => (
-                                    <SortableSection
-                                        key={section.id}
-                                        section={section}
-                                        onChange={(updated) => updateSection(index, updated)}
-                                        onDelete={() => deleteSection(index)}
-                                        onDuplicate={() => duplicateSection(index)}
-                                        isFirst={index === 0}
-                                        isLast={index === localReport.sections.length - 1}
-                                    />
-                                ))}
-                            </SortableContext>
-                        </DndContext>
-
-                        {localReport.sections.length === 0 && (
-                            <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-300 rounded-lg">
-                                <Plus className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                                <p className="text-sm">No hay bloques aún</p>
-                                <p className="text-xs mt-1">Usa los botones de arriba para agregar contenido</p>
-                            </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* Live Preview Panel */}
+                {(viewMode === 'preview' || viewMode === 'split') && (
+                    <div className={`flex-1 bg-gray-100 dark:bg-zinc-950 overflow-y-auto p-4 md:p-8 ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
+                        <div className="max-w-4xl mx-auto bg-white dark:bg-black shadow-lg min-h-[800px] p-8 md:p-12 transition-colors duration-200">
+                            <TicketReportView report={report} />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
