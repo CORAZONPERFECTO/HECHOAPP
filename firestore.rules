@@ -78,7 +78,8 @@ service cloud.firestore {
     match /permissions/{id} { allow read: if isAuthenticated(); allow write: if isAdmin(); }
     
     match /ticketReports/{reportId} {
-      allow read, write: if hasRole('ADMIN') || hasRole('SUPERVISOR') || hasRole('GERENTE') || request.auth.token.email == 'lcaa27@gmail.com';
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
     match /settings/{settingId} {
