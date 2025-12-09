@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
@@ -9,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, Save } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Mic } from "lucide-react";
+import { VoiceCommandCenter } from "./voice-command-center";
 
 interface InvoiceFormProps {
     initialData?: Invoice;
@@ -20,6 +19,7 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
+    const [showVoiceAgent, setShowVoiceAgent] = useState(false);
 
     const [formData, setFormData] = useState<Partial<Invoice>>({
         number: initialData?.number || "",
@@ -97,6 +97,15 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
         }));
     };
 
+    const handleVoiceData = (data: { clientName?: string; clientId?: string; items: InvoiceItem[] }) => {
+        setFormData(prev => ({
+            ...prev,
+            clientId: data.clientId || prev.clientId,
+            clientName: data.clientName || prev.clientName,
+            items: [...(prev.items || []), ...data.items]
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -129,135 +138,160 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-lg shadow">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label>Cliente</Label>
-                    <Select
-                        value={formData.clientId}
-                        onValueChange={handleClientChange}
+        <>
+            <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-lg shadow relative">
+
+                {/* Voice Trigger Button */}
+                <div className="absolute top-8 right-8 z-10">
+                    <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700 text-white shadow-md animate-in fade-in zoom-in"
+                        onClick={() => setShowVoiceAgent(true)}
                     >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {clients.map(client => (
-                                <SelectItem key={client.id} value={client.id}>
-                                    {client.nombreComercial}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Número de Factura</Label>
-                    <Input
-                        value={formData.number}
-                        onChange={e => setFormData(prev => ({ ...prev, number: e.target.value }))}
-                        placeholder="Ej. INV-001"
-                        required
-                    />
-                </div>
-            </div>
-
-            {/* Items Section */}
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Items</h3>
-                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                        <Plus className="mr-2 h-4 w-4" /> Agregar Item
+                        <Mic className="w-4 h-4 mr-2" />
+                        Asistente de Voz
                     </Button>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="p-3 text-left">Descripción</th>
-                                <th className="p-3 text-right w-24">Cant.</th>
-                                <th className="p-3 text-right w-32">Precio</th>
-                                <th className="p-3 text-right w-32">Total</th>
-                                <th className="p-3 w-12"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {(formData.items || []).map((item, index) => (
-                                <tr key={index}>
-                                    <td className="p-3">
-                                        <Input
-                                            value={item.description}
-                                            onChange={e => updateItem(index, 'description', e.target.value)}
-                                            placeholder="Descripción del servicio o producto"
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            value={item.quantity}
-                                            onChange={e => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                                            className="text-right"
-                                        />
-                                    </td>
-                                    <td className="p-3">
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={item.unitPrice}
-                                            onChange={e => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            className="text-right"
-                                        />
-                                    </td>
-                                    <td className="p-3 text-right font-medium">
-                                        RD$ {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="p-3 text-center">
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
-                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
-                                    </td>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                    <div className="space-y-2">
+                        <Label>Cliente</Label>
+                        <Select
+                            value={formData.clientId}
+                            onValueChange={handleClientChange}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar cliente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {clients.map(client => (
+                                    <SelectItem key={client.id} value={client.id}>
+                                        {client.nombreComercial}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Número de Factura</Label>
+                        <Input
+                            value={formData.number}
+                            onChange={e => setFormData(prev => ({ ...prev, number: e.target.value }))}
+                            placeholder="Ej. INV-001"
+                            required
+                        />
+                    </div>
+                </div>
+
+                {/* Items Section */}
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-medium">Items</h3>
+                        <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                            <Plus className="mr-2 h-4 w-4" /> Agregar Item
+                        </Button>
+                    </div>
+
+                    <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="p-3 text-left">Descripción</th>
+                                    <th className="p-3 text-right w-24">Cant.</th>
+                                    <th className="p-3 text-right w-32">Precio</th>
+                                    <th className="p-3 text-right w-32">Total</th>
+                                    <th className="p-3 w-12"></th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {(formData.items || []).length === 0 && (
-                        <div className="p-8 text-center text-gray-500">
-                            No hay items en la factura. Agrega uno para comenzar.
+                            </thead>
+                            <tbody className="divide-y">
+                                {(formData.items || []).map((item, index) => (
+                                    <tr key={index}>
+                                        <td className="p-3">
+                                            <Input
+                                                value={item.description}
+                                                onChange={e => updateItem(index, 'description', e.target.value)}
+                                                placeholder="Descripción del servicio o producto"
+                                            />
+                                        </td>
+                                        <td className="p-3">
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                value={item.quantity}
+                                                onChange={e => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                                className="text-right"
+                                            />
+                                        </td>
+                                        <td className="p-3">
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={item.unitPrice}
+                                                onChange={e => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                className="text-right"
+                                            />
+                                        </td>
+                                        <td className="p-3 text-right font-medium">
+                                            RD$ {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="p-3 text-center">
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {(formData.items || []).length === 0 && (
+                            <div className="p-8 text-center text-gray-500">
+                                No hay items en la factura. Agrega uno para comenzar.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Totals */}
+                <div className="flex justify-end">
+                    <div className="w-64 space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Subtotal:</span>
+                            <span>RD$ {totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Totals */}
-            <div className="flex justify-end">
-                <div className="w-64 space-y-2">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Subtotal:</span>
-                        <span>RD$ {totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">ITBIS (18%):</span>
-                        <span>RD$ {totals.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg border-t pt-2">
-                        <span>Total:</span>
-                        <span>RD$ {totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">ITBIS (18%):</span>
+                            <span>RD$ {totals.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>Total:</span>
+                            <span>RD$ {totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex justify-end gap-4 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
-                    Cancelar
-                </Button>
-                <Button type="submit" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    {isEditing ? "Guardar Cambios" : "Crear Factura"}
-                </Button>
-            </div>
-        </form>
+                <div className="flex justify-end gap-4 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
+                        Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Save className="mr-2 h-4 w-4" />
+                        {isEditing ? "Guardar Cambios" : "Crear Factura"}
+                    </Button>
+                </div>
+            </form>
+
+            {showVoiceAgent && (
+                <VoiceCommandCenter
+                    availableClients={clients}
+                    onClose={() => setShowVoiceAgent(false)}
+                    onInvoiceDataDetected={handleVoiceData}
+                />
+            )}
+        </>
     );
 }
