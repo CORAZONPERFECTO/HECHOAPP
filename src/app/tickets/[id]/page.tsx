@@ -1,5 +1,5 @@
 "use client";
-// Ticket Detail Page - Updated 2025-12-03
+// Ticket Detail Page - Updated 2025-12-09
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ import { ChecklistRenderer } from "@/components/tickets/checklist-renderer";
 import { PhotoUploader } from "@/components/tickets/photo-uploader";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
-import { ReportEditor } from "@/components/tickets/report-editor";
+import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW Editor
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { StatusActionButtons } from "@/components/technician/status-action-buttons";
@@ -411,7 +411,7 @@ export default function TicketDetailPage() {
 
                     {canViewFinalReport && (
                         <TabsContent value="final-report" className="h-[calc(100vh-200px)]">
-                            <ReportEditor ticket={ticket} currentUserRole={currentUserRole} />
+                            <TicketReportTab ticket={ticket} currentUserRole={currentUserRole} />
                         </TabsContent>
                     )}
                 </Tabs>
@@ -419,7 +419,7 @@ export default function TicketDetailPage() {
                 {/* Print View Container (Only visible when printing) */}
                 <div className="hidden print:block">
                     {/* The ReportEditor handles its own print view visibility via CSS */}
-                    {canViewFinalReport && <ReportEditor ticket={ticket} currentUserRole={currentUserRole} />}
+                    {canViewFinalReport && <TicketReportTab ticket={ticket} currentUserRole={currentUserRole} />}
                 </div>
             </main>
 

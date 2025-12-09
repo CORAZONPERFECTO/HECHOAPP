@@ -167,6 +167,15 @@ export default function Dashboard() {
               color="text-teal-600"
             />
 
+            {!isTechnician && (
+              <AppCard
+                icon={BarChart3}
+                label="Ingresos"
+                href="/income"
+                color="text-emerald-600"
+              />
+            )}
+
           </div>
         </section>
       </main>
