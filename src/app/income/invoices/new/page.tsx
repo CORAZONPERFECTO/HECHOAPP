@@ -1,15 +1,14 @@
-import { InvoiceForm } from "@/components/income/invoice-form";
+import { InvoiceWizard } from "@/components/income/invoice-wizard/invoice-wizard";
+import { AppLayout } from "@/components/layout/app-layout"; // Optional wrapper if not globally applied yet
 
 export default function NewInvoicePage() {
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Nueva Factura</h1>
-                    <p className="text-gray-500">Crea una nueva factura de venta para un cliente.</p>
-                </div>
-                <InvoiceForm />
+        <AppLayout>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Nueva Factura</h1>
+                <p className="text-gray-500">Completa los pasos para generar el documento.</p>
             </div>
-        </div>
+            <InvoiceWizard />
+        </AppLayout>
     );
 }
