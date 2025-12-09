@@ -8,6 +8,7 @@ import { Ticket, TicketReportNew } from "@/types/schema";
 import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { TicketReportView } from "@/components/reports/ticket-report-view";
+import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, Edit, Printer, ArrowLeft } from "lucide-react";
@@ -238,10 +239,7 @@ export default function TicketReportPage() {
                         </TabsList>
                     </Tabs>
                     {activeTab === "preview" && (
-                        <Button onClick={handlePrint} className="gap-2 bg-blue-600 hover:bg-blue-700">
-                            <Printer className="h-4 w-4" />
-                            Exportar PDF
-                        </Button>
+                        <ExportMenu report={report} />
                     )}
                 </div>
             </div>
