@@ -64,6 +64,13 @@ export default function TicketReportPage() {
     const handleSave = async (updatedReport: TicketReportNew) => {
         try {
             setSaving(true);
+
+            // Validación
+            if (!updatedReport.ticketId || !updatedReport.sections) {
+                throw new Error("Datos del informe incompletos");
+            }
+
+            console.log("Guardando informe:", ticketId, updatedReport);
             await setDoc(doc(db, "ticketReports", ticketId), updatedReport);
             setReport(updatedReport);
 
@@ -73,9 +80,19 @@ export default function TicketReportPage() {
             toast.textContent = '✓ Informe guardado correctamente';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
-        } catch (error) {
-            console.error("Error saving report:", error);
-            alert("Error al guardar el informe");
+        } catch (error: any) {
+            console.error("Error completo al guardar:", error);
+            console.error("Código de error:", error?.code);
+            console.error("Mensaje:", error?.message);
+
+            let errorMsg = "Error al guardar el informe";
+            if (error?.code === 'permission-denied') {
+                errorMsg = "Sin permisos para guardar. Contacta al administrador.";
+            } else if (error?.message) {
+                errorMsg = `Error: ${error.message}`;
+            }
+
+            alert(errorMsg);
         } finally {
             setSaving(false);
         }
@@ -127,8 +144,28 @@ export default function TicketReportPage() {
         }
     };
 
-    const handlePrint = () => {
-        window.print();
+    const handlePrint = async () => {
+        // Pre-cargar todas las imágenes antes de imprimir
+        const images = document.querySelectorAll('.photo-print');
+        const imagePromises = Array.from(images).map((img: any) => {
+            return new Promise((resolve) => {
+                if (img.complete) {
+                    resolve(true);
+                } else {
+                    img.onload = () => resolve(true);
+                    img.onerror = () => resolve(false);
+                    // Timeout después de 5 segundos
+                    setTimeout(() => resolve(false), 5000);
+                }
+            });
+        });
+
+        await Promise.all(imagePromises);
+
+        // Pequeño delay para asegurar renderizado
+        setTimeout(() => {
+            window.print();
+        }, 500);
     };
 
     if (loading) {

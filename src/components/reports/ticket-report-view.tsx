@@ -42,15 +42,24 @@ export function TicketReportView({ report }: TicketReportViewProps) {
             case 'photo':
                 const photoSection = section as PhotoSection;
                 return (
-                    <div key={section.id} className="mb-6 break-inside-avoid">
+                    <div key={section.id} className="mb-6 break-inside-avoid photo-container">
                         <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
                             {photoSection.photoUrl && (
                                 <img
                                     src={photoSection.photoUrl}
                                     alt={photoSection.description || 'Evidence'}
-                                    className="w-full h-full object-contain"
-                                    crossOrigin="anonymous"
+                                    className="w-full h-full object-contain photo-print"
+                                    onError={(e) => {
+                                        console.error("Error cargando imagen:", photoSection.photoUrl);
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                    loading="eager"
                                 />
+                            )}
+                            {!photoSection.photoUrl && (
+                                <div className="flex items-center justify-center h-full text-gray-400">
+                                    Sin imagen
+                                </div>
                             )}
                         </div>
                         {photoSection.description && (
@@ -109,6 +118,15 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                     .break-inside-avoid {
                         break-inside: avoid;
                         page-break-inside: avoid;
+                    }
+                    .photo-container {
+                        display: block !important;
+                        visibility: visible !important;
+                    }
+                    .photo-print {
+                        display: block !important;
+                        max-width: 100%;
+                        height: auto;
                     }
                 }
             `}</style>
