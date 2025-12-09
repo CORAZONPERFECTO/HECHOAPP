@@ -341,8 +341,12 @@ export async function exportToWord(report: TicketReportNew) {
             if (photoSection.description) {
                 children.push(
                     new Paragraph({
-                        text: photoSection.description,
-                        italics: true,
+                        children: [
+                            new TextRun({
+                                text: photoSection.description,
+                                italics: true,
+                            }),
+                        ],
                     })
                 );
             }
