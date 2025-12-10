@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, Loader2, Save } from "lucide-react";
 
 import { auth } from "@/lib/firebase";
+import { generateNextNumber } from "@/lib/numbering-service";
 
 interface QuoteFormProps {
     initialData?: Quote;
@@ -122,9 +123,9 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                 // Update implementation
                 await updateDoc(doc(db, "quotes", initialData.id), quoteData);
             } else {
-                // Creation implementation
                 const newQuoteData = {
                     ...quoteData,
+                    number: await generateNextNumber('COT'), // Auto-generate
                     createdBy: currentUser.uid,
                     createdAt: serverTimestamp(),
                     sellerId: currentUser.uid, // Default to creator for now
@@ -175,12 +176,14 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                     <Input
                         value={formData.number}
                         onChange={e => setFormData(prev => ({ ...prev, number: e.target.value }))}
-                        placeholder="Ej. COT-001"
-                        required
+                        placeholder={isEditing ? "COT-000000" : "(Auto-generado al guardar)"}
+                        required={isEditing}
+                        disabled={!isEditing} // Disable for new quotes, allow edit if correcting
+                        className={!isEditing ? "bg-gray-100 text-gray-500" : ""}
                     />
                 </div>
-                
-                 <div className="space-y-2">
+
+                <div className="space-y-2">
                     <Label>Moneda</Label>
                     <Select
                         value={formData.currency}
@@ -247,7 +250,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                                         />
                                     </td>
                                     <td className="p-3 text-right font-medium">
-                                        RD$ {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        {formData.currency === 'USD' ? 'US$' : 'RD$'} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-3 text-center">
                                         <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
@@ -271,15 +274,15 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                 <div className="w-64 space-y-2">
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Subtotal:</span>
-                        <span>RD$ {totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span>{formData.currency === 'USD' ? 'US$' : 'RD$'} {totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-500">ITBIS (18%):</span>
-                        <span>RD$ {totals.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span>{formData.currency === 'USD' ? 'US$' : 'RD$'} {totals.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between font-bold text-lg border-t pt-2">
                         <span>Total:</span>
-                        <span>RD$ {totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span>{formData.currency === 'USD' ? 'US$' : 'RD$'} {totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
             </div>
