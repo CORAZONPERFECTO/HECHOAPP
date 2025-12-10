@@ -1,35 +1,61 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
-    BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic
+    BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
-const menuItems = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-    { label: "Facturas", icon: Files, href: "/income/invoices" },
-    { label: "Recurrentes", icon: Repeat, href: "/income/recurring" },
-    { label: "Pagos", icon: CreditCard, href: "/income/payments" },
-    { label: "Cotizaciones", icon: FileText, href: "/income/quotes" },
-    { label: "Notas Crédito", icon: Files, href: "/income/credit-notes" },
-    { label: "Conduces", icon: Truck, href: "/income/delivery-notes" },
-    { label: "Recibos", icon: Receipt, href: "/income/receipts" },
-    { label: "Clientes", icon: Users, href: "/clients" },
-    { label: "Reportes", icon: BarChart3, href: "/reports" },
+const adminMenuItems = [
+    { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Facturas", icon: Files, href: "/income/invoices", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Recurrentes", icon: Repeat, href: "/income/recurring", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Pagos", icon: CreditCard, href: "/income/payments", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Cotizaciones", icon: FileText, href: "/income/quotes", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Notas Crédito", icon: Files, href: "/income/credit-notes", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Conduces", icon: Truck, href: "/income/delivery-notes", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Recibos", icon: Receipt, href: "/income/receipts", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
+    { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
 ];
 
 export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
+    const [userRole, setUserRole] = useState<string | null>(null);
     const pathname = usePathname();
 
+    useEffect(() => {
+        const fetchUserRole = async () => {
+            const user = auth.currentUser;
+            if (user) {
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    setUserRole(docSnap.data().rol || null);
+                }
+            }
+        };
+        fetchUserRole();
+    }, []);
+
     const toggleSidebar = () => setCollapsed(!collapsed);
+
+    // Filter menu items based on user role
+    const menuItems = adminMenuItems.filter(item =>
+        !userRole || item.roles.includes(userRole)
+    );
+
+    const isTechnician = userRole === "TECNICO";
 
     return (
         <aside
@@ -70,21 +96,23 @@ export function Sidebar() {
             {/* Navigation */}
             <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800">
 
-                {/* CTA New Invoice */}
-                <div className="mb-6 px-1">
-                    <Button
-                        className={cn(
-                            "w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/20 transition-all duration-300",
-                            collapsed ? "h-12 w-12 rounded-xl p-0 justify-center" : "justify-start gap-3"
-                        )}
-                        asChild
-                    >
-                        <Link href="/income/invoices/new">
-                            <Mic className={cn("h-5 w-5", collapsed ? "mr-0" : "")} />
-                            {!collapsed && <span>Nueva Factura</span>}
-                        </Link>
-                    </Button>
-                </div>
+                {/* CTA New Invoice - Only for Admin/Supervisor */}
+                {!isTechnician && (
+                    <div className="mb-6 px-1">
+                        <Button
+                            className={cn(
+                                "w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/20 transition-all duration-300",
+                                collapsed ? "h-12 w-12 rounded-xl p-0 justify-center" : "justify-start gap-3"
+                            )}
+                            asChild
+                        >
+                            <Link href="/income/invoices/new">
+                                <Mic className={cn("h-5 w-5", collapsed ? "mr-0" : "")} />
+                                {!collapsed && <span>Nueva Factura</span>}
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
                 {/* Menu Items */}
                 {menuItems.map((item) => {
@@ -131,12 +159,12 @@ export function Sidebar() {
                     )}
                 >
                     <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                        JD
+                        {userRole === "TECNICO" ? "T" : "A"}
                     </div>
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">John Doe</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Admin</p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{auth.currentUser?.displayName || "Usuario"}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole || "Cargando..."}</p>
                         </div>
                     )}
                     {!collapsed && <Settings className="h-4 w-4 text-gray-400" />}
