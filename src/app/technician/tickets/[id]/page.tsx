@@ -254,21 +254,21 @@ export default function TechnicianTicketPage() {
                             type="BEFORE"
                             photos={ticket.photos || []}
                             onChange={handlePhotoUpdate}
-                            allowGallery={ticket.allowGalleryUpload}
+                            allowGallery={false}
                         />
                         <PhotoUploader
                             label="Durante el Servicio"
                             type="DURING"
                             photos={ticket.photos || []}
                             onChange={handlePhotoUpdate}
-                            allowGallery={ticket.allowGalleryUpload}
+                            allowGallery={false}
                         />
                         <PhotoUploader
                             label="Después del Servicio"
                             type="AFTER"
                             photos={ticket.photos || []}
                             onChange={handlePhotoUpdate}
-                            allowGallery={ticket.allowGalleryUpload}
+                            allowGallery={false}
                         />
                     </CardContent>
                 </Card>
