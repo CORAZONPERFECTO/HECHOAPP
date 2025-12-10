@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, getCountFromServer, Timestamp } from "firebase/firestore";
+import { collection, query, where, getCountFromServer, Timestamp, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Ticket, AlertCircle, CheckCircle2, Clock, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Ticket, AlertCircle, CheckCircle2, Banknote } from "lucide-react";
 
 export function DashboardStats() {
     const [stats, setStats] = useState({
         open: 0,
         urgent: 0,
         completedToday: 0,
-        technicians: 0
+        income: 0
     });
     const [loading, setLoading] = useState(true);
 
@@ -40,15 +40,23 @@ export function DashboardStats() {
                 );
                 const completedSnapshot = await getCountFromServer(completedQuery);
 
-                // 4. Active Technicians (Total for now)
-                const techQuery = query(collection(db, "users"), where("role", "==", "TECNICO"));
-                const techSnapshot = await getCountFromServer(techQuery);
+                // 4. Monthly Income
+                const startMonth = new Date();
+                startMonth.setDate(1);
+                startMonth.setHours(0, 0, 0, 0);
+
+                const incomeQuery = query(
+                    collection(db, "payments"),
+                    where("date", ">=", Timestamp.fromDate(startMonth))
+                );
+                const incomeSnap = await getDocs(incomeQuery);
+                const totalIncome = incomeSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
 
                 setStats({
                     open: openSnapshot.data().count,
                     urgent: urgentSnapshot.data().count,
                     completedToday: completedSnapshot.data().count,
-                    technicians: techSnapshot.data().count
+                    income: totalIncome
                 });
             } catch (error) {
                 console.error("Error fetching dashboard stats:", error);
@@ -61,6 +69,13 @@ export function DashboardStats() {
     }, []);
 
     const statCards = [
+        {
+            title: "Ingresos (Mes)",
+            value: `RD$ ${stats.income.toLocaleString()}`,
+            icon: Banknote,
+            color: "text-green-600",
+            bg: "bg-green-100"
+        },
         {
             title: "Tickets Abiertos",
             value: stats.open,
@@ -79,13 +94,6 @@ export function DashboardStats() {
             title: "Terminados Hoy",
             value: stats.completedToday,
             icon: CheckCircle2,
-            color: "text-green-600",
-            bg: "bg-green-100"
-        },
-        {
-            title: "Técnicos",
-            value: stats.technicians,
-            icon: Users,
             color: "text-purple-600",
             bg: "bg-purple-100"
         }

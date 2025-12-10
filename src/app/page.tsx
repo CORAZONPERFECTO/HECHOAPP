@@ -12,6 +12,8 @@ import { User as UserSchema } from "@/types/schema";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { ActiveTicketCard } from "@/components/dashboard/active-ticket-card";
 import { UrgentTicketsList } from "@/components/dashboard/urgent-tickets-list";
+import { IncomeChart } from "@/components/dashboard/income-chart";
+import { RecentActivity } from "@/components/dashboard/recent-activity";
 
 interface AppCardProps {
   icon: React.ElementType;
@@ -74,18 +76,9 @@ export default function Dashboard() {
           <div className="space-y-6">
             <DashboardStats />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2">
-                <div className="glass-card p-6 h-full flex flex-col justify-center items-center text-center space-y-4">
-                  <div className="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center">
-                    <BarChart3 className="h-8 w-8 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Rendimiento Financiero</h3>
-                    <p className="text-sm text-gray-500">Gráfico de ingresos vs gastos (Próximamente)</p>
-                  </div>
-                </div>
-              </div>
-              <div>
+              <IncomeChart />
+              <div className="space-y-6">
+                <RecentActivity />
                 <UrgentTicketsList />
               </div>
             </div>
