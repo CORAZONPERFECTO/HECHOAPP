@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
+import { PermissionRequest } from "@/components/technician/permission-request";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -27,13 +28,19 @@ export default function TechnicianTicketPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [authLoading, setAuthLoading] = useState(true);
+    const [permissionsGranted, setPermissionsGranted] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((u) => {
             setUser(u);
             setAuthLoading(false);
             if (u) {
-                fetchTicket();
+                // Check if permissions were previously granted
+                const granted = localStorage.getItem('technicianPermissionsGranted');
+                if (granted === 'true') {
+                    setPermissionsGranted(true);
+                    fetchTicket();
+                }
             }
         });
         return () => unsubscribe();
@@ -146,6 +153,18 @@ export default function TechnicianTicketPage() {
             // Revert on error? For now, let's keep it simple.
         }
     };
+
+    // Show permission request if user is logged in but hasn't granted permissions
+    if (user && !permissionsGranted) {
+        return (
+            <PermissionRequest
+                onPermissionsGranted={() => {
+                    setPermissionsGranted(true);
+                    fetchTicket();
+                }}
+            />
+        );
+    }
 
     if (loading) return <div className="p-4 text-center">Cargando ticket...</div>;
     if (!ticket) return <div className="p-4 text-center text-red-500">Ticket no encontrado</div>;
