@@ -7,7 +7,8 @@ import { auth, db } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MapPin, Phone, Calendar, Save, CheckCircle, Loader2 } from "lucide-react";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
+import { MapPin, Phone, Calendar, Save, CheckCircle, Loader2, FileText } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,7 @@ export default function TechnicianTicketPage() {
                 checklist: ticket.checklist,
                 photos: ticket.photos,
                 status: ticket.status,
+                diagnosis: ticket.diagnosis,
                 updatedAt: serverTimestamp()
             });
             alert("Cambios guardados correctamente");
@@ -198,6 +200,27 @@ export default function TechnicianTicketPage() {
                             onUpdate={(newChecklist) => setTicket({ ...ticket, checklist: newChecklist })}
                             readOnly={false}
                         />
+                    </CardContent>
+                </Card>
+
+                {/* Technician Notes */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Notas del Técnico
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <VoiceTextarea
+                            placeholder="Agrega notas sobre el servicio... Presiona el micrófono para dictar por voz."
+                            value={ticket.diagnosis || ""}
+                            onChange={(e) => setTicket({ ...ticket, diagnosis: e.target.value })}
+                            className="min-h-[120px]"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                            💡 Usa el micrófono para dictar tus notas mientras trabajas
+                        </p>
                     </CardContent>
                 </Card>
 
