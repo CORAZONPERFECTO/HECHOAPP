@@ -27,7 +27,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText } from "lucide-react";
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -146,6 +146,30 @@ export default function TicketDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* GENERATE QUOTE BUTTON */}
+                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR') && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                // Store ticket data for pre-fill
+                                localStorage.setItem('quoteFromTicket', JSON.stringify({
+                                    ticketId: ticket.id,
+                                    ticketNumber: ticket.ticketNumber,
+                                    clientId: ticket.clientId,
+                                    clientName: ticket.clientName,
+                                    serviceType: ticket.serviceType,
+                                    description: ticket.description
+                                }));
+                                router.push('/income/quotes/new');
+                            }}
+                            className="gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                        >
+                            <FileText className="h-4 w-4" />
+                            Generar Cotización
+                        </Button>
+                    )}
+
                     {/* SUPER USER DELETE BUTTON */}
                     {currentUserEmail.toLowerCase() === 'lcaa27@gmail.com' && (
                         <Button

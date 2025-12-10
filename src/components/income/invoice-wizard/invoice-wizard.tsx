@@ -60,6 +60,30 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
         fetchClients();
     }, []);
 
+    // Pre-fill from ticket if coming from ticket detail
+    useEffect(() => {
+        if (!isQuote) return; // Only for quotes
+
+        const ticketData = localStorage.getItem('quoteFromTicket');
+        if (ticketData) {
+            try {
+                const data = JSON.parse(ticketData);
+                setFormData(prev => ({
+                    ...prev,
+                    clientId: data.clientId || '',
+                    clientName: data.clientName || '',
+                    ticketId: data.ticketId || '',
+                    ticketNumber: data.ticketNumber || '',
+                    notes: `Generada desde Ticket #${data.ticketNumber || 'N/A'}\n\nServicio: ${data.serviceType?.replace(/_/g, ' ') || ''}\n\nDescripción: ${data.description || ''}`
+                }));
+                // Clear after reading
+                localStorage.removeItem('quoteFromTicket');
+            } catch (error) {
+                console.error('Error parsing ticket data:', error);
+            }
+        }
+    }, [isQuote]);
+
     const updateData = (key: string, value: any) => {
         setFormData(prev => ({ ...prev, [key]: value }));
     };
