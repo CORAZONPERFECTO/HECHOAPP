@@ -221,7 +221,6 @@ export function PhotoUploader({ label, type, photos, onChange, allowGallery = fa
                                     type="file"
                                     accept="image/*"
                                     capture="environment"
-                                    multiple
                                     className="hidden"
                                     onChange={handleFileChange}
                                     disabled={uploading}
