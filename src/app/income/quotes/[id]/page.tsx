@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, addDoc, updateDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc, addDoc, updateDoc, collection, serverTimestamp, Timestamp, arrayUnion } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { Quote, Invoice } from "@/types/schema";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -49,30 +49,45 @@ export default function QuoteDetailPage() {
         if (!quote) return;
         setConverting(true);
         try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) throw new Error("User not authenticated");
+
             // 1. Create Invoice from Quote data
             const invoiceData: Partial<Invoice> = {
                 clientId: quote.clientId,
                 clientName: quote.clientName,
-                // clientRnc: quote.clientRnc, // Assuming this might exist or optional
-                number: "", // In a real app we might auto-generate next sequence
+                // clientRnc: quote.clientRnc,
+                number: "", // Should use NumberingService in future
                 items: quote.items,
                 subtotal: quote.subtotal,
                 taxTotal: quote.taxTotal,
                 total: quote.total,
                 balance: quote.total,
+                currency: quote.currency || 'DOP', // Copied currency
                 status: 'DRAFT',
                 issueDate: Timestamp.now(),
                 dueDate: Timestamp.now(),
                 notes: `Generada desde Cotización #${quote.number || 'N/A'}. ${quote.notes || ''}`,
+                convertedFromQuoteId: quote.id,
+                sellerId: quote.sellerId,
+                sellerName: quote.sellerName,
                 createdAt: serverTimestamp() as any,
                 updatedAt: serverTimestamp() as any,
             };
 
             const docRef = await addDoc(collection(db, "invoices"), invoiceData);
 
-            // 2. Mark Quote as Accepted
+            // 2. Mark Quote as Converted & Accepted
             await updateDoc(doc(db, "quotes", quote.id), {
-                status: 'ACCEPTED'
+                status: 'CONVERTED',
+                convertedInvoiceId: docRef.id,
+                timeline: arrayUnion({
+                    status: 'CONVERTED',
+                    timestamp: Timestamp.now(),
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName || 'Usuario',
+                    note: `Convertida a Factura (ID: ${docRef.id})`
+                })
             });
 
             toast({
@@ -134,10 +149,10 @@ export default function QuoteDetailPage() {
                         <Button variant="outline" className="gap-2">
                             <Mail className="h-4 w-4" /> Enviar
                         </Button>
-                        {quote.status !== 'ACCEPTED' && (
+                        {quote.status !== 'CONVERTED' && (
                             <Button
                                 onClick={handleConvert}
-                                disabled={converting}
+                                disabled={converting || quote.status === 'REJECTED'}
                                 className="bg-green-600 hover:bg-green-700 text-white shadow-md shadow-green-500/20 gap-2"
                             >
                                 {converting ? (

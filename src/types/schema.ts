@@ -65,7 +65,35 @@ export interface TicketEvent {
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'PARTIALLY_PAID' | 'OVERDUE' | 'CANCELLED';
 export type PaymentMethod = 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'TARJETA' | 'OTRO';
-export type QuoteStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+
+export type QuoteStatus = 'DRAFT' | 'SENT' | 'OPENED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED';
+export type Currency = 'DOP' | 'USD';
+
+export interface QuoteTimelineEvent {
+    status: QuoteStatus;
+    timestamp: Timestamp;
+    userId?: string;
+    userName?: string;
+    note?: string;
+    ipAddress?: string;
+}
+
+export interface QuoteAcceptance {
+    acceptedAt: Timestamp;
+    acceptedBy: string; // Name
+    acceptedByEmail: string;
+    acceptedByPhone?: string;
+    signatureUrl?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    comment?: string;
+}
+
+export interface QuoteRejection {
+    rejectedAt: Timestamp;
+    reason: string;
+    ipAddress?: string;
+}
 
 export interface InvoiceItem {
     description: string;
@@ -88,9 +116,18 @@ export interface Invoice {
     taxTotal: number;
     total: number;
     balance: number; // Amount remaining to be paid
+    currency?: Currency; // New field
+
     status: InvoiceStatus;
     issueDate: Timestamp;
     dueDate: Timestamp;
+
+    // Origin
+    convertedFromQuoteId?: string; // New Link
+
+    // Assignment
+    sellerId?: string; // New field
+    sellerName?: string; // New field
     notes?: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
@@ -98,17 +135,49 @@ export interface Invoice {
 
 export interface Quote {
     id: string;
-    number: string;
+    number: string; // COT-000001
+
+    // Client & Context
     clientId: string;
     clientName: string;
+    clientContact?: string;
+    clientEmail?: string;
+    clientPhone?: string;
+    ticketId?: string; // Link to Ticket
+    ticketNumber?: string;
+
+    // Commercial Data
     items: InvoiceItem[];
+    currency: Currency;
+    exchangeRate?: number; // If USD
     subtotal: number;
     taxTotal: number;
+    discountTotal: number;
     total: number;
+
+    // Status & Validity
     status: QuoteStatus;
+    issueDate: Timestamp;
     validUntil: Timestamp;
-    notes?: string;
+
+    // Assignment
+    sellerId?: string;
+    sellerName?: string;
+
+    // Meta
+    notes?: string;   // Internal notes
+    terms?: string;   // Commercial terms visible to client
+
+    // Lifecycle
+    timeline: QuoteTimelineEvent[];
+    acceptance?: QuoteAcceptance;
+    rejection?: QuoteRejection;
+    convertedInvoiceId?: string; // If converted
+
+    // Audit
+    createdBy: string;
     createdAt: Timestamp;
+    updatedBy?: string;
     updatedAt: Timestamp;
 }
 

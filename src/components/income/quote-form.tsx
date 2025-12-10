@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2, Save } from "lucide-react";
 
+import { auth } from "@/lib/firebase";
+
 interface QuoteFormProps {
     initialData?: Quote;
     isEditing?: boolean;
@@ -29,6 +31,10 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         items: initialData?.items || [],
         notes: initialData?.notes || "",
         validUntil: initialData?.validUntil || Timestamp.now(),
+        currency: initialData?.currency || 'DOP',
+        exchangeRate: initialData?.exchangeRate || 1,
+        discountTotal: initialData?.discountTotal || 0,
+        timeline: initialData?.timeline || [],
     });
 
     // Load clients
@@ -100,21 +106,38 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         setLoading(true);
 
         try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) throw new Error("No authenticated user");
+
             const quoteData = {
                 ...formData,
                 subtotal: totals.subtotal,
                 taxTotal: totals.taxTotal,
                 total: totals.total,
                 updatedAt: serverTimestamp(),
+                updatedBy: currentUser.uid,
             };
 
             if (isEditing && initialData?.id) {
+                // Update implementation
                 await updateDoc(doc(db, "quotes", initialData.id), quoteData);
             } else {
-                await addDoc(collection(db, "quotes"), {
+                // Creation implementation
+                const newQuoteData = {
                     ...quoteData,
+                    createdBy: currentUser.uid,
                     createdAt: serverTimestamp(),
-                });
+                    sellerId: currentUser.uid, // Default to creator for now
+                    issueDate: serverTimestamp(),
+                    timeline: [{
+                        status: 'DRAFT',
+                        timestamp: Timestamp.now(),
+                        userId: currentUser.uid,
+                        userName: currentUser.displayName || 'Usuario',
+                        note: 'Cotización creada'
+                    }]
+                };
+                await addDoc(collection(db, "quotes"), newQuoteData);
             }
             router.push("/income/quotes");
             router.refresh();
@@ -155,6 +178,22 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                         placeholder="Ej. COT-001"
                         required
                     />
+                </div>
+                
+                 <div className="space-y-2">
+                    <Label>Moneda</Label>
+                    <Select
+                        value={formData.currency}
+                        onValueChange={(val: 'DOP' | 'USD') => setFormData(prev => ({ ...prev, currency: val }))}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar moneda" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="DOP">Peso Dominicano (DOP)</SelectItem>
+                            <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

@@ -48,7 +48,7 @@ export default function QuotesPage() {
         },
         {
             header: "Total",
-            cell: (item: Quote) => `RD$ ${item.total.toLocaleString()}`,
+            cell: (item: Quote) => `${item.currency === 'USD' ? 'US$' : 'RD$'} ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         },
         {
             header: "Estado",
