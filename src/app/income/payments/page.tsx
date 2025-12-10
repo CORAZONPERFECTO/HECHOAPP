@@ -1,20 +1,21 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Payment } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, FileText, Banknote } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PaymentDialog } from "@/components/income/payment-dialog";
+import { Badge } from "@/components/ui/badge";
 
 export default function PaymentsPage() {
     const [payments, setPayments] = useState<Payment[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
+    // Use a key to force re-render if needed or just rely on real-time listener
     useEffect(() => {
         const q = query(collection(db, "payments"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -31,8 +32,13 @@ export default function PaymentsPage() {
 
     const columns = [
         {
+            header: "Recibo #",
+            accessorKey: "number",
+            className: "font-mono text-sm",
+        },
+        {
             header: "Cliente",
-            accessorKey: "clientName" as keyof Payment,
+            accessorKey: "clientName",
             className: "font-medium",
         },
         {
@@ -41,17 +47,29 @@ export default function PaymentsPage() {
         },
         {
             header: "Método",
-            accessorKey: "method" as keyof Payment,
-        },
-        {
-            header: "Referencia",
-            accessorKey: "reference" as keyof Payment,
+            cell: (item: Payment) => (
+                <Badge variant="outline" className="text-xs">
+                    {item.method}
+                </Badge>
+            )
         },
         {
             header: "Monto",
-            cell: (item: Payment) => `RD$ ${item.amount.toLocaleString()}`,
-            className: "font-bold text-green-600",
+            cell: (item: Payment) => (
+                <span className="font-bold text-green-600">
+                    RD$ {item.amount.toLocaleString()}
+                </span>
+            ),
         },
+        {
+            header: "Factura",
+            cell: (item: Payment) => item.invoiceId ? (
+                <Link href={`/income/invoices/${item.invoiceId}`} className="flex items-center text-blue-600 hover:underline text-xs">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Ver Factura
+                </Link>
+            ) : <span className="text-gray-400 text-xs">A cuenta</span>
+        }
     ];
 
     return (
@@ -64,16 +82,15 @@ export default function PaymentsPage() {
                             Volver
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Pagos Recibidos</h1>
-                            <p className="text-gray-500">Historial de pagos y cobros</p>
+                            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                                <Banknote className="h-6 w-6 text-green-600" />
+                                Pagos Recibidos
+                            </h1>
+                            <p className="text-gray-500">Gestión de cobros y abonos</p>
                         </div>
                     </div>
-                    <Link href="/income/payments/new">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Registrar Pago
-                        </Button>
-                    </Link>
+                    {/* Integrated Payment Dialog */}
+                    <PaymentDialog />
                 </div>
 
                 {loading ? (
