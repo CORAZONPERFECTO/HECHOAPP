@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
 import { PermissionRequest } from "@/components/technician/permission-request";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { OfflineIndicator } from "@/components/ui/offline-indicator";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -29,6 +31,9 @@ export default function TechnicianTicketPage() {
     const [password, setPassword] = useState("");
     const [authLoading, setAuthLoading] = useState(true);
     const [permissionsGranted, setPermissionsGranted] = useState(false);
+
+    // Offline sync
+    const { isOnline, isSyncing, pendingOperations, saveOffline } = useOfflineSync();
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((u) => {
@@ -116,15 +121,27 @@ export default function TechnicianTicketPage() {
         if (!ticket) return;
         setSaving(true);
         try {
-            const docRef = doc(db, "tickets", ticket.id!);
-            await updateDoc(docRef, {
-                checklist: ticket.checklist,
-                photos: ticket.photos,
-                status: ticket.status,
-                diagnosis: ticket.diagnosis,
-                updatedAt: serverTimestamp()
-            });
-            alert("Cambios guardados correctamente");
+            if (isOnline) {
+                // Online: save directly to Firestore
+                const docRef = doc(db, "tickets", ticket.id!);
+                await updateDoc(docRef, {
+                    checklist: ticket.checklist,
+                    photos: ticket.photos,
+                    status: ticket.status,
+                    diagnosis: ticket.diagnosis,
+                    updatedAt: serverTimestamp()
+                });
+                alert("Cambios guardados correctamente");
+            } else {
+                // Offline: save to IndexedDB and queue for sync
+                await saveOffline(ticket.id!, {
+                    checklist: ticket.checklist,
+                    photos: ticket.photos,
+                    status: ticket.status,
+                    diagnosis: ticket.diagnosis
+                });
+                alert("Guardado offline. Se sincronizará al reconectar.");
+            }
         } catch (error) {
             console.error("Error saving ticket:", error);
             alert("Error al guardar");
@@ -171,6 +188,9 @@ export default function TechnicianTicketPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
+            {/* Offline Indicator */}
+            <OfflineIndicator pendingOperations={pendingOperations} isSyncing={isSyncing} />
+
             {/* Header Mobile-First */}
             <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
                 <div>
