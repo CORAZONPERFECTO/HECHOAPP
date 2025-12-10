@@ -6,7 +6,8 @@ import { db } from "@/lib/firebase";
 import { Payment } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, FileText, Banknote } from "lucide-react";
+import { Plus, ArrowLeft, FileText, Banknote, Download } from "lucide-react";
+import { exportToExcel, formatPaymentForExport } from "@/lib/excel-utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PaymentDialog } from "@/components/income/payment-dialog";
@@ -31,6 +32,10 @@ export default function PaymentsPage() {
 
         return () => unsubscribe();
     }, []);
+
+    const handleExport = () => {
+        exportToExcel(formatPaymentForExport(payments), "Reporte_Pagos_Nexus");
+    };
 
     const columns = [
         {
@@ -98,7 +103,13 @@ export default function PaymentsPage() {
                         </div>
                     </div>
                     {/* Integrated Payment Dialog */}
-                    <PaymentDialog />
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar
+                        </Button>
+                        <PaymentDialog />
+                    </div>
                 </div>
 
                 {loading ? (

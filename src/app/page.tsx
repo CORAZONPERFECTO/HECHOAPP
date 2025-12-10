@@ -13,7 +13,10 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { ActiveTicketCard } from "@/components/dashboard/active-ticket-card";
 import { UrgentTicketsList } from "@/components/dashboard/urgent-tickets-list";
 import { IncomeChart } from "@/components/dashboard/income-chart";
+
 import { RecentActivity } from "@/components/dashboard/recent-activity";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
 
 interface AppCardProps {
   icon: React.ElementType;
@@ -31,6 +34,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserSchema | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const router = useRouter();
 
   useEffect(() => {
@@ -73,21 +77,26 @@ export default function Dashboard() {
         {isTechnician ? (
           <ActiveTicketCard />
         ) : (
+
           <div className="space-y-6">
-            <DashboardStats />
+            <div className="flex justify-end">
+              <DateRangePicker date={dateRange} setDate={setDateRange} />
+            </div>
+            <DashboardStats dateRange={dateRange} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <IncomeChart />
+              <IncomeChart dateRange={dateRange} />
               <div className="space-y-6">
                 <RecentActivity />
                 <UrgentTicketsList />
               </div>
             </div>
           </div>
-        )}
-      </section>
+        )
+        }
+      </section >
 
       {/* 2. Quick Access Grid */}
-      <section>
+      < section >
         <h2 className="text-lg font-semibold text-gray-700 mb-4 px-1">Acceso Rápido</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
 
@@ -158,7 +167,7 @@ export default function Dashboard() {
           )}
 
         </div>
-      </section>
-    </AppLayout>
+      </section >
+    </AppLayout >
   );
 }

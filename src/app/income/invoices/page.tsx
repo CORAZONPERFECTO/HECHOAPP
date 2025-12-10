@@ -7,7 +7,8 @@ import { Invoice } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { StatusBadge } from "@/components/income/status-badge";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, Download } from "lucide-react";
+import { exportToExcel, formatInvoiceForExport } from "@/lib/excel-utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +30,10 @@ export default function InvoicesPage() {
 
         return () => unsubscribe();
     }, []);
+
+    const handleExport = () => {
+        exportToExcel(formatInvoiceForExport(invoices), "Reporte_Facturas_Nexus");
+    };
 
     const columns = [
         {
@@ -72,12 +77,18 @@ export default function InvoicesPage() {
                             <p className="text-gray-500">Gestiona tus facturas y cobros</p>
                         </div>
                     </div>
-                    <Link href="/income/invoices/new">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Nueva Factura
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar
                         </Button>
-                    </Link>
+                        <Link href="/income/invoices/new">
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Nueva Factura
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {loading ? (

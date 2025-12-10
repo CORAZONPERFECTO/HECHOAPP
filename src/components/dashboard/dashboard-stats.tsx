@@ -6,7 +6,13 @@ import { db } from "@/lib/firebase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Ticket, AlertCircle, CheckCircle2, Banknote } from "lucide-react";
 
-export function DashboardStats() {
+import { DateRange } from "react-day-picker";
+
+interface DashboardStatsProps {
+    dateRange?: DateRange;
+}
+
+export function DashboardStats({ dateRange }: DashboardStatsProps) {
     const [stats, setStats] = useState({
         open: 0,
         urgent: 0,
@@ -40,15 +46,28 @@ export function DashboardStats() {
                 );
                 const completedSnapshot = await getCountFromServer(completedQuery);
 
-                // 4. Monthly Income
-                const startMonth = new Date();
-                startMonth.setDate(1);
-                startMonth.setHours(0, 0, 0, 0);
+                // 4. Income (Filtered by DateRange)
+                let incomeQuery;
+                if (dateRange?.from) {
+                    const start = Timestamp.fromDate(dateRange.from);
+                    const end = dateRange.to ? Timestamp.fromDate(new Date(dateRange.to.setHours(23, 59, 59, 999))) : Timestamp.now();
 
-                const incomeQuery = query(
-                    collection(db, "payments"),
-                    where("date", ">=", Timestamp.fromDate(startMonth))
-                );
+                    incomeQuery = query(
+                        collection(db, "payments"),
+                        where("date", ">=", start),
+                        where("date", "<=", end)
+                    );
+                } else {
+                    // Default to this month
+                    const startMonth = new Date();
+                    startMonth.setDate(1);
+                    startMonth.setHours(0, 0, 0, 0);
+                    incomeQuery = query(
+                        collection(db, "payments"),
+                        where("date", ">=", Timestamp.fromDate(startMonth))
+                    );
+                }
+
                 const incomeSnap = await getDocs(incomeQuery);
                 const totalIncome = incomeSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
 
@@ -66,11 +85,11 @@ export function DashboardStats() {
         };
 
         fetchStats();
-    }, []);
+    }, [dateRange]);
 
     const statCards = [
         {
-            title: "Ingresos (Mes)",
+            title: dateRange?.from ? "Ingresos (Periodo)" : "Ingresos (Mes)",
             value: `RD$ ${stats.income.toLocaleString()}`,
             icon: Banknote,
             color: "text-green-600",

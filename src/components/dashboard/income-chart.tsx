@@ -10,45 +10,86 @@ import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from
 import { es } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 
-export function IncomeChart() {
+import { DateRange } from "react-day-picker";
+import { differenceInDays, eachDayOfInterval } from "date-fns";
+
+interface IncomeChartProps {
+    dateRange?: DateRange;
+}
+
+export function IncomeChart({ dateRange }: IncomeChartProps) {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchIncomeData = async () => {
             try {
-                // Get last 6 months
-                const end = new Date();
-                const start = subMonths(end, 5);
+                let start, end;
+
+                if (dateRange?.from) {
+                    start = dateRange.from;
+                    end = dateRange.to || new Date();
+                } else {
+                    // Default: Last 6 months
+                    end = new Date();
+                    start = subMonths(end, 5);
+                    start = startOfMonth(start);
+                }
+
+                // Determine grouping: Daily if <= 60 days, Monthly otherwise
+                const daysDiff = differenceInDays(end, start);
+                const isDaily = daysDiff <= 60;
 
                 // Fetch payments
                 const q = query(
                     collection(db, "payments"),
-                    where("date", ">=", Timestamp.fromDate(startOfMonth(start))),
+                    where("date", ">=", Timestamp.fromDate(start)),
+                    where("date", "<=", Timestamp.fromDate(new Date(end.setHours(23, 59, 59, 999)))),
                     orderBy("date", "asc")
                 );
 
                 const snapshot = await getDocs(q);
                 const payments = snapshot.docs.map(doc => doc.data() as Payment);
 
-                // Group by month
-                const months = eachMonthOfInterval({ start, end });
-                const chartData = months.map(month => {
-                    const monthKey = format(month, "MM/yyyy");
-                    const monthLabel = format(month, "MMM", { locale: es });
+                // Group Data
+                let chartData;
+                if (isDaily) {
+                    const days = eachDayOfInterval({ start, end });
+                    chartData = days.map(day => {
+                        const dayKey = format(day, "dd/MM/yyyy");
+                        const dayLabel = format(day, "d MMM", { locale: es });
 
-                    const monthlyTotal = payments
-                        .filter(p => {
-                            const pDate = p.date.toDate();
-                            return format(pDate, "MM/yyyy") === monthKey;
-                        })
-                        .reduce((sum, p) => sum + p.amount, 0);
+                        const dailyTotal = payments
+                            .filter(p => {
+                                const pDate = p.date.toDate();
+                                return format(pDate, "dd/MM/yyyy") === dayKey;
+                            })
+                            .reduce((sum, p) => sum + p.amount, 0);
 
-                    return {
-                        name: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-                        total: monthlyTotal
-                    };
-                });
+                        return {
+                            name: dayLabel,
+                            total: dailyTotal
+                        };
+                    });
+                } else {
+                    const months = eachMonthOfInterval({ start, end });
+                    chartData = months.map(month => {
+                        const monthKey = format(month, "MM/yyyy");
+                        const monthLabel = format(month, "MMM", { locale: es });
+
+                        const monthlyTotal = payments
+                            .filter(p => {
+                                const pDate = p.date.toDate();
+                                return format(pDate, "MM/yyyy") === monthKey;
+                            })
+                            .reduce((sum, p) => sum + p.amount, 0);
+
+                        return {
+                            name: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+                            total: monthlyTotal
+                        };
+                    });
+                }
 
                 setData(chartData);
             } catch (error) {
@@ -59,7 +100,7 @@ export function IncomeChart() {
         };
 
         fetchIncomeData();
-    }, []);
+    }, [dateRange]);
 
     if (loading) {
         return (
@@ -72,7 +113,7 @@ export function IncomeChart() {
     return (
         <Card className="col-span-2">
             <CardHeader>
-                <CardTitle>Ingresos Semestrales</CardTitle>
+                <CardTitle>Ingresos {dateRange ? "(Filtrado)" : "Semestrales"}</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px] w-full">

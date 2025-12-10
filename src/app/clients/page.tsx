@@ -6,7 +6,8 @@ import { db, auth } from "@/lib/firebase";
 import { Client } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Users, Building2, Home, Hotel, Trash2 } from "lucide-react";
+import { Plus, Search, Users, Building2, Home, Hotel, Trash2, Download } from "lucide-react";
+import { exportToExcel, formatClientForExport } from "@/lib/excel-utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -57,6 +58,10 @@ export default function ClientsPage() {
         client.rnc?.includes(searchTerm)
     );
 
+    const handleExport = () => {
+        exportToExcel(formatClientForExport(filteredClients), "Reporte_Clientes_Nexus");
+    };
+
     const getClientIcon = (type: string) => {
         switch (type) {
             case "HOTEL": return <Hotel className="h-5 w-5 text-blue-500" />;
@@ -75,12 +80,18 @@ export default function ClientsPage() {
                         <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
                         <p className="text-gray-500">Gestiona tu cartera de clientes y sus propiedades</p>
                     </div>
-                    <Link href="/clients/new">
-                        <Button>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Nuevo Cliente
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar
                         </Button>
-                    </Link>
+                        <Link href="/clients/new">
+                            <Button>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Nuevo Cliente
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Search */}
