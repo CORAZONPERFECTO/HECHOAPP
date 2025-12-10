@@ -271,6 +271,7 @@ export interface TicketPhoto {
     type: 'BEFORE' | 'DURING' | 'AFTER';
     description?: string;
     timestamp?: { seconds: number; nanoseconds: number };
+    location?: string;
     area?: string;
     details?: string;
 }
