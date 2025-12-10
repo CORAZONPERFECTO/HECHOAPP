@@ -344,24 +344,64 @@ export async function exportToPDFWith3Photos(report: TicketReportNew) {
         if (section.type === 'h2') {
             pdf.setFontSize(14);
             pdf.setFont('helvetica', 'bold');
-            const lines = pdf.splitTextToSize(section.content, pageWidth - 2 * margin);
+            const lines = pdf.splitTextToSize(section.content || "", pageWidth - 2 * margin);
             pdf.text(lines, margin, yPos);
             yPos += lines.length * 7 + 5;
         } else if (section.type === 'text') {
             pdf.setFontSize(10);
             pdf.setFont('helvetica', 'normal');
-            const lines = pdf.splitTextToSize(section.content, pageWidth - 2 * margin);
+            const lines = pdf.splitTextToSize(section.content || "", pageWidth - 2 * margin);
             pdf.text(lines, margin, yPos);
             yPos += lines.length * 5 + 3;
         } else if (section.type === 'list') {
             pdf.setFontSize(10);
             pdf.setFont('helvetica', 'normal');
-            section.items.forEach(item => {
+            (section.items || []).forEach(item => {
                 const lines = pdf.splitTextToSize(`• ${item}`, pageWidth - 2 * margin - 5);
                 pdf.text(lines, margin + 5, yPos);
                 yPos += lines.length * 5 + 2;
             });
             yPos += 3;
+        } else if (section.type === 'beforeAfter') {
+            const baSection = section as any;
+
+            // Check space
+            if (yPos > pageHeight - margin - 80) {
+                pdf.addPage();
+                yPos = margin;
+            }
+
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text("Evidencia Comparativa", margin, yPos);
+            yPos += 8;
+
+            const photoWidth = (pageWidth - 2 * margin - 10) / 2;
+            const photoHeight = photoWidth * 0.56; // 16:9 aspect ratio
+
+            // Antes
+            if (baSection.beforePhotoUrl) {
+                await addPhotoToPDF(pdf, { photoUrl: baSection.beforePhotoUrl } as any, margin, yPos, photoWidth, photoHeight);
+                pdf.setFontSize(9);
+                pdf.text("ANTES", margin + photoWidth / 2, yPos - 2, { align: 'center' });
+            }
+
+            // Después
+            if (baSection.afterPhotoUrl) {
+                await addPhotoToPDF(pdf, { photoUrl: baSection.afterPhotoUrl } as any, margin + photoWidth + 10, yPos, photoWidth, photoHeight);
+                pdf.setFontSize(9);
+                pdf.text("DESPUÉS", margin + photoWidth + 10 + photoWidth / 2, yPos - 2, { align: 'center' });
+            }
+
+            yPos += photoHeight + 10;
+
+            if (baSection.description) {
+                pdf.setFontSize(10);
+                pdf.setFont('helvetica', 'italic');
+                const lines = pdf.splitTextToSize(baSection.description, pageWidth - 2 * margin);
+                pdf.text(lines, margin, yPos);
+                yPos += lines.length * 5 + 5;
+            }
         }
 
         if (yPos > pageHeight - margin - 20) {
