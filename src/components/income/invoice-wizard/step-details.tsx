@@ -4,7 +4,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarDays, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarDays, FileText, Coins } from "lucide-react";
 
 interface StepDetailsProps {
     data: any;
@@ -26,13 +27,31 @@ export function StepDetails({ data, updateData }: StepDetailsProps) {
 
                 <div className="glass-card p-6 space-y-4">
                     <div className="space-y-2">
-                        <Label>Número de Factura</Label>
+                        <Label>Número de Factura / Cotización</Label>
                         <Input
                             value={data.number}
                             onChange={(e) => updateData("number", e.target.value)}
-                            placeholder="Ej. INV-2025-001"
+                            placeholder="(Auto-generado)"
                             className="text-lg font-mono tracking-wide"
+                            disabled={true}
                         />
+                        <p className="text-[10px] text-gray-400">El número se asignará automáticamente al guardar.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Moneda</Label>
+                        <Select
+                            value={data.currency || 'DOP'}
+                            onValueChange={(val) => updateData("currency", val)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar moneda" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="DOP">Peso Dominicano (DOP)</SelectItem>
+                                <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

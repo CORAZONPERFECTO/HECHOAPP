@@ -56,15 +56,15 @@ export function StepReview({ data, tots }: StepReviewProps) {
                 <div className="bg-gray-50 p-6 rounded-xl space-y-3">
                     <div className="flex justify-between text-sm text-gray-600">
                         <span>Subtotal</span>
-                        <span>RD$ {tots.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span>{data.currency === 'USD' ? 'US$' : 'RD$'} {tots.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
                         <span>ITBIS (18%)</span>
-                        <span>RD$ {tots.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span>{data.currency === 'USD' ? 'US$' : 'RD$'} {tots.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-gray-900 pt-3 border-t border-gray-200">
                         <span>Total a Pagar</span>
-                        <span className="text-purple-700">RD$ {tots.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        <span className="text-purple-700">{data.currency === 'USD' ? 'US$' : 'RD$'} {tots.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                     </div>
                 </div>
             </div>

@@ -3,9 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, addDoc, getDocs, serverTimestamp, Timestamp, arrayUnion } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { Invoice, InvoiceItem, Client, Quote } from "@/types/schema";
+import { generateNextNumber } from "@/lib/numbering-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronRight, ChevronLeft, Save, Loader2, Check } from "lucide-react";
@@ -46,7 +47,8 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
         clientName: "",
         items: [],
         notes: "",
-        status: "DRAFT", // Will be overriden or matches both
+        status: "DRAFT",
+        currency: 'DOP',
     });
 
     // Load clients
@@ -80,21 +82,43 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
     const handleSave = async () => {
         setLoading(true);
         try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) throw new Error("No authenticated user");
+
+            // Generate Number
+            const generatedNumber = await generateNextNumber(isQuote ? 'COT' : 'FACT');
+
             const finalData = {
                 ...formData,
+                number: generatedNumber,
                 subtotal: totals.subtotal,
                 taxTotal: totals.taxTotal,
                 total: totals.total,
                 // Specific fields depending on mode
                 ...(isQuote ? {
-                    status: 'DRAFT', // QuoteStatus
+                    status: 'DRAFT',
                     validUntil: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)), // 15 days validity
+                    timeline: [{
+                        status: 'DRAFT',
+                        timestamp: Timestamp.now(),
+                        userId: currentUser.uid,
+                        userName: currentUser.displayName || 'Usuario',
+                        note: 'Cotización creada (Wizard)'
+                    }],
+                    sellerId: currentUser.uid,
+                    sellerName: currentUser.displayName || 'Usuario',
                 } : {
                     balance: totals.total,
                     issueDate: Timestamp.now(),
                     dueDate: Timestamp.now(),
+                    sellerId: currentUser.uid,
+                    sellerName: currentUser.displayName || 'Usuario',
                 }),
+                createdBy: currentUser.uid,
+                updatedBy: currentUser.uid,
                 createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                issueDate: serverTimestamp(),
             };
 
             await addDoc(collection(db, collectionName), finalData);
