@@ -137,12 +137,20 @@ export function PhotoUploader({ label, type, photos, onChange, allowGallery = fa
                 const newPhotos: TicketPhoto[] = [];
 
                 for (const file of files) {
-                    // Add metadata watermark to image
-                    const processedBlob = await addMetadataToImage(file, location);
+                    let blobToUpload: Blob = file;
+
+                    // Try to add metadata watermark, but fallback to original if it fails
+                    try {
+                        blobToUpload = await addMetadataToImage(file, location);
+                        console.log('✅ Metadata added to image');
+                    } catch (metadataError) {
+                        console.warn('⚠️ Could not add metadata, uploading original:', metadataError);
+                        // Continue with original file
+                    }
 
                     // Upload to Firebase Storage
                     const storageRef = ref(storage, `tickets/${Date.now()}_${file.name}`);
-                    await uploadBytes(storageRef, processedBlob);
+                    await uploadBytes(storageRef, blobToUpload);
                     const url = await getDownloadURL(storageRef);
 
                     const newPhoto: TicketPhoto = {
@@ -159,7 +167,7 @@ export function PhotoUploader({ label, type, photos, onChange, allowGallery = fa
                 onChange([...photos, ...newPhotos]);
             } catch (error) {
                 console.error("Error uploading photo:", error);
-                alert("Error al subir la foto");
+                alert(`Error al subir la foto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
             } finally {
                 setUploading(false);
                 // Reset input
