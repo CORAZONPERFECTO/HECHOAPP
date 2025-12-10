@@ -29,7 +29,7 @@ export function parseInvoiceCommand(text: string, availableClients: Client[] = [
         // Simple fuzzy match against availableClients
         const bestMatch = availableClients.find(c =>
             normalize(c.nombreComercial).includes(potentialName) ||
-            normalize(c.nombre || "").includes(potentialName)
+            normalize(c.personaContacto || "").includes(potentialName)
         );
 
         if (bestMatch) {

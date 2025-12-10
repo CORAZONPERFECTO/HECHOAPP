@@ -64,8 +64,8 @@ export default function QuoteDetailPage() {
                 issueDate: Timestamp.now(),
                 dueDate: Timestamp.now(),
                 notes: `Generada desde Cotización #${quote.number || 'N/A'}. ${quote.notes || ''}`,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
+                createdAt: serverTimestamp() as any,
+                updatedAt: serverTimestamp() as any,
             };
 
             const docRef = await addDoc(collection(db, "invoices"), invoiceData);

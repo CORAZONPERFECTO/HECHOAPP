@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { collection, query, orderBy, onSnapshot, where, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -33,20 +35,25 @@ export default function PaymentsPage() {
     const columns = [
         {
             header: "Recibo #",
-            accessorKey: "number",
-            className: "font-mono text-sm",
+            accessorKey: "number" as keyof Payment,
+            cell: (item: Payment) => <span className="font-mono text-sm">{item.number}</span>,
         },
         {
             header: "Cliente",
-            accessorKey: "clientName",
-            className: "font-medium",
+            accessorKey: "clientName" as keyof Payment,
+            cell: (item: Payment) => <span className="font-medium">{item.clientName}</span>,
         },
         {
             header: "Fecha",
-            cell: (item: Payment) => new Date(item.date.seconds * 1000).toLocaleDateString(),
+            accessorKey: "date" as keyof Payment,
+            cell: (item: Payment) => {
+                const date = item.date;
+                return date ? new Date(date.seconds * 1000).toLocaleDateString() : "";
+            },
         },
         {
             header: "Método",
+            accessorKey: "method" as keyof Payment,
             cell: (item: Payment) => (
                 <Badge variant="outline" className="text-xs">
                     {item.method}
@@ -55,6 +62,7 @@ export default function PaymentsPage() {
         },
         {
             header: "Monto",
+            accessorKey: "amount" as keyof Payment,
             cell: (item: Payment) => (
                 <span className="font-bold text-green-600">
                     RD$ {item.amount.toLocaleString()}
