@@ -11,9 +11,11 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout } from "lucide-react";
+import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool } from "lucide-react";
 import { TicketReportView } from "./ticket-report-view";
 import { BeforeAfterSelector } from "./before-after-selector";
+import { SignaturePad, SignaturePadRef } from "@/components/ui/signature-pad";
+import { useRef } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 interface TicketReportEditorProps {
@@ -130,6 +132,39 @@ export function TicketReportEditor({
     const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
     const [darkMode, setDarkMode] = useState(false);
     const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
+    
+    // Refs for signatures
+    const techSigRef = useRef<SignaturePadRef>(null);
+    const clientSigRef = useRef<SignaturePadRef>(null);
+
+    const handleSignatureUpdate = (type: 'technician' | 'client') => {
+        const ref = type === 'technician' ? techSigRef : clientSigRef;
+        if (ref.current && !ref.current.isEmpty()) {
+            const signatureUrl = ref.current.toDataURL();
+            const signatures = report.signatures || {};
+            
+            onChange({
+                ...report,
+                signatures: {
+                    ...signatures,
+                    [type === 'technician' ? 'technicianSignature' : 'clientSignature']: signatureUrl,
+                    [type === 'technician' ? 'technicianSignedAt' : 'clientSignedAt']: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 } as any
+                }
+            });
+        }
+    };
+
+    const clearSignature = (type: 'technician' | 'client') => {
+        const signatures = { ...report.signatures };
+        if (type === 'technician') {
+            delete signatures.technicianSignature;
+            delete signatures.technicianSignedAt;
+        } else {
+            delete signatures.clientSignature;
+            delete signatures.clientSignedAt;
+        }
+        onChange({ ...report, signatures });
+    };
 
     // Initialize dark mode from system/local storage if needed
     useEffect(() => {
@@ -478,6 +513,64 @@ export function TicketReportEditor({
                                 </DndContext>
                                 <div id="report-bottom" className="h-10" />
                             </div>
+
+                            {/* Signatures Section */}
+                            <Card className="dark:bg-zinc-900 dark:border-zinc-800 pb-8">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <PenTool className="h-5 w-5" /> Firmas Digitales
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid md:grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="text-base font-semibold">Técnico</Label>
+                                            {report.signatures?.technicianSignedAt && (
+                                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
+                                            )}
+                                        </div>
+                                        <div className="h-40">
+                                             <SignaturePad 
+                                                ref={techSigRef}
+                                                onEnd={() => handleSignatureUpdate('technician')}
+                                                className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                            />
+                                        </div>
+                                        <Input 
+                                            placeholder="Nombre del Técnico" 
+                                            value={report.signatures?.technicianName || report.header.technicianName || ''}
+                                            onChange={(e) => onChange({
+                                                ...report, 
+                                                signatures: { ...report.signatures, technicianName: e.target.value } 
+                                            })}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <Label className="text-base font-semibold">Cliente</Label>
+                                            {report.signatures?.clientSignedAt && (
+                                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
+                                            )}
+                                        </div>
+                                        <div className="h-40">
+                                            <SignaturePad 
+                                                ref={clientSigRef}
+                                                onEnd={() => handleSignatureUpdate('client')}
+                                                className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                            />
+                                        </div>
+                                        <Input 
+                                            placeholder="Nombre del Cliente" 
+                                            value={report.signatures?.clientName || report.header.clientName || ''}
+                                            onChange={(e) => onChange({
+                                                ...report, 
+                                                signatures: { ...report.signatures, clientName: e.target.value } 
+                                            })}
+                                        />
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                     </div>
                 )}

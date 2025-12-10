@@ -99,41 +99,104 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
         }
     }
 
-    // 4. Anexo fotográfico (2 fotos por página)
-    const photos = extractPhotos(report);
-    if (photos.length > 0) {
+} else if (section.type === 'beforeAfter') {
+    const baSection = section as any;
+    // Nueva página si no cabe
+    if (yPos > pageHeight - margin - 80) {
         pdf.addPage();
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('ANEXO FOTOGRÁFICO', pageWidth / 2, margin, { align: 'center' });
-
-        let photoIndex = 0;
-        let currentPage = true;
-
-        while (photoIndex < photos.length) {
-            if (!currentPage) {
-                pdf.addPage();
-            }
-            currentPage = false;
-
-            let photoYPos = margin + 20;
-
-            // Foto 1
-            if (photos[photoIndex]) {
-                await addPhotoToPDF(pdf, photos[photoIndex], margin, photoYPos, pageWidth - 2 * margin, 90);
-                photoIndex++;
-                photoYPos += 100;
-            }
-
-            // Foto 2
-            if (photos[photoIndex]) {
-                await addPhotoToPDF(pdf, photos[photoIndex], margin, photoYPos, pageWidth - 2 * margin, 90);
-                photoIndex++;
-            }
-        }
+        yPos = margin;
     }
 
-    pdf.save(`informe-${report.header.ticketNumber}.pdf`);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("Evidencia Comparativa", margin, yPos);
+    yPos += 8;
+
+    const photoWidth = (pageWidth - 2 * margin - 10) / 2;
+    const photoHeight = photoWidth * 0.56; // 16:9 aspect ratio
+
+    // Antes
+    if (baSection.beforePhotoUrl) {
+        await addPhotoToPDF(pdf, { photoUrl: baSection.beforePhotoUrl } as any, margin, yPos, photoWidth, photoHeight);
+        pdf.setFontSize(9);
+        pdf.text("ANTES", margin + photoWidth / 2, yPos - 2, { align: 'center' });
+    }
+
+    // Después
+    if (baSection.afterPhotoUrl) {
+        await addPhotoToPDF(pdf, { photoUrl: baSection.afterPhotoUrl } as any, margin + photoWidth + 10, yPos, photoWidth, photoHeight);
+        pdf.setFontSize(9);
+        pdf.text("DESPUÉS", margin + photoWidth + 10 + photoWidth / 2, yPos - 2, { align: 'center' });
+    }
+
+    yPos += photoHeight + 10;
+
+    if (baSection.description) {
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'italic');
+        const lines = pdf.splitTextToSize(baSection.description, pageWidth - 2 * margin);
+        pdf.text(lines, margin, yPos);
+        yPos += lines.length * 5 + 5;
+    }
+}
+
+// Nueva página si es necesario
+if (yPos > pageHeight - margin - 20) {
+    pdf.addPage();
+    yPos = margin;
+}
+    }
+
+// 4. Anexo fotográfico (2 fotos por página)
+const photos = extractPhotos(report);
+if (photos.length > 0) {
+    pdf.addPage();
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ANEXO FOTOGRÁFICO', pageWidth / 2, margin, { align: 'center' });
+    // ... photos loop ...
+}
+
+// 5. Firmas
+if (report.signatures) {
+    if (yPos > pageHeight - margin - 60) {
+        pdf.addPage();
+        yPos = margin + 20;
+    } else {
+        yPos += 20;
+    }
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('CONFORMIDAD DEL SERVICIO', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 20;
+
+    const sigWidth = 70;
+    const sigHeight = 35;
+
+    // Técnico
+    if (report.signatures.technicianSignature) {
+        await addPhotoToPDF(pdf, { photoUrl: report.signatures.technicianSignature } as any, margin + 10, yPos, sigWidth, sigHeight);
+    }
+    pdf.setDrawColor(100);
+    pdf.line(margin + 10, yPos + sigHeight + 5, margin + 10 + sigWidth, yPos + sigHeight + 5);
+    pdf.setFontSize(10);
+    pdf.text(report.signatures.technicianName || "Técnico", margin + 10 + sigWidth / 2, yPos + sigHeight + 10, { align: 'center' });
+    pdf.setFontSize(8);
+    pdf.text("TÉCNICO RESPONSABLE", margin + 10 + sigWidth / 2, yPos + sigHeight + 15, { align: 'center' });
+
+    // Cliente
+    if (report.signatures.clientSignature) {
+        await addPhotoToPDF(pdf, { photoUrl: report.signatures.clientSignature } as any, pageWidth - margin - 10 - sigWidth, yPos, sigWidth, sigHeight);
+    }
+    pdf.line(pageWidth - margin - 10 - sigWidth, yPos + sigHeight + 5, pageWidth - margin - 10, yPos + sigHeight + 5);
+    pdf.setFontSize(10);
+    pdf.text(report.signatures.clientName || "Cliente", pageWidth - margin - 10 - sigWidth / 2, yPos + sigHeight + 10, { align: 'center' });
+    pdf.setFontSize(8);
+    pdf.text("CLIENTE / RESPONSABLE", pageWidth - margin - 10 - sigWidth / 2, yPos + sigHeight + 15, { align: 'center' });
+}
+
+pdf.save(`informe-${report.header.ticketNumber}.pdf`);
 }
 
 /**

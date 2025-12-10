@@ -1,6 +1,7 @@
 "use client";
 
 import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection } from "@/types/schema";
+import { BeforeAfterBlock } from "./blocks/before-after-block";
 
 interface TicketReportViewProps {
     report: TicketReportNew;
@@ -37,6 +38,18 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                             <li key={i}>{item}</li>
                         ))}
                     </ul>
+                );
+
+            case 'beforeAfter':
+                return (
+                    <div className="mb-6">
+                        <BeforeAfterBlock
+                            section={section as any}
+                            onChange={() => {}}
+                            onRemove={() => {}}
+                            readOnly={true}
+                        />
+                    </div>
                 );
 
             case 'photo':
@@ -147,6 +160,48 @@ export function TicketReportView({ report }: TicketReportViewProps) {
             {/* Content */}
             <div className="space-y-2">
                 {report.sections.map(section => renderSection(section))}
+
+                {/* Signatures View */}
+                {report.signatures && (
+                    <div className="mt-12 pt-8 border-t border-gray-200 dark:border-zinc-800 break-inside-avoid">
+                        <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-zinc-100 uppercase tracking-wider text-center">Conformidad del Servicio</h3>
+                        <div className="grid grid-cols-2 gap-12">
+                            {/* Technician */}
+                            <div className="flex flex-col items-center space-y-4">
+                                <div className="h-32 w-full max-w-[240px] border-b-2 border-gray-300 flex items-center justify-center">
+                                    {report.signatures.technicianSignature ? (
+                                        <img src={report.signatures.technicianSignature} alt="Firma Técnico" className="max-h-full max-w-full" />
+                                    ) : (
+                                        <span className="text-gray-400 text-sm italic">Sin firma</span>
+                                    )}
+                                </div>
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900 dark:text-zinc-200">
+                                        {report.signatures.technicianName || "Técnico"}
+                                    </p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">Técnico Responsable</p>
+                                </div>
+                            </div>
+
+                            {/* Client */}
+                            <div className="flex flex-col items-center space-y-4">
+                                <div className="h-32 w-full max-w-[240px] border-b-2 border-gray-300 flex items-center justify-center">
+                                    {report.signatures.clientSignature ? (
+                                        <img src={report.signatures.clientSignature} alt="Firma Cliente" className="max-h-full max-w-full" />
+                                    ) : (
+                                        <span className="text-gray-400 text-sm italic">Sin firma</span>
+                                    )}
+                                </div>
+                                <div className="text-center">
+                                    <p className="font-bold text-gray-900 dark:text-zinc-200">
+                                        {report.signatures.clientName || "Cliente"}
+                                    </p>
+                                    <p className="text-xs text-gray-500 uppercase tracking-widest mt-1">Cliente / Representante</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <style jsx global>{`

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { GripVertical, Trash2, Copy } from "lucide-react";
 import Image from "next/image";
+import { BeforeAfterBlock } from "./blocks/before-after-block";
 
 interface SectionEditorProps {
     section: TicketReportSection;
@@ -79,6 +80,15 @@ export function SectionEditor({
                             {(section as ListSection).items.length} items
                         </p>
                     </div>
+                );
+
+            case 'beforeAfter':
+                return (
+                    <BeforeAfterBlock
+                        section={section as any}
+                        onChange={(updates) => onChange({ ...section, ...updates } as any)}
+                        onRemove={onDelete}
+                    />
                 );
 
             case 'photo':

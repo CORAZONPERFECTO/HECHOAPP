@@ -487,9 +487,19 @@ export interface TicketReportHeader {
     title: string;
 }
 
+export interface TicketReportSignatures {
+    technicianSignature?: string; // URL
+    technicianName?: string;
+    technicianSignedAt?: Timestamp;
+    clientSignature?: string; // URL
+    clientName?: string;
+    clientSignedAt?: Timestamp;
+}
+
 export interface TicketReportNew {
     ticketId: string;
     header: TicketReportHeader;
     sections: TicketReportSection[];
+    signatures?: TicketReportSignatures;
     lastGeneratedFromTicketAt?: string;
 }
