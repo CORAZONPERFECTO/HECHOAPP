@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/income/status-badge";
 import { ArrowLeft, FileCheck, Printer, Mail, XCircle, CheckCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { generateQuotePDF } from "@/lib/export-utils";
+import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
 
 export default function QuoteDetailPage() {
     const params = useParams();
@@ -187,8 +188,8 @@ export default function QuoteDetailPage() {
                                             <tr key={idx} className="bg-white/50">
                                                 <td className="py-3 px-4">{item.description}</td>
                                                 <td className="text-right py-3 px-4">{item.quantity}</td>
-                                                <td className="text-right py-3 px-4">RD$ {item.unitPrice.toLocaleString()}</td>
-                                                <td className="text-right py-3 px-4 font-medium">RD$ {item.total.toLocaleString()}</td>
+                                                <td className="text-right py-3 px-4">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                <td className="text-right py-3 px-4 font-medium">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -202,6 +203,11 @@ export default function QuoteDetailPage() {
                                 <p className="text-gray-600 whitespace-pre-wrap">{quote.notes}</p>
                             </Card>
                         )}
+
+                        {/* Timeline */}
+                        {quote.timeline && quote.timeline.length > 0 && (
+                            <QuoteTimeline timeline={quote.timeline} />
+                        )}
                     </div>
 
                     {/* Sidebar: Totals & Info */}
@@ -211,15 +217,15 @@ export default function QuoteDetailPage() {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between text-gray-600">
                                     <span>Subtotal</span>
-                                    <span>RD$ {quote.subtotal.toLocaleString()}</span>
+                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-600">
                                     <span>ITBIS</span>
-                                    <span>RD$ {quote.taxTotal.toLocaleString()}</span>
+                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg text-gray-900">
                                     <span>Total</span>
-                                    <span>RD$ {quote.total.toLocaleString()}</span>
+                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </Card>
