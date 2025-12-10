@@ -12,11 +12,35 @@ import { Plus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
+import { QuoteStats } from "@/components/income/quotes/quote-stats";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRange } from "react-day-picker";
+import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 export default function QuotesPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: addDays(new Date(), -30),
+        to: new Date(),
+    });
+    const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+    // Client-side filtering for demo speed (ideally would be Firestore query)
+    const filteredQuotes = quotes.filter(quote => {
+        // 1. Status Filter
+        if (statusFilter !== "ALL" && quote.status !== statusFilter) return false;
+
+        // 2. Date Filter
+        if (!dateRange?.from) return true;
+        const quoteDate = quote.createdAt?.seconds ? new Date(quote.createdAt.seconds * 1000) : new Date();
+        const start = startOfDay(dateRange.from);
+        const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+
+        return isWithinInterval(quoteDate, { start, end });
+    });
 
     useEffect(() => {
         const q = query(collection(db, "quotes"), orderBy("createdAt", "desc"));
@@ -74,13 +98,36 @@ export default function QuotesPage() {
                             <p className="text-gray-500">Gestiona propuestas y presupuestos</p>
                         </div>
                     </div>
-                    <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-md">
-                        <Link href="/income/quotes/new">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Nueva Cotización
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-4">
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Estado" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Todos los Estados</SelectItem>
+                                <SelectItem value="DRAFT">Borrador</SelectItem>
+                                <SelectItem value="SENT">Enviada</SelectItem>
+                                <SelectItem value="ACCEPTED">Aceptada</SelectItem>
+                                <SelectItem value="CONVERTED">Facturada</SelectItem>
+                                <SelectItem value="REJECTED">Rechazada</SelectItem>
+                                <SelectItem value="EXPIRED">Vencida</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <DateRangePicker
+                            date={dateRange}
+                            setDate={setDateRange}
+                        />
+                        <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-md">
+                            <Link href="/income/quotes/new">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Nueva Cotización
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
+
+                <QuoteStats quotes={filteredQuotes} />
 
                 {loading ? (
                     <div className="flex justify-center items-center h-64">
@@ -92,7 +139,7 @@ export default function QuotesPage() {
                 ) : (
                     <div className="glass-card rounded-xl overflow-hidden border border-gray-100 shadow-sm">
                         <DataTable
-                            data={quotes}
+                            data={filteredQuotes}
                             columns={columns}
                             searchKey="clientName"
                             searchPlaceholder="Buscar por cliente..."
