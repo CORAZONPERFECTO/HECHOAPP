@@ -2,7 +2,25 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
-import { TicketReportNew, PhotoSection, Quote } from '@/types/schema';
+import { TicketReportNew, PhotoSection, Quote, CompanySettings } from '@/types/schema';
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+/**
+ * Obtiene la configuración de la empresa
+ */
+async function getCompanySettings(): Promise<CompanySettings | null> {
+    try {
+        const docRef = doc(db, "settings", "company");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data() as CompanySettings;
+        }
+    } catch (error) {
+        console.error("Error fetching company settings:", error);
+    }
+    return null;
+}
 
 /**
  * Exporta el informe usando el método estándar de impresión del navegador
@@ -38,12 +56,61 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
     const pageHeight = 297;
     const margin = 20;
 
+    const settings = await getCompanySettings();
+
     // 1. Agregar encabezado del informe
+    let yPos = margin;
+
+    // Logo de la empresa
+    if (settings?.logoUrl) {
+        try {
+            // Cargar logo (asíumiendo que es una URL accesible)
+            const img = await loadImage(settings.logoUrl);
+            // Ajustar tamaño del logo (ej. max ancho 40mm, max alto 20mm)
+            const logoWidth = 40;
+            const logoHeight = 20;
+            const ratio = img.width / img.height;
+            let w = logoWidth;
+            let h = w / ratio;
+            if (h > logoHeight) {
+                h = logoHeight;
+                w = h * ratio;
+            }
+            pdf.addImage(img, 'PNG', margin, yPos, w, h);
+        } catch (e) {
+            console.warn("Could not load company logo for PDF", e);
+        }
+    }
+
+    // Datos de la empresa (Derecha)
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    const companyName = settings?.name || "HECHO SRL";
+    pdf.text(companyName, pageWidth - margin, yPos + 5, { align: 'right' });
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    let companyY = yPos + 10;
+    if (settings?.rnc) {
+        pdf.text(`RNC: ${settings.rnc}`, pageWidth - margin, companyY, { align: 'right' });
+        companyY += 4;
+    }
+    if (settings?.phone) {
+        pdf.text(`Tel: ${settings.phone}`, pageWidth - margin, companyY, { align: 'right' });
+        companyY += 4;
+    }
+    if (settings?.email) {
+        pdf.text(settings.email, pageWidth - margin, companyY, { align: 'right' });
+        companyY += 4;
+    }
+
+    // Título del Reporte
+    yPos += 30;
     pdf.setFontSize(18);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(report.header.title, pageWidth / 2, margin, { align: 'center' });
+    pdf.text(report.header.title, pageWidth / 2, yPos, { align: 'center' });
 
-    let yPos = margin + 15;
+    yPos += 15;
 
     // 2. Información del encabezado
     pdf.setFontSize(10);
@@ -208,12 +275,47 @@ export async function exportToPDFWith3Photos(report: TicketReportNew) {
     const pageHeight = 297;
     const margin = 20;
 
-    // 1. Agregar encabezado del informe (igual que 2 fotos)
+    const settings = await getCompanySettings();
+
+    // 1. Agregar encabezado del informe
+    let yPos = margin;
+
+    // Logo
+    if (settings?.logoUrl) {
+        try {
+            const img = await loadImage(settings.logoUrl);
+            const logoWidth = 40;
+            const logoHeight = 20;
+            const ratio = img.width / img.height;
+            let w = logoWidth;
+            let h = w / ratio;
+            if (h > logoHeight) {
+                h = logoHeight;
+                w = h * ratio;
+            }
+            pdf.addImage(img, 'PNG', margin, yPos, w, h);
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+    // Datos
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(settings?.name || "HECHO SRL", pageWidth - margin, yPos + 5, { align: 'right' });
+
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    let companyY = yPos + 10;
+    if (settings?.rnc) { pdf.text(`RNC: ${settings.rnc}`, pageWidth - margin, companyY, { align: 'right' }); companyY += 4; }
+    if (settings?.phone) { pdf.text(`Tel: ${settings.phone}`, pageWidth - margin, companyY, { align: 'right' }); companyY += 4; }
+
+    yPos += 30;
     pdf.setFontSize(18);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(report.header.title, pageWidth / 2, margin, { align: 'center' });
+    pdf.text(report.header.title, pageWidth / 2, yPos, { align: 'center' });
 
-    let yPos = margin + 15;
+    yPos += 15;
 
     // 2. Información del encabezado
     pdf.setFontSize(10);
@@ -503,30 +605,57 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 /**
  * Genera un PDF básico para una Cotización
  */
-export function generateQuotePDF(quote: Quote) {
+export async function generateQuotePDF(quote: Quote) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = 210;
     const margin = 20;
     let yPos = margin;
 
+    const settings = await getCompanySettings();
+
     // 1. Encabezado
-    pdf.setFontSize(22);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text("COTIZACIÓN", pageWidth - margin, yPos, { align: 'right' });
+    // Logo y Datos Empresa
+    if (settings?.logoUrl) {
+        try {
+            const img = await loadImage(settings.logoUrl);
+            const logoWidth = 40;
+            const logoHeight = 20;
+            const ratio = img.width / img.height;
+            let w = logoWidth;
+            let h = w / ratio;
+            if (h > logoHeight) {
+                h = logoHeight;
+                w = h * ratio;
+            }
+            pdf.addImage(img, 'PNG', margin, yPos, w, h);
+        } catch (e) {
+            console.warn("Could not load company logo", e);
+        }
+    }
 
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(quote.number || "Borrador", pageWidth - margin, yPos + 6, { align: 'right' });
-
-    // Logo / Empresa (Mockup)
     pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.text("HECHO", margin, yPos);
+    const companyName = settings?.name || "HECHO";
+    pdf.text(companyName, margin, yPos + 25);
+
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    let companyY = yPos + 30;
+    if (settings?.rnc) { pdf.text(`RNC: ${settings.rnc}`, margin, companyY); companyY += 4; }
+    if (settings?.address) { pdf.text(settings.address, margin, companyY); companyY += 4; }
+    if (settings?.phone) { pdf.text(`Tel: ${settings.phone}`, margin, companyY); companyY += 4; }
+    if (settings?.website) { pdf.text(settings.website, margin, companyY); companyY += 4; }
+
+    // Título Cotización (Derecha)
+    pdf.setFontSize(22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text("COTIZACIÓN", pageWidth - margin, margin + 10, { align: 'right' });
+
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'normal');
-    pdf.text("Servicios Generales & Mantenimiento", margin, yPos + 6);
+    pdf.text(quote.number || "Borrador", pageWidth - margin, margin + 16, { align: 'right' });
 
-    yPos += 25;
+    yPos = Math.max(companyY + 10, margin + 40);
 
     // 2. Info Cliente
     pdf.setDrawColor(200);
