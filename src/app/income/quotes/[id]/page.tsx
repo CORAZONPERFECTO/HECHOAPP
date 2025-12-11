@@ -14,6 +14,10 @@ import { ArrowLeft, FileCheck, Printer, Mail, XCircle, CheckCircle } from "lucid
 import { useToast } from "@/components/ui/use-toast";
 import { generateQuotePDF } from "@/lib/export-utils";
 import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
+import { DocumentExportButton } from "@/components/documents/document-export-button";
+import { mapQuoteToDocument } from "@/lib/document-generator";
+import { CompanySettings } from "@/types/schema";
+import { getDoc, doc } from "firebase/firestore";
 
 export default function QuoteDetailPage() {
     const params = useParams();
@@ -22,28 +26,37 @@ export default function QuoteDetailPage() {
     const { toast } = useToast();
 
     const [quote, setQuote] = useState<Quote | null>(null);
+    const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [converting, setConverting] = useState(false);
 
     useEffect(() => {
-        const fetchQuote = async () => {
+        const fetchData = async () => {
             if (!id) return;
             try {
                 const docRef = doc(db, "quotes", id);
                 const docSnap = await getDoc(docRef);
+
+                // Fetch Company Settings
+                const settingsRef = doc(db, "settings", "company");
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    setCompanySettings(settingsSnap.data() as CompanySettings);
+                }
+
                 if (docSnap.exists()) {
                     setQuote({ id: docSnap.id, ...docSnap.data() } as Quote);
                 } else {
                     router.push("/income/quotes");
                 }
             } catch (error) {
-                console.error("Error getting quote:", error);
+                console.error("Error getting data:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchQuote();
+        fetchData();
     }, [id, router]);
 
     const handleConvert = async () => {
@@ -144,9 +157,12 @@ export default function QuoteDetailPage() {
                     </div>
 
                     <div className="flex gap-2">
-                        <Button variant="outline" className="gap-2" onClick={() => quote && generateQuotePDF(quote)}>
-                            <Printer className="h-4 w-4" /> Imprimir
-                        </Button>
+                        {quote && companySettings && (
+                            <DocumentExportButton
+                                data={mapQuoteToDocument(quote, companySettings)}
+                                type="quote"
+                            />
+                        )}
                         <Button variant="outline" className="gap-2">
                             <Mail className="h-4 w-4" /> Enviar
                         </Button>
@@ -166,86 +182,85 @@ export default function QuoteDetailPage() {
                             </Button>
                         )}
                     </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Main Content: Items */}
-                    <div className="md:col-span-2 space-y-6">
-                        <Card className="p-6 glass-card overflow-hidden">
-                            <h3 className="font-semibold mb-4 text-gray-900">Ítems Cotizados</h3>
-                            <div className="rounded-lg border overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-gray-50 text-gray-500 border-b">
-                                        <tr>
-                                            <th className="text-left py-3 px-4">Descripción</th>
-                                            <th className="text-right py-3 px-4">Cant.</th>
-                                            <th className="text-right py-3 px-4">Precio</th>
-                                            <th className="text-right py-3 px-4">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y">
-                                        {quote.items.map((item, idx) => (
-                                            <tr key={idx} className="bg-white/50">
-                                                <td className="py-3 px-4">{item.description}</td>
-                                                <td className="text-right py-3 px-4">{item.quantity}</td>
-                                                <td className="text-right py-3 px-4">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                <td className="text-right py-3 px-4 font-medium">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Main Content: Items */}
+                        <div className="md:col-span-2 space-y-6">
+                            <Card className="p-6 glass-card overflow-hidden">
+                                <h3 className="font-semibold mb-4 text-gray-900">Ítems Cotizados</h3>
+                                <div className="rounded-lg border overflow-hidden">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50 text-gray-500 border-b">
+                                            <tr>
+                                                <th className="text-left py-3 px-4">Descripción</th>
+                                                <th className="text-right py-3 px-4">Cant.</th>
+                                                <th className="text-right py-3 px-4">Precio</th>
+                                                <th className="text-right py-3 px-4">Total</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </Card>
-
-                        {quote.notes && (
-                            <Card className="p-6 glass-card">
-                                <h3 className="font-semibold mb-2 text-gray-900">Notas</h3>
-                                <p className="text-gray-600 whitespace-pre-wrap">{quote.notes}</p>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {quote.items.map((item, idx) => (
+                                                <tr key={idx} className="bg-white/50">
+                                                    <td className="py-3 px-4">{item.description}</td>
+                                                    <td className="text-right py-3 px-4">{item.quantity}</td>
+                                                    <td className="text-right py-3 px-4">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                    <td className="text-right py-3 px-4 font-medium">{quote.currency === 'USD' ? 'US$' : 'RD$'} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </Card>
-                        )}
 
-                        {/* Timeline */}
-                        {quote.timeline && quote.timeline.length > 0 && (
-                            <QuoteTimeline timeline={quote.timeline} />
-                        )}
-                    </div>
+                            {quote.notes && (
+                                <Card className="p-6 glass-card">
+                                    <h3 className="font-semibold mb-2 text-gray-900">Notas</h3>
+                                    <p className="text-gray-600 whitespace-pre-wrap">{quote.notes}</p>
+                                </Card>
+                            )}
 
-                    {/* Sidebar: Totals & Info */}
-                    <div className="space-y-6">
-                        <Card className="p-6 glass-card bg-purple-50/50 border-purple-100">
-                            <h3 className="font-semibold mb-4 text-purple-900">Resumen</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between text-gray-600">
-                                    <span>Subtotal</span>
-                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="flex justify-between text-gray-600">
-                                    <span>ITBIS</span>
-                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg text-gray-900">
-                                    <span>Total</span>
-                                    <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                </div>
-                            </div>
-                        </Card>
+                            {/* Timeline */}
+                            {quote.timeline && quote.timeline.length > 0 && (
+                                <QuoteTimeline timeline={quote.timeline} />
+                            )}
+                        </div>
 
-                        <Card className="p-6 glass-card">
-                            <h3 className="font-semibold mb-4 text-gray-900">Detalles</h3>
-                            <div className="space-y-3 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4 text-gray-400" />
-                                    <span>Creado: {quote.createdAt ? new Date(quote.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                        {/* Sidebar: Totals & Info */}
+                        <div className="space-y-6">
+                            <Card className="p-6 glass-card bg-purple-50/50 border-purple-100">
+                                <h3 className="font-semibold mb-4 text-purple-900">Resumen</h3>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>Subtotal</span>
+                                        <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>ITBIS</span>
+                                        <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg text-gray-900">
+                                        <span>Total</span>
+                                        <span>{quote.currency === 'USD' ? 'US$' : 'RD$'} {quote.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <XCircle className="h-4 w-4 text-gray-400" />
-                                    <span>Válido hasta: {quote.validUntil ? new Date(quote.validUntil.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                            </Card>
+
+                            <Card className="p-6 glass-card">
+                                <h3 className="font-semibold mb-4 text-gray-900">Detalles</h3>
+                                <div className="space-y-3 text-sm text-gray-600">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle className="h-4 w-4 text-gray-400" />
+                                        <span>Creado: {quote.createdAt ? new Date(quote.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <XCircle className="h-4 w-4 text-gray-400" />
+                                        <span>Válido hasta: {quote.validUntil ? new Date(quote.validUntil.seconds * 1000).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        </Card>
+                            </Card>
+                        </div>
                     </div>
                 </div>
-            </div>
         </AppLayout>
     );
 }

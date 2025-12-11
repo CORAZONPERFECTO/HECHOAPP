@@ -3,6 +3,7 @@
 
 import { CompanyProfile } from "@/components/resources/company-profile";
 import { AppLayout } from "@/components/layout/app-layout";
+import { DocumentFormatSettings } from "@/components/settings/document-format-settings";
 
 export default function SettingsPage() {
     return (
@@ -15,6 +16,7 @@ export default function SettingsPage() {
                     </p>
                 </div>
                 <CompanyProfile />
+                <DocumentFormatSettings />
             </div>
         </AppLayout>
     );

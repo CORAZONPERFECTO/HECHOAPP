@@ -8,6 +8,9 @@ import { Invoice } from "@/types/schema";
 import { InvoiceForm } from "@/components/income/invoice-form";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { DocumentExportButton } from "@/components/documents/document-export-button";
+import { mapInvoiceToDocument } from "@/lib/document-generator";
+import { CompanySettings } from "@/types/schema";
 
 export default function InvoiceDetailPage() {
     const params = useParams();
@@ -15,6 +18,7 @@ export default function InvoiceDetailPage() {
     const id = params.id as string;
 
     const [invoice, setInvoice] = useState<Invoice | null>(null);
+    const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -23,6 +27,14 @@ export default function InvoiceDetailPage() {
             try {
                 const docRef = doc(db, "invoices", id);
                 const docSnap = await getDoc(docRef);
+
+                // Fetch Company Settings
+                const settingsRef = doc(db, "settings", "company");
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    setCompanySettings(settingsSnap.data() as CompanySettings);
+                }
+
                 if (docSnap.exists()) {
                     setInvoice({ id: docSnap.id, ...docSnap.data() } as Invoice);
                 } else {
@@ -58,6 +70,12 @@ export default function InvoiceDetailPage() {
                         <h1 className="text-2xl font-bold text-gray-900">Editar Factura {invoice.number}</h1>
                         <p className="text-gray-500">Detalles y edición de factura</p>
                     </div>
+                    {invoice && companySettings && (
+                        <DocumentExportButton
+                            data={mapInvoiceToDocument(invoice, companySettings)}
+                            type="invoice"
+                        />
+                    )}
                 </div>
 
                 <InvoiceForm initialData={invoice} isEditing={true} />
