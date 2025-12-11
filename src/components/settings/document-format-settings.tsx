@@ -20,7 +20,7 @@ export function DocumentFormatSettings() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Formatos de Documentos</CardTitle>
+                <CardTitle>Configuración Predeterminada de Documentos</CardTitle>
                 <CardDescription>
                     Selecciona el diseño predeterminado para cada tipo de documento al imprimir o exportar a PDF.
                 </CardDescription>
