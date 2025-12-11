@@ -14,7 +14,7 @@ interface PhotoUploaderProps {
     allowGallery?: boolean;
 }
 
-// Function to add metadata watermark to image
+// Function to add metadata watermark to image and resize if needed
 const addMetadataToImage = async (file: File, location?: string): Promise<Blob> => {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -32,12 +32,27 @@ const addMetadataToImage = async (file: File, location?: string): Promise<Blob> 
                 return;
             }
 
-            // Set canvas size to image size
-            canvas.width = img.width;
-            canvas.height = img.height;
+            // Calculate new dimensions (max 1920px)
+            let width = img.width;
+            let height = img.height;
+            const MAX_DIMENSION = 1920;
 
-            // Draw original image
-            ctx.drawImage(img, 0, 0);
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                if (width > height) {
+                    height = Math.round((height * MAX_DIMENSION) / width);
+                    width = MAX_DIMENSION;
+                } else {
+                    width = Math.round((width * MAX_DIMENSION) / height);
+                    height = MAX_DIMENSION;
+                }
+            }
+
+            // Set canvas size
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw image resized
+            ctx.drawImage(img, 0, 0, width, height);
 
             // Prepare metadata text
             const now = new Date();
@@ -51,16 +66,19 @@ const addMetadataToImage = async (file: File, location?: string): Promise<Blob> 
                 minute: '2-digit'
             });
 
-            // Style for watermark
-            const fontSize = Math.max(img.width / 40, 14);
+            // Style for watermark - Adjusted for resized dimensions
+            const fontSize = Math.max(width / 40, 20); // Slightly larger relative font
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.lineWidth = 3;
+            // Ensure text is readable
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 4;
 
             // Position watermark at bottom-left
             const padding = fontSize;
-            let yPosition = img.height - padding;
+            let yPosition = height - padding;
 
             // Draw location if available
             if (location) {
@@ -81,14 +99,14 @@ const addMetadataToImage = async (file: File, location?: string): Promise<Blob> 
             ctx.strokeText(dateText, padding, yPosition);
             ctx.fillText(dateText, padding, yPosition);
 
-            // Convert canvas to blob
+            // Convert canvas to blob (JPEG 0.8 quality is usually enough and much smaller)
             canvas.toBlob((blob) => {
                 if (blob) {
                     resolve(blob);
                 } else {
                     reject(new Error('Could not create blob'));
                 }
-            }, file.type || 'image/jpeg', 0.95);
+            }, 'image/jpeg', 0.85);
         };
 
         img.onerror = () => reject(new Error('Could not load image'));

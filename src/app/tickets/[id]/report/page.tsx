@@ -298,6 +298,7 @@ export default function TicketReportPage() {
                     onRegenerate={handleRegenerate}
                     availablePhotos={ticket.photos || []}
                     saving={saving}
+                    ticket={ticket}
                 />
             </div>
         </div>

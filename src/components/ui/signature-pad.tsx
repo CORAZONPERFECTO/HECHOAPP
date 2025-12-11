@@ -28,7 +28,24 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
                 setIsEmpty(true);
             },
             isEmpty: () => sigPad.current?.isEmpty() ?? true,
-            toDataURL: () => sigPad.current?.toDataURL() ?? "",
+            toDataURL: () => {
+                const canvas = sigPad.current?.getTrimmedCanvas();
+                // Create a temporary canvas to resize if too large (e.g. > 500px width)
+                if (canvas) {
+                    const maxWidth = 500;
+                    if (canvas.width > maxWidth) {
+                        const scale = maxWidth / canvas.width;
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = maxWidth;
+                        tempCanvas.height = canvas.height * scale;
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx?.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                        return tempCanvas.toDataURL("image/png");
+                    }
+                    return canvas.toDataURL("image/png");
+                }
+                return "";
+            },
         }));
 
         const handleEnd = () => {

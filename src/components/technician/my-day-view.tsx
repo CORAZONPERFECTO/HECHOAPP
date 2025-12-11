@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-    MapPin, Clock, ArrowRight, CheckCircle, AlertCircle, 
-    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon 
+import {
+    MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
+    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
@@ -39,9 +39,7 @@ export function MyDayView() {
         const q = query(
             collection(db, "tickets"),
             where("technicianId", "==", currentUserId),
-            where("status", "in", ["OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_PARTS"]),
-            orderBy("priority", "desc"),
-            orderBy("createdAt", "asc")
+            where("status", "in", ["OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_PARTS"])
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -49,6 +47,27 @@ export function MyDayView() {
                 id: doc.id,
                 ...doc.data(),
             })) as Ticket[];
+
+            // Client-side sorting to avoid Firestore composite index requirement
+            const priorityWeight = {
+                "URGENT": 4,
+                "HIGH": 3,
+                "MEDIUM": 2,
+                "LOW": 1
+            };
+
+            data.sort((a, b) => {
+                // 1. Sort by Priority (Desc)
+                const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
+                const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
+                if (weightA !== weightB) return weightB - weightA;
+
+                // 2. Sort by CreatedAt (Asc) - Oldest first
+                const dateA = a.createdAt?.seconds || 0;
+                const dateB = b.createdAt?.seconds || 0;
+                return dateA - dateB;
+            });
+
             setTickets(data);
             setLoading(false);
         });

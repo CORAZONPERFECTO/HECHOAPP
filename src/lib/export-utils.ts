@@ -626,11 +626,47 @@ async function addPhotoToPDF(
  */
 function loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
+        const loadWithProxy = () => {
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+            fetch(proxyUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error("Proxy failed");
+                    return res.blob();
+                })
+                .then(blob => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.src = reader.result as string;
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch(err => {
+                    console.error("Proxy fetch error:", err);
+                    // Final fallback: try to load as normal image, might work if cached
+                    const fallbackImg = new Image();
+                    fallbackImg.crossOrigin = 'anonymous';
+                    fallbackImg.onload = () => resolve(fallbackImg);
+                    fallbackImg.onerror = () => reject(err);
+                    fallbackImg.src = url;
+                });
+        };
+
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
-        img.onerror = reject;
+        img.onerror = () => {
+            console.warn(`Direct load failed for ${url}, trying proxy...`);
+            loadWithProxy();
+        };
         img.src = url;
+    });
+}
+console.warn(`Direct load failed for ${url}, trying proxy...`);
+loadWithProxy();
+        };
+img.src = url;
     });
 }
 /**

@@ -10,7 +10,7 @@ import { MapPin, Navigation } from "lucide-react";
 
 // Set your Mapbox access token here
 // User will need to add this to their .env.local file
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
 
 interface TicketMapProps {
     tickets: Ticket[];
