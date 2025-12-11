@@ -514,6 +514,7 @@ export interface PhotoSection extends BaseSection {
     type: 'photo';
     photoUrl: string;
     description?: string;
+    size?: 'small' | 'medium' | 'large'; // Default: medium
     photoMeta?: {
         originalId?: string;
         area?: string;

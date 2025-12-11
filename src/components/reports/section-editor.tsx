@@ -142,8 +142,21 @@ export function SectionEditor({
                                 value={photoSection.description || ''}
                                 onChange={(e) => onChange({ ...section, description: e.target.value } as PhotoSection)}
                                 placeholder="Descripción de la imagen..."
-                                className="min-h-[60px]"
+                                className="min-h-[60px] mb-3"
                             />
+
+                            <div className="flex items-center gap-4">
+                                <Label className="text-sm font-medium whitespace-nowrap">Tamaño de foto:</Label>
+                                <select
+                                    value={photoSection.size || 'medium'}
+                                    onChange={(e) => onChange({ ...section, size: e.target.value as any } as PhotoSection)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <option value="small">Pequeña (1/4 página)</option>
+                                    <option value="medium">Mediana (1/2 página)</option>
+                                    <option value="large">Grande (Pagina completa)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 );
