@@ -85,9 +85,9 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
 
     // --- 3. FOTOS (Agrupadas por fase) ---
     if (ticket.photos && ticket.photos.length > 0) {
-        const photosBefore = ticket.photos.filter(p => p.type === 'BEFORE');
-        const photosDuring = ticket.photos.filter(p => p.type === 'DURING');
-        const photosAfter = ticket.photos.filter(p => p.type === 'AFTER');
+        const photosBefore = ticket.photos.filter(p => p.type?.toUpperCase() === 'BEFORE');
+        const photosDuring = ticket.photos.filter(p => p.type?.toUpperCase() === 'DURING');
+        const photosAfter = ticket.photos.filter(p => p.type?.toUpperCase() === 'AFTER');
 
         const addPhotoGroup = (title: string, photos: typeof ticket.photos, phase: 'BEFORE' | 'DURING' | 'AFTER') => {
             if (photos.length === 0) return;
@@ -199,9 +199,9 @@ export function updatePhotosFromTicket(
 
     // Group new photos by phase
     const newPhotosByPhase = {
-        BEFORE: newPhotos.filter(p => p.type === 'BEFORE'),
-        DURING: newPhotos.filter(p => p.type === 'DURING'),
-        AFTER: newPhotos.filter(p => p.type === 'AFTER')
+        BEFORE: newPhotos.filter(p => p.type?.toUpperCase() === 'BEFORE'),
+        DURING: newPhotos.filter(p => p.type?.toUpperCase() === 'DURING'),
+        AFTER: newPhotos.filter(p => p.type?.toUpperCase() === 'AFTER')
     };
 
     const updatedSections = [...report.sections];

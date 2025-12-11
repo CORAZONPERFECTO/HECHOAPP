@@ -356,111 +356,72 @@ export async function exportToPDFModern(report: TicketReportNew) {
         pdf.text("REPORTE FOTOGRÁFICO", margin, yPos);
         yPos += 15;
 
-        // Render in groups of 3
-        for (let i = 0; i < photos.length; i += 3) {
-            const pagePhotos = photos.slice(i, i + 3);
+        // Render one by one in vertical list
+        // Approx 3 photos per page?
+        // Height available per page approx 240mm (minus header/footer)
+        // Let's use 85mm height per photo block.
+        const photoBlockHeight = 85;
 
-            // Check if we need a new page (but we just started one, or we loop)
-            if (i > 0) {
+        for (let i = 0; i < photos.length; i++) {
+            const photo = photos[i];
+
+            // Check if we need a new page
+            if (yPos + photoBlockHeight > pageHeight - 20) {
                 drawFooter(pdf.getCurrentPageInfo().pageNumber);
                 pdf.addPage();
                 await drawHeader(pdf.getCurrentPageInfo().pageNumber);
                 yPos = 40;
             }
 
-            // Layout specs
             const contentWidth = pageWidth - (margin * 2);
+            const pWidth = contentWidth * 0.55; // Photo width 55%
+            const pHeight = 75; // Photo height fixed
 
-            // PHOTO 1: LEFT BIG
-            if (pagePhotos[0]) {
-                const p1 = pagePhotos[0];
-                const p1Height = 85;
-                const p1Width = contentWidth * 0.6; // 60% width
+            try {
+                const img = await loadImage(photo.photoUrl);
 
-                try {
-                    const img = await loadImage(p1.photoUrl);
-                    pdf.addImage(img, 'JPEG', margin, yPos, p1Width, p1Height);
+                // Photo (Left aligned)
+                // Using object-contain logic simulation by aspect ratio if needed, for now stretch/fit box
+                pdf.addImage(img, 'JPEG', margin, yPos, pWidth, pHeight);
 
-                    // Description Side
-                    const descX = margin + p1Width + 5;
-                    const descW = contentWidth * 0.38;
+                // Description Box (Right aligned)
+                const descX = margin + pWidth + 5;
+                const descW = contentWidth * 0.42; // Description width ~42%
 
-                    pdf.setFillColor(245, 245, 245);
-                    pdf.roundedRect(descX, yPos, descW, p1Height, 2, 2, 'F');
+                // Background for description
+                pdf.setFillColor(248, 248, 248);
+                pdf.setDrawColor(230, 230, 230);
+                pdf.roundedRect(descX, yPos, descW, pHeight, 2, 2, 'FD');
 
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(COLORS.primary);
-                    pdf.setFont(FONTS.header, 'bold');
-                    pdf.text(`Foto #${i + 1}`, descX + 5, yPos + 10);
+                // Label
+                pdf.setFontSize(10);
+                pdf.setTextColor(COLORS.primary);
+                pdf.setFont(FONTS.header, 'bold');
+                pdf.text(`#${i + 1}`, descX + 5, yPos + 8);
 
-                    if (p1.description) {
-                        pdf.setFontSize(9);
-                        pdf.setTextColor(COLORS.text);
-                        pdf.setFont(FONTS.body, 'normal');
-                        const lines = pdf.splitTextToSize(p1.description, descW - 10);
-                        pdf.text(lines, descX + 5, yPos + 20);
-                    }
-                } catch (e) {
-                    // Error handled by loadImage
+                // Text
+                if (photo.description) {
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(COLORS.text);
+                    pdf.setFont(FONTS.body, 'normal');
+                    // Split text using a bit less width for padding
+                    const lines = pdf.splitTextToSize(photo.description, descW - 10);
+                    pdf.text(lines, descX + 5, yPos + 16);
+                } else {
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.setFont(FONTS.body, 'italic');
+                    pdf.text("(Sin descripción)", descX + 5, yPos + 16);
                 }
 
-                yPos += p1Height + 10;
+                // Phase Badge (Optional but helpful)
+                // if (photo.photoMeta?.phase) { ... }
+
+            } catch (e) {
+                // Image load failed - rendered by loadImage placeholder
             }
 
-            // PHOTO 2 & 3: BOTTOM ROW
-            const row2Y = yPos;
-            const itemWidth = (contentWidth - 10) / 2;
-            const itemHeight = 75;
-
-            // Foto 2
-            if (pagePhotos[1]) {
-                const p2 = pagePhotos[1];
-                try {
-                    const img = await loadImage(p2.photoUrl);
-                    pdf.addImage(img, 'JPEG', margin, row2Y, itemWidth, itemHeight);
-
-                    // Label overlay strip
-                    pdf.setFillColor(0, 0, 0, 0.5); // transparent black
-                    pdf.rect(margin, row2Y + itemHeight - 12, itemWidth, 12, 'F');
-
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(255, 255, 255);
-                    pdf.text(`Foto #${i + 2}`, margin + 5, row2Y + itemHeight - 4);
-
-                    if (p2.description) {
-                        // Description below? Or inside? User said "Foto #X - Descripción" below.
-                        // Let's put description below the image
-                        pdf.setFontSize(9);
-                        pdf.setTextColor(COLORS.text);
-                        const lines = pdf.splitTextToSize(p2.description, itemWidth);
-                        pdf.text(lines, margin, row2Y + itemHeight + 5);
-                    }
-                } catch (e) { }
-            }
-
-            // Foto 3
-            if (pagePhotos[2]) {
-                const p3 = pagePhotos[2];
-                const xPos = margin + itemWidth + 10;
-                try {
-                    const img = await loadImage(p3.photoUrl);
-                    pdf.addImage(img, 'JPEG', xPos, row2Y, itemWidth, itemHeight);
-
-                    pdf.setFillColor(0, 0, 0, 0.5);
-                    pdf.rect(xPos, row2Y + itemHeight - 12, itemWidth, 12, 'F');
-
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(255, 255, 255);
-                    pdf.text(`Foto #${i + 3}`, xPos + 5, row2Y + itemHeight - 4);
-
-                    if (p3.description) {
-                        pdf.setFontSize(9);
-                        pdf.setTextColor(COLORS.text);
-                        const lines = pdf.splitTextToSize(p3.description, itemWidth);
-                        pdf.text(lines, xPos, row2Y + itemHeight + 5);
-                    }
-                } catch (e) { }
-            }
+            yPos += photoBlockHeight;
         }
     }
 

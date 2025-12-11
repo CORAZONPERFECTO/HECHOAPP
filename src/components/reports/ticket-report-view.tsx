@@ -45,8 +45,8 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                     <div className="mb-6">
                         <BeforeAfterBlock
                             section={section as any}
-                            onChange={() => {}}
-                            onRemove={() => {}}
+                            onChange={() => { }}
+                            onRemove={() => { }}
                             readOnly={true}
                         />
                     </div>
@@ -56,20 +56,31 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                 const photoSection = section as PhotoSection;
                 return (
                     <div key={section.id} className="mb-6 break-inside-avoid photo-container">
-                        <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-                            {photoSection.photoUrl && (
-                                <img
-                                    src={photoSection.photoUrl}
-                                    alt={photoSection.description || 'Evidence'}
-                                    className="w-full h-full object-contain photo-print"
-                                    onError={(e) => {
-                                        console.error("Error cargando imagen:", photoSection.photoUrl);
-                                        e.currentTarget.style.display = 'none';
-                                    }}
-                                    loading="lazy"
-                                />
-                            )}
-                            {!photoSection.photoUrl && (
+                        <div className="relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm group">
+                            {photoSection.photoUrl ? (
+                                <>
+                                    <img
+                                        src={photoSection.photoUrl}
+                                        alt={photoSection.description || 'Evidence'}
+                                        className="w-full h-full object-contain photo-print"
+                                        crossOrigin="anonymous"
+                                        onError={(e) => {
+                                            console.error("Error cargando imagen:", photoSection.photoUrl);
+                                            // Show error visual
+                                            e.currentTarget.style.display = 'none';
+                                            const errorDiv = document.createElement('div');
+                                            errorDiv.className = "flex flex-col items-center justify-center h-full text-red-500 text-xs p-4 text-center";
+                                            errorDiv.innerHTML = `<span>Error cargando imagen</span><span class="text-[10px] text-gray-400 mt-2 break-all">${photoSection.photoUrl}</span>`;
+                                            e.currentTarget.parentElement?.appendChild(errorDiv);
+                                        }}
+                                        loading="lazy"
+                                    />
+                                    {/* Debug Overlay on Hover */}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs p-4 break-all pointer-events-none">
+                                        {photoSection.photoUrl}
+                                    </div>
+                                </>
+                            ) : (
                                 <div className="flex items-center justify-center h-full text-gray-400">
                                     Sin imagen
                                 </div>
