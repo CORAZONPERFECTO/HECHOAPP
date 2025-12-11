@@ -39,6 +39,11 @@ export default function SettingsLayout({
             href: "/settings/import-services",
             icon: FileSpreadsheet,
         },
+        {
+            title: "Configuración de Documentos",
+            href: "/settings/documents",
+            icon: FileText,
+        },
     ];
 
     return (
