@@ -1,147 +1,155 @@
-import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection } from "@/types/schema";
+import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection } from "@/types/schema";
+
+/**
+ * Helper to create ID
+ */
+const uuid = () => crypto.randomUUID();
 
 /**
  * Generates a complete report from a ticket
+ * Adapts the "Modern" structure requested by user to existing Schema types.
  */
 export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
     const sections: TicketReportSection[] = [];
 
-    // 1. Diagnosis
-    if (ticket.diagnosis) {
+    // --- 0. TÍTULO PRINCIPAL & DATOS GENERALES ---
+    // Mapped from user's "KeyValue" to a List for compatibility
+    sections.push({
+        id: uuid(),
+        type: 'h2', // Using h2 as main section header within the report body
+        content: 'Resumen del Servicio'
+    } as TitleSection);
+
+    const generalDataItems = [
+        `Ticket: ${ticket.ticketNumber || ticket.id.slice(0, 8)}`,
+        `Cliente: ${ticket.clientName || 'N/D'}`,
+        `Ubicación: ${ticket.locationName || ticket.specificLocation || 'N/D'}`,
+        `Tipo de servicio: ${ticket.serviceType || 'N/D'}`,
+        `Fecha: ${ticket.createdAt ? new Date((ticket.createdAt as any).seconds * 1000).toLocaleDateString() : 'N/D'}`,
+        `Técnico: ${ticket.technicianName || 'N/D'}`
+    ];
+
+    sections.push({
+        id: uuid(),
+        type: 'list',
+        items: generalDataItems
+    } as ListSection);
+
+    // --- 0.2 RESUMEN DEL SERVICIO (Objective/Notes) ---
+    // The user had objective/initialNotes in their interface. 
+    // We map ticket.description (our equivalent) here if needed, or leave blank if strictly following new template fields we might not have yet.
+    // We'll use ticket.description as "Falla Reportada" or "Objetivo"
+    if (ticket.description) {
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'h2',
-            content: 'Diagnóstico'
+            content: 'Solicitud / Falla Reportada'
         } as TitleSection);
 
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
+            type: 'text',
+            content: ticket.description
+        } as TextSection);
+    }
+
+    // --- 1. DIAGNÓSTICO ---
+    if (ticket.diagnosis && ticket.diagnosis.trim().length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Diagnóstico Técnico'
+        } as TitleSection);
+
+        sections.push({
+            id: uuid(),
             type: 'text',
             content: ticket.diagnosis
         } as TextSection);
     }
 
-    // 2. Solution
-    if (ticket.solution) {
+    // --- 2. SOLUCIÓN ---
+    if (ticket.solution && ticket.solution.trim().length > 0) {
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'h2',
-            content: 'Solución'
+            content: 'Solución Aplicada'
         } as TitleSection);
 
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'text',
             content: ticket.solution
         } as TextSection);
     }
 
-    // 3. Photos grouped by phase
+    // --- 3. FOTOS (Agrupadas por fase) ---
     if (ticket.photos && ticket.photos.length > 0) {
         const photosBefore = ticket.photos.filter(p => p.type === 'BEFORE');
         const photosDuring = ticket.photos.filter(p => p.type === 'DURING');
         const photosAfter = ticket.photos.filter(p => p.type === 'AFTER');
 
-        // BEFORE photos
-        if (photosBefore.length > 0) {
+        const addPhotoGroup = (title: string, photos: typeof ticket.photos, phase: 'BEFORE' | 'DURING' | 'AFTER') => {
+            if (photos.length === 0) return;
+
             sections.push({
-                id: crypto.randomUUID(),
+                id: uuid(),
                 type: 'h2',
-                content: 'Evidencia ANTES'
+                content: title
             } as TitleSection);
 
-            photosBefore.forEach(photo => {
+            // Add photos sequentially. The "Modern PDF" export will handle the grid layout.
+            // attempting to create "BeforeAfter" sections if pairs exist could be smart, but let's stick to simple photos for now to be safe.
+            photos.forEach(photo => {
                 sections.push({
-                    id: crypto.randomUUID(),
+                    id: uuid(),
                     type: 'photo',
                     photoUrl: photo.url,
                     description: photo.description || photo.details || '',
                     photoMeta: {
-                        originalId: (photo as any).id || crypto.randomUUID(),
+                        originalId: (photo as any).id || uuid(),
                         area: photo.area,
-                        phase: 'BEFORE'
+                        phase: phase
                     }
                 } as PhotoSection);
             });
-        }
+        };
 
-        // DURING photos
-        if (photosDuring.length > 0) {
-            sections.push({
-                id: crypto.randomUUID(),
-                type: 'h2',
-                content: 'Proceso del trabajo'
-            } as TitleSection);
-
-            photosDuring.forEach(photo => {
-                sections.push({
-                    id: crypto.randomUUID(),
-                    type: 'photo',
-                    photoUrl: photo.url,
-                    description: photo.description || photo.details || '',
-                    photoMeta: {
-                        originalId: (photo as any).id || crypto.randomUUID(),
-                        area: photo.area,
-                        phase: 'DURING'
-                    }
-                } as PhotoSection);
-            });
-        }
-
-        // AFTER photos
-        if (photosAfter.length > 0) {
-            sections.push({
-                id: crypto.randomUUID(),
-                type: 'h2',
-                content: 'Resultado FINAL'
-            } as TitleSection);
-
-            photosAfter.forEach(photo => {
-                sections.push({
-                    id: crypto.randomUUID(),
-                    type: 'photo',
-                    photoUrl: photo.url,
-                    description: photo.description || photo.details || '',
-                    photoMeta: {
-                        originalId: (photo as any).id || crypto.randomUUID(),
-                        area: photo.area,
-                        phase: 'AFTER'
-                    }
-                } as PhotoSection);
-            });
-        }
+        addPhotoGroup('Evidencia ANTES', photosBefore, 'BEFORE');
+        addPhotoGroup('Proceso del trabajo', photosDuring, 'DURING');
+        addPhotoGroup('Resultado FINAL', photosAfter, 'AFTER');
     }
 
-    // 4. Checklist
+    // --- 4. CHECKLIST ---
     if (ticket.checklist && ticket.checklist.length > 0) {
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'h2',
-            content: 'Checklist de servicio'
+            content: 'Checklist de Servicio'
         } as TitleSection);
 
         const checklistItems = ticket.checklist.map(item => {
-            const text = item.text || (item as any).label || 'Item sin nombre';
+            const text = item.text || (item as any).label || 'Item';
             return (item.checked ? '✅ ' : '⬜ ') + text;
         });
 
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'list',
             items: checklistItems
         } as ListSection);
     }
 
-    // 5. Recommendations
-    if (ticket.recommendations) {
+    // --- 5. RECOMENDACIONES ---
+    if (ticket.recommendations && ticket.recommendations.trim().length > 0) {
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'h2',
             content: 'Recomendaciones'
         } as TitleSection);
 
         sections.push({
-            id: crypto.randomUUID(),
+            id: uuid(),
             type: 'text',
             content: ticket.recommendations
         } as TextSection);
@@ -159,7 +167,7 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
                 day: 'numeric'
             }),
             technicianName: ticket.technicianName || 'Técnico Asignado',
-            title: `Informe final del servicio #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
+            title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
         },
         sections,
         lastGeneratedFromTicketAt: new Date().toISOString()
@@ -200,44 +208,51 @@ export function updatePhotosFromTicket(
 
     // Helper to find insertion point for a phase
     const findInsertionPoint = (phase: 'BEFORE' | 'DURING' | 'AFTER'): number => {
-        // Find the last photo of this phase
-        for (let i = updatedSections.length - 1; i >= 0; i--) {
-            const section = updatedSections[i];
-            if (section.type === 'photo' && (section as PhotoSection).photoMeta?.phase === phase) {
-                return i + 1;
-            }
-        }
-        // If no photos of this phase, find the header
+        // Find the subheading
         const headerTexts = {
             BEFORE: 'Evidencia ANTES',
             DURING: 'Proceso del trabajo',
             AFTER: 'Resultado FINAL'
         };
 
-        for (let i = 0; i < updatedSections.length; i++) {
-            const section = updatedSections[i];
-            if (section.type === 'h2' && (section as TitleSection).content === headerTexts[phase]) {
-                return i + 1;
+        // 1. Try to find the header
+        let headerIndex = updatedSections.findIndex(s => s.type === 'h2' && (s as TitleSection).content === headerTexts[phase]);
+
+        if (headerIndex !== -1) {
+            // Found header, append after the last photo of this group
+            // Scan forward until we hit a non-photo or end
+            let i = headerIndex + 1;
+            while (i < updatedSections.length && updatedSections[i].type === 'photo') {
+                i++;
             }
+            return i;
         }
 
-        // If no header, append at end
+        // 2. If header doesn't exist, we need to create it? 
+        // For simplicity in this updater, we append to end if structure is missing, 
+        // or just insert at end. (Refining this would require more logic)
         return updatedSections.length;
     };
 
     // Add new photos
     Object.entries(newPhotosByPhase).forEach(([phase, photos]) => {
         if (photos.length > 0) {
-            const insertPoint = findInsertionPoint(phase as 'BEFORE' | 'DURING' | 'AFTER');
+            const Phase = phase as 'BEFORE' | 'DURING' | 'AFTER';
+            let insertPoint = findInsertionPoint(Phase);
+
+            // If header didn't exist (insertPoint at end), checking if we should add header
+            // This is complex because we might be appending to a report that deleted sections.
+            // Let's just append the photos for safety.
+
             const newPhotoSections: PhotoSection[] = photos.map(photo => ({
-                id: crypto.randomUUID(),
+                id: uuid(),
                 type: 'photo',
                 photoUrl: photo.url,
                 description: photo.description || photo.details || '',
                 photoMeta: {
-                    originalId: (photo as any).id || crypto.randomUUID(),
+                    originalId: (photo as any).id || uuid(),
                     area: photo.area,
-                    phase: phase as 'BEFORE' | 'DURING' | 'AFTER'
+                    phase: Phase
                 }
             }));
 
@@ -250,3 +265,4 @@ export function updatePhotosFromTicket(
         sections: updatedSections
     };
 }
+

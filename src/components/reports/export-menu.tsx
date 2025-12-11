@@ -8,12 +8,13 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
     DropdownMenuSeparator,
+    DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
-import { FileDown, FileText, Image, Loader2 } from 'lucide-react';
+import { FileDown, FileText, Image, Loader2, Sparkles, Printer, LayoutTemplate } from 'lucide-react';
 import {
     exportToPDFStandard,
+    exportToPDFModern,
     exportToPDFWith2Photos,
-    exportToPDFWith3Photos,
     exportToWord,
 } from '@/lib/export-utils';
 import { useState } from 'react';
@@ -50,7 +51,7 @@ export function ExportMenu({ report }: ExportMenuProps) {
                     {exporting ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Exportando...
+                            {exportType ? exportType : 'Exportando...'}
                         </>
                     ) : (
                         <>
@@ -61,54 +62,62 @@ export function ExportMenu({ report }: ExportMenuProps) {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-                <div className="px-2 py-1.5 text-sm font-semibold text-gray-700">
-                    Formato de Exportación
-                </div>
-                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Formatos PDF
+                </DropdownMenuLabel>
 
                 <DropdownMenuItem
-                    onClick={() => handleExport('PDF Estándar', exportToPDFStandard)}
+                    onClick={() => handleExport('Moderno', () => exportToPDFModern(report))}
                     disabled={exporting}
+                    className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium cursor-pointer"
                 >
-                    <FileText className="mr-2 h-4 w-4" />
+                    <Sparkles className="mr-2 h-4 w-4 text-blue-500" />
                     <div className="flex flex-col">
-                        <span>PDF Estándar</span>
-                        <span className="text-xs text-gray-500">Fotos integradas en el documento</span>
-                    </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                    onClick={() => handleExport('PDF 2 Fotos', () => exportToPDFWith2Photos(report))}
-                    disabled={exporting}
-                >
-                    <Image className="mr-2 h-4 w-4" />
-                    <div className="flex flex-col">
-                        <span>PDF + 2 Fotos/Página</span>
-                        <span className="text-xs text-gray-500">Anexo fotográfico separado</span>
-                    </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                    onClick={() => handleExport('PDF 3 Fotos', () => exportToPDFWith3Photos(report))}
-                    disabled={exporting}
-                >
-                    <Image className="mr-2 h-4 w-4" />
-                    <div className="flex flex-col">
-                        <span>PDF + 3 Fotos/Página</span>
-                        <span className="text-xs text-gray-500">Anexo fotográfico compacto</span>
+                        <span>Moderno 2025</span>
+                        <span className="text-[10px] opacity-80">Diseño corporativo + Grid</span>
                     </div>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                    onClick={() => handleExport('Clásico', exportToPDFStandard)}
+                    disabled={exporting}
+                    className="cursor-pointer"
+                >
+                    <Printer className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                        <span>Clásico</span>
+                        <span className="text-[10px] text-gray-500">Formato original (Impresión)</span>
+                    </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    onClick={() => handleExport('Simple', () => exportToPDFWith2Photos(report))}
+                    disabled={exporting}
+                    className="cursor-pointer"
+                >
+                    <LayoutTemplate className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                        <span>Simple</span>
+                        <span className="text-[10px] text-gray-500">PDF Compacto</span>
+                    </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Otros
+                </DropdownMenuLabel>
 
                 <DropdownMenuItem
                     onClick={() => handleExport('Word', () => exportToWord(report))}
                     disabled={exporting}
+                    className="cursor-pointer"
                 >
                     <FileText className="mr-2 h-4 w-4" />
                     <div className="flex flex-col">
                         <span>Word (.docx)</span>
-                        <span className="text-xs text-gray-500">Documento editable</span>
+                        <span className="text-[10px] text-gray-500">Documento editable</span>
                     </div>
                 </DropdownMenuItem>
             </DropdownMenuContent>

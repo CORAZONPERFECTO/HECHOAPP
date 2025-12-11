@@ -20,6 +20,22 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
     const [transcript, setTranscript] = useState("");
     const [parsedData, setParsedData] = useState<{ clientName?: string; items: InvoiceItem[] } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [hintIndex, setHintIndex] = useState(0);
+
+    const hints = [
+        "\"Factura a Farmacia Carol por 2 mantenimientos a 2500\"",
+        "\"3 cajas de guantes para el Cliente Juan Perez\"",
+        "\"Un servicio de instalación por 5000 pesos\"",
+        "\"Para Supermercado Bravo 10 fundas de hielo a 100\""
+    ];
+
+    // Rotate hints
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setHintIndex((prev) => (prev + 1) % hints.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, []);
 
     const recognitionRef = useRef<any>(null);
 
@@ -128,12 +144,20 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                     </CardTitle>
                     <p className="text-sm text-gray-500">
                         {isListening
-                            ? "Escuchando... Di algo como \"Factura a Farmacia Carol por 2 mantenimientos a 2500\""
-                            : "Dictado pausado."}
+                            ? "Te escucho..."
+                            : "Presiona el micrófono para empezar"}
                     </p>
                 </CardHeader>
 
                 <CardContent className="relative z-10 space-y-6">
+                    {/* Rotating Hints */}
+                    {!isListening && !transcript && (
+                        <div className="text-center pb-2">
+                            <p className="text-xs font-medium text-blue-600 animate-pulse bg-blue-50 py-1 px-3 rounded-full inline-block">
+                                Tip: Di {hints[hintIndex]}
+                            </p>
+                        </div>
+                    )}
                     {/* Transcript Area */}
                     <div className="min-h-[80px] p-4 bg-white/80 border rounded-xl text-lg font-medium text-gray-700 shadow-inner flex items-center justify-center text-center">
                         {transcript || <span className="text-gray-300 italic">Esperando comandos...</span>}
@@ -214,6 +238,6 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }
