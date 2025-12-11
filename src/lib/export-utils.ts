@@ -663,12 +663,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
         img.src = url;
     });
 }
-console.warn(`Direct load failed for ${url}, trying proxy...`);
-loadWithProxy();
-        };
-img.src = url;
-    });
-}
 /**
  * Genera un PDF básico para una Cotización
  */

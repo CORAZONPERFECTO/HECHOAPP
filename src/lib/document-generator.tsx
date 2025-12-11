@@ -154,3 +154,7 @@ export function mapInvoiceToDocument(invoice: Invoice, company: CompanySettings)
         status: invoice.status,
     };
 }
+
+export async function generateDocumentPDF(data: DocumentData, format: DocumentFormat): Promise<Blob> {
+    return await pdf(<DocumentPDF data={data} format={format} />).toBlob();
+}

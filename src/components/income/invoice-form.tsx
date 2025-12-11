@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2, Save, Mic } from "lucide-react";
 import { VoiceCommandCenter } from "./voice-command-center";
+import { ClientSelector } from "@/components/shared/client-selector";
 
 interface InvoiceFormProps {
     initialData?: Invoice;
@@ -32,7 +33,7 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
         dueDate: initialData?.dueDate || Timestamp.now(),
     });
 
-    // Load clients
+    // Load clients (Required for VoiceCommandCenter)
     useEffect(() => {
         const fetchClients = async () => {
             const querySnapshot = await getDocs(collection(db, "clients"));
@@ -56,16 +57,13 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
         { subtotal: 0, taxTotal: 0, total: 0 }
     );
 
-    const handleClientChange = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
-        if (client) {
-            setFormData(prev => ({
-                ...prev,
-                clientId: client.id,
-                clientName: client.nombreComercial,
-                clientRnc: client.rnc
-            }));
-        }
+    const handleClientSelect = (client: Client) => {
+        setFormData(prev => ({
+            ...prev,
+            clientId: client.id,
+            clientName: client.nombreComercial,
+            clientRnc: client.rnc
+        }));
     };
 
     const addItem = () => {
@@ -158,21 +156,10 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                     <div className="space-y-2">
                         <Label>Cliente</Label>
-                        <Select
+                        <ClientSelector
                             value={formData.clientId}
-                            onValueChange={handleClientChange}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar cliente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {clients.map(client => (
-                                    <SelectItem key={client.id} value={client.id}>
-                                        {client.nombreComercial}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            onSelect={handleClientSelect}
+                        />
                     </div>
 
                     <div className="space-y-2">

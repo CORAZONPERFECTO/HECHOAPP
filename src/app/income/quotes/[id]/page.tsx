@@ -17,7 +17,7 @@ import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
 import { DocumentExportButton } from "@/components/documents/document-export-button";
 import { mapQuoteToDocument } from "@/lib/document-generator";
 import { CompanySettings } from "@/types/schema";
-import { getDoc, doc } from "firebase/firestore";
+
 
 export default function QuoteDetailPage() {
     const params = useParams();
@@ -261,6 +261,7 @@ export default function QuoteDetailPage() {
                         </div>
                     </div>
                 </div>
+            </div>
         </AppLayout>
     );
 }

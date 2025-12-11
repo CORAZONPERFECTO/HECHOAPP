@@ -32,7 +32,7 @@ import { Client } from "@/types/schema";
 
 interface ClientSelectorProps {
     value?: string;
-    onSelect: (clientId: string, clientName: string) => void;
+    onSelect: (client: Client) => void;
 }
 
 export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
@@ -95,9 +95,10 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
             };
 
             setClients(prev => [...prev, newClient]);
-            onSelect(newClient.id, newClient.nombreComercial);
+            onSelect(newClient);
             setShowNewClientModal(false);
             setOpen(false);
+            // Optionally triggering a global refresh if needed, but local update suffices for now
         } catch (error) {
             console.error("Error creating client:", error);
         } finally {
@@ -132,7 +133,7 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                         key={client.id}
                                         value={`${client.nombreComercial} ${client.id}`} // Ensure unique value for search
                                         onSelect={() => {
-                                            onSelect(client.id, client.nombreComercial);
+                                            onSelect(client);
                                             setOpen(false);
                                         }}
                                         className="cursor-pointer" // Force cursor pointer

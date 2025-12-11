@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2, Save } from "lucide-react";
+import { ClientSelector } from "@/components/shared/client-selector";
 
 import { auth } from "@/lib/firebase";
 import { generateNextNumber } from "@/lib/numbering-service";
@@ -22,7 +23,6 @@ interface QuoteFormProps {
 export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [clients, setClients] = useState<Client[]>([]);
 
     const [formData, setFormData] = useState<Partial<Quote>>({
         number: initialData?.number || "",
@@ -38,15 +38,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         timeline: initialData?.timeline || [],
     });
 
-    // Load clients
-    useEffect(() => {
-        const fetchClients = async () => {
-            const querySnapshot = await getDocs(collection(db, "clients"));
-            const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Client[];
-            setClients(clientsData);
-        };
-        fetchClients();
-    }, []);
+    // Load items handled by state
 
     // Calculate totals
     const totals = (formData.items || []).reduce(
@@ -62,15 +54,12 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         { subtotal: 0, taxTotal: 0, total: 0 }
     );
 
-    const handleClientChange = (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
-        if (client) {
-            setFormData(prev => ({
-                ...prev,
-                clientId: client.id,
-                clientName: client.nombreComercial,
-            }));
-        }
+    const handleClientSelect = (client: Client) => {
+        setFormData(prev => ({
+            ...prev,
+            clientId: client.id,
+            clientName: client.nombreComercial,
+        }));
     };
 
     const addItem = () => {
@@ -154,21 +143,10 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                     <Label>Cliente</Label>
-                    <Select
+                    <ClientSelector
                         value={formData.clientId}
-                        onValueChange={handleClientChange}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {clients.map(client => (
-                                <SelectItem key={client.id} value={client.id}>
-                                    {client.nombreComercial}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                        onSelect={handleClientSelect}
+                    />
                 </div>
 
                 <div className="space-y-2">

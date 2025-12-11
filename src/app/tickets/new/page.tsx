@@ -61,11 +61,11 @@ export default function NewTicketPage() {
         return () => unsubscribe();
     }, []);
 
-    const handleClientChange = (clientId: string, clientName: string) => {
+    const handleClientChange = (client: Client) => {
         setFormData(prev => ({
             ...prev,
-            clientId,
-            clientName,
+            clientId: client.id,
+            clientName: client.nombreComercial,
             // Keep location fields if manually entered, or reset if desired. 
             // For now, we keep them as they are independent of client selection in this new flow.
         }));
