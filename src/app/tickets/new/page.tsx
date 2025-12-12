@@ -174,7 +174,7 @@ export default function NewTicketPage() {
     {
         step === 2 && (
             <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Paso 2: Tipo de Servicio (Selección Múltiple)</h2>
+                <h2 className="text-lg font-semibold">Paso 2: Selecciona los Servicios (Múltiple) ✅</h2>
 
                 <div className="grid grid-cols-2 gap-4">
                     {ticketTypes.map(type => {
