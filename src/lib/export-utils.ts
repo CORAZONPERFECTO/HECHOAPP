@@ -366,7 +366,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photo = photos[i];
 
             // Check if we need a new page
-            if (yPos + photoBlockHeight > pageHeight - 20) {
+            if (i > 0 && yPos + photoBlockHeight > pageHeight - 20) {
                 drawFooter(pdf.getCurrentPageInfo().pageNumber);
                 pdf.addPage();
                 await drawHeader(pdf.getCurrentPageInfo().pageNumber);
