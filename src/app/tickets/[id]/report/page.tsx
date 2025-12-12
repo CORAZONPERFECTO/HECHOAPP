@@ -198,6 +198,23 @@ export default function TicketReportPage() {
         }
     };
 
+    // State for interactive preview
+    const [isInteractive, setIsInteractive] = useState(false);
+
+    // Helper to update a section content directly
+    const handleUpdateSection = (sectionId: string, updates: Partial<TicketReportSection>) => {
+        if (!report) return;
+
+        const sectionIndex = report.sections.findIndex(s => s.id === sectionId);
+        if (sectionIndex === -1) return;
+
+        const updatedSections = [...report.sections];
+        updatedSections[sectionIndex] = { ...updatedSections[sectionIndex], ...updates };
+
+        const newReport = { ...report, sections: updatedSections };
+        setReport(newReport);
+    };
+
     // Atajos de teclado
     useKeyboardShortcuts([
         {
@@ -241,33 +258,50 @@ export default function TicketReportPage() {
     }
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50 dark:bg-black overflow-hidden">
-            {/* Top Navigation */}
-            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-6 py-3 flex items-center justify-between print:hidden">
+        <div className="flex flex-col h-screen bg-gray-50 dark:bg-zinc-950">
+            {/* Header */}
+            <div className="flex-none bg-white dark:bg-zinc-900 border-b px-6 py-4 flex items-center justify-between shadow-sm z-10">
                 <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(`/tickets/${ticketId}`)}
-                        className="gap-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Volver al Ticket
+                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                        <ArrowLeft className="h-5 w-5" />
                     </Button>
-                    <div className="h-6 w-px bg-gray-300 dark:bg-zinc-700" />
-                    <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        Informe: {ticket.ticketNumber || ticket.id.slice(0, 6)}
-                    </h1>
+                    <div>
+                        <h1 className="text-xl font-bold dark:text-white">Editar Informe</h1>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Ticket #{ticket?.ticketNumber || '...'}
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {/* Undo/Redo Buttons */}
-                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-md p-1 mr-2">
+
+                <div className="flex items-center gap-3">
+                    <div className="mr-4 flex items-center bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+                        <Button
+                            variant={activeTab === 'edit' ? 'white' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('edit')}
+                            className="text-sm gap-2"
+                        >
+                            <Edit className="h-4 w-4" />
+                            Editor
+                        </Button>
+                        <Button
+                            variant={activeTab === 'preview' ? 'white' : 'ghost'}
+                            size="sm"
+                            onClick={() => setActiveTab('preview')}
+                            className="text-sm gap-2"
+                        >
+                            <Eye className="h-4 w-4" />
+                            Vista Previa
+                        </Button>
+                    </div>
+
+                    {/* Undo/Redo Controls - Only show in Edit mode or if interactive */}
+                    <div className="flex items-center gap-1 mr-2">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={undo}
                             disabled={!canUndo}
-                            className="h-8 w-8 text-gray-600 dark:text-gray-300"
                             title="Deshacer (Ctrl+Z)"
                         >
                             <Undo2 className="h-4 w-4" />
@@ -277,29 +311,90 @@ export default function TicketReportPage() {
                             size="icon"
                             onClick={redo}
                             disabled={!canRedo}
-                            className="h-8 w-8 text-gray-600 dark:text-gray-300"
                             title="Rehacer (Ctrl+Y)"
                         >
                             <Redo2 className="h-4 w-4" />
                         </Button>
                     </div>
 
-                    <ExportMenu report={report} />
+                    <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2" />
+
+                    <Button
+                        variant={saving ? 'secondary' : 'default'}
+                        onClick={() => report && handleSave(report)}
+                        disabled={saving || !report}
+                    >
+                        {saving ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Guardando...
+                            </>
+                        ) : (
+                            'Guardar'
+                        )}
+                    </Button>
+
+                    {report && (
+                        <ExportMenu
+                            report={report}
+                            ticket={ticket} // Pass ticket for data
+                        />
+                    )}
                 </div>
             </div>
 
-            {/* Content - Now managed fully by TicketReportEditor */}
-            <div className="flex-1 overflow-hidden">
-                <TicketReportEditor
-                    report={report}
-                    onChange={setReport}
-                    onSave={async (r) => handleSave(r)}
-                    onUpdatePhotos={handleUpdatePhotos}
-                    onRegenerate={handleRegenerate}
-                    availablePhotos={ticket.photos || []}
-                    saving={saving}
+            {/* Main Content */}
+            <div className="flex-1 overflow-hidden relative">
+                {loading ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                ) : (
+                    activeTab === 'edit' ? (
+                        <div className="absolute inset-0 overflow-y-auto p-6">
+                            <div className="max-w-4xl mx-auto bg-white dark:bg-zinc-900 rounded-xl shadow-sm min-h-[calc(100vh-12rem)] pb-20">
+                                {report && (
+                                    <TicketReportEditor
+                                        report={report}
+                                        onChange={setReport}
+                                        availablePhotos={ticket?.photos || []}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="absolute inset-0 overflow-y-auto bg-gray-100 dark:bg-black p-6">
+                            {/* Preview Controls Header */}
+                            <div className="max-w-[210mm] mx-auto mb-4 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-zinc-900 px-3 py-2 rounded-md shadow-sm border text-sm font-medium select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={isInteractive}
+                                            onChange={(e) => setIsInteractive(e.target.checked)}
+                                            className="accent-blue-600 h-4 w-4"
+                                        />
+                                        Vista Previa Interactiva
+                                    </label>
+                                    {isInteractive && <span className="text-xs text-blue-600 font-medium animate-pulse">● Modo Edición Activo</span>}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                    Formato A4
+                                </div>
+                            </div>
 
-                />
+                            <div className="max-w-[210mm] mx-auto bg-white dark:bg-zinc-900 shadow-lg min-h-[297mm] p-[15mm] print:shadow-none print:m-0 print:w-full">
+                                {report && (
+                                    <TicketReportView
+                                        report={report}
+                                        isInteractive={isInteractive}
+                                        onUpdateSection={handleUpdateSection}
+                                    />
+                                )}
+                            </div>
+                        </div>
+                    )
+                )}
             </div>
         </div>
     );

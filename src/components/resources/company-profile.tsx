@@ -63,24 +63,42 @@ export function CompanyProfile() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // 1. Validate Size (e.g., 5MB limit)
+        const MAX_SIZE_MB = 5;
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`El archivo es demasiado grande (Máx ${MAX_SIZE_MB}MB).`);
+            e.target.value = "";
+            return;
+        }
+
         try {
             setUploading(true);
+            let blobToUpload: Blob = file;
 
-            // Compress image but preserve transparency for PNGs
-            const compressedBlob = await compressImage(file, 800, 0.8);
+            // 2. Try Compression
+            try {
+                // Compress image but preserve transparency for PNGs
+                blobToUpload = await compressImage(file, 800, 0.8);
+            } catch (compressionError) {
+                console.warn("La compresión falló, intentando subir archivo original...", compressionError);
+                // Fallback to original file
+                blobToUpload = file;
+            }
 
+            // 3. Upload Logic
             // Create a reference with a better path structure
-            // Using a fixed name for the company logo can help overwrite old ones, but timestamps avoid caching issues.
-            const storageRef = ref(storage, `company/logo_${Date.now()}_${file.name}`);
+            // Using a fixed name suffix helps track changes but using timestamp ensures cache busting
+            const storageRef = ref(storage, `company/logo_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
 
-            const snapshot = await uploadBytes(storageRef, compressedBlob);
+            const snapshot = await uploadBytes(storageRef, blobToUpload);
             const url = await getDownloadURL(snapshot.ref);
 
             setSettings(prev => ({ ...prev, logoUrl: url }));
             // Auto-save after upload
             await setDoc(doc(db, "settings", "company"), { ...settings, logoUrl: url });
 
-            alert("Logo subido y guardado correctamente.");
+            // Toast-like alert or proper toast could be used here
+            // alert("Logo subido y guardado correctamente."); 
         } catch (error: any) {
             console.error("Error uploading logo:", error);
             // Check for common storage errors
@@ -89,7 +107,7 @@ export function CompanyProfile() {
             } else if (error.code === 'storage/canceled') {
                 alert("Subida cancelada.");
             } else {
-                alert("Error al subir el logo: " + (error.message || "Error desconocido"));
+                alert("Error al subir el logo: " + (error.message || "Intenta con otra imagen."));
             }
         } finally {
             setUploading(false);

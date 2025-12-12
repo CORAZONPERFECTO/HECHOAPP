@@ -1,37 +1,70 @@
 "use client";
 
-import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection } from "@/types/schema";
-import { BeforeAfterBlock } from "./blocks/before-after-block";
+import { InlineEditableText } from "@/components/ui/inline-editable-text";
 
 interface TicketReportViewProps {
     report: TicketReportNew;
+    isInteractive?: boolean;
+    onUpdateSection?: (sectionId: string, updates: Partial<TicketReportSection>) => void;
+    onUpdateHeader?: (updates: Partial<typeof report.header>) => void;
 }
 
-export function TicketReportView({ report }: TicketReportViewProps) {
+export function TicketReportView({ report, isInteractive = false, onUpdateSection, onUpdateHeader }: TicketReportViewProps) {
     const renderSection = (section: TicketReportSection) => {
+        const handleSave = (val: string) => {
+            if (onUpdateSection) {
+                // If text/h1/h2, content is the field. 
+                // For list, we might need special handling but for now let's focus on text blocks
+                if (section.type === 'list') {
+                    // special case
+                } else {
+                    onUpdateSection(section.id, { content: val } as any);
+                }
+            }
+        };
+
         switch (section.type) {
-            case 'h1':
+            case 'h1': // Usually not used in body, but supported
                 return (
-                    <h1 key={section.id} className="text-3xl font-bold text-gray-900 dark:text-zinc-50 mb-4 mt-6">
-                        {(section as TitleSection).content}
-                    </h1>
+                    <div key={section.id} className="mb-4 mt-6">
+                        <InlineEditableText
+                            value={(section as TitleSection).content}
+                            onSave={handleSave}
+                            disabled={!isInteractive}
+                            className="text-3xl font-bold text-gray-900 dark:text-zinc-50 leading-tight"
+                            as="input"
+                        />
+                    </div>
                 );
 
             case 'h2':
                 return (
-                    <h2 key={section.id} className="text-2xl font-bold text-gray-800 dark:text-zinc-200 mb-3 mt-5">
-                        {(section as TitleSection).content}
-                    </h2>
+                    <div key={section.id} className="mb-3 mt-5">
+                        <InlineEditableText
+                            value={(section as TitleSection).content}
+                            onSave={handleSave}
+                            disabled={!isInteractive}
+                            className="text-2xl font-bold text-gray-800 dark:text-zinc-200 leading-tight"
+                            as="input"
+                        />
+                    </div>
                 );
 
             case 'text':
                 return (
-                    <p key={section.id} className="mb-3 text-gray-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                        {(section as TextSection).content}
-                    </p>
+                    <div key={section.id} className="mb-3">
+                        <InlineEditableText
+                            value={(section as TextSection).content}
+                            onSave={handleSave}
+                            disabled={!isInteractive}
+                            className="text-gray-700 dark:text-zinc-300 leading-relaxed"
+                        />
+                    </div>
                 );
 
             case 'list':
+                // For simplicity, list items aren't fully inline editable yet in this pass unless requested.
+                // Or we can make a simple implementation if easy.
                 return (
                     <ul key={section.id} className="list-disc pl-5 space-y-1 mb-4 text-gray-700 dark:text-zinc-300">
                         {(section as ListSection).items.filter(item => item.trim()).map((item, i) => (
@@ -45,9 +78,13 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                     <div className="mb-6">
                         <BeforeAfterBlock
                             section={section as any}
-                            onChange={() => { }}
+                            onChange={(updated) => {
+                                if (onUpdateSection && isInteractive) {
+                                    onUpdateSection(section.id, updated);
+                                }
+                            }}
                             onRemove={() => { }}
-                            readOnly={true}
+                            readOnly={!isInteractive}
                         />
                     </div>
                 );
@@ -66,7 +103,6 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                                         crossOrigin="anonymous"
                                         onError={(e) => {
                                             console.error("Error cargando imagen:", photoSection.photoUrl);
-                                            // Show error visual
                                             e.currentTarget.style.display = 'none';
                                             const errorDiv = document.createElement('div');
                                             errorDiv.className = "flex flex-col items-center justify-center h-full text-red-500 text-xs p-4 text-center";
@@ -75,7 +111,6 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                                         }}
                                         loading="lazy"
                                     />
-                                    {/* Debug Overlay on Hover */}
                                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs p-4 break-all pointer-events-none">
                                         {photoSection.photoUrl}
                                     </div>
@@ -86,11 +121,17 @@ export function TicketReportView({ report }: TicketReportViewProps) {
                                 </div>
                             )}
                         </div>
-                        {photoSection.description && (
-                            <p className="mt-2 text-sm text-gray-600 text-center italic">
-                                {photoSection.description}
-                            </p>
-                        )}
+                        <div className="mt-2 text-center">
+                            <InlineEditableText
+                                value={photoSection.description || ''}
+                                onSave={(val) => {
+                                    if (onUpdateSection) onUpdateSection(section.id, { description: val } as any)
+                                }}
+                                disabled={!isInteractive}
+                                className="text-sm text-gray-600 italic inline-block min-w-[50px]"
+                                placeholder="Agregar descripción..."
+                            />
+                        </div>
                     </div>
                 );
 

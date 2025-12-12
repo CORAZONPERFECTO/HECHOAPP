@@ -71,17 +71,51 @@ export default function NewTicketPage() {
         }));
     };
 
-    const handleTypeChange = (type: TicketType) => {
-        setFormData(prev => ({
-            ...prev,
-            ticketTypeId: type.id,
-            serviceType: type.key as any, // Fallback for enum
-            checklist: type.defaultChecklist.map((item, index) => ({
-                id: `chk-${Date.now()}-${index}`,
-                text: item.text,
-                checked: false
-            }))
-        }));
+    // State for multi-select
+    const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
+
+    useEffect(() => {
+        // Sync single selection back to array if came from draft (optional, but good for consistency)
+        if (formData.ticketTypeId && selectedTypeIds.length === 0) {
+            setSelectedTypeIds([formData.ticketTypeId]);
+        }
+    }, []);
+
+    const handleTypeToggle = (type: TicketType) => {
+        setSelectedTypeIds(prev => {
+            const isSelected = prev.includes(type.id);
+            let newSelection;
+
+            if (isSelected) {
+                newSelection = prev.filter(id => id !== type.id);
+            } else {
+                newSelection = [...prev, type.id];
+            }
+
+            // Sync with formData for backward compatibility and saving
+            // We'll use the FIRST selected type as the primary 'ticketTypeId' 
+            // and join ALL names for 'serviceType'
+            const selectedTypes = ticketTypes.filter(t => newSelection.includes(t.id));
+            const primaryType = selectedTypes[0];
+
+            // Merge checklists from all selected types
+            const combinedChecklist = selectedTypes.flatMap((t, typeIndex) =>
+                t.defaultChecklist.map((item, itemIndex) => ({
+                    id: `chk-${Date.now()}-${typeIndex}-${itemIndex}`,
+                    text: item.text,
+                    checked: false
+                }))
+            );
+
+            setFormData(prev => ({
+                ...prev,
+                ticketTypeId: primaryType?.id || '', // Primary ID for reference
+                serviceType: selectedTypes.map(t => t.name).join(' + ') as any, // "Installation + Repair"
+                checklist: combinedChecklist
+            }));
+
+            return newSelection;
+        });
     };
 
     const handleTechnicianChange = (techId: string, techName: string) => {
@@ -135,170 +169,121 @@ export default function NewTicketPage() {
         }
     };
 
-    return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-3xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900">Nuevo Ticket de Servicio</h1>
-                    <div className="flex items-center gap-2 mt-2">
-                        <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                        <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                        <div className={`h-2 flex-1 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+    // ... inside render ...
+
+    {
+        step === 2 && (
+            <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Paso 2: Tipo de Servicio (Selección Múltiple)</h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {ticketTypes.map(type => {
+                        const isSelected = selectedTypeIds.includes(type.id);
+                        return (
+                            <button
+                                key={type.id}
+                                onClick={() => handleTypeToggle(type)}
+                                className={`p-4 rounded-lg border text-left transition-all ${isSelected
+                                    ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
+                                    : 'hover:border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                style={{ borderColor: isSelected ? type.color : '' }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div
+                                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold transition-transform duration-200"
+                                        style={{
+                                            backgroundColor: type.color || '#3b82f6',
+                                            transform: isSelected ? 'scale(1.1)' : 'scale(1)'
+                                        }}
+                                    >
+                                        {isSelected ? '✓' : type.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium block">{type.name}</span>
+                                        <span className="text-xs text-gray-500">{type.description}</span>
+                                    </div>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {ticketTypes.length === 0 && (
+                    <div className="text-center p-8 border-2 border-dashed rounded-lg text-gray-500">
+                        No hay tipos de ticket configurados. Ve a Ajustes para crear uno.
+                    </div>
+                )}
+
+                <div className="flex justify-between pt-4">
+                    <Button variant="outline" onClick={() => setStep(1)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+                    </Button>
+                    <Button onClick={() => setStep(3)} disabled={selectedTypeIds.length === 0}>
+                        Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        step === 3 && (
+            <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Paso 3: Detalles y Asignación</h2>
+
+                <div className="space-y-2">
+                    <Label>Descripción Inicial</Label>
+                    <Textarea
+                        value={formData.description}
+                        onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe el problema o requerimiento..."
+                        className="h-32"
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label>Prioridad</Label>
+                        <Select
+                            value={formData.priority}
+                            onValueChange={(val: TicketPriority) => setFormData(prev => ({ ...prev, priority: val }))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="LOW">Baja</SelectItem>
+                                <SelectItem value="MEDIUM">Media</SelectItem>
+                                <SelectItem value="HIGH">Alta</SelectItem>
+                                <SelectItem value="URGENT">Crítica</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Asignar Técnico (Opcional)</Label>
+                        <TechnicianSelector
+                            value={formData.technicianId}
+                            onSelect={handleTechnicianChange}
+                        />
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border p-8">
-                    {step === 1 && (
-                        <div className="space-y-6">
-                            <h2 className="text-lg font-semibold">Paso 1: Cliente y Ubicación</h2>
-
-                            <div className="space-y-2">
-                                <Label>Cliente</Label>
-                                <ClientSelector
-                                    value={formData.clientId}
-                                    onSelect={handleClientChange}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Ubicación (Zona)</Label>
-                                    <Select
-                                        value={formData.locationArea}
-                                        onValueChange={(val) => setFormData(prev => ({ ...prev, locationArea: val }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccionar zona" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {LOCATION_AREAS.map(area => (
-                                                <SelectItem key={area} value={area}>{area}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Lugar (Villa / Nombre)</Label>
-                                    <Input
-                                        value={formData.specificLocation || ''}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, specificLocation: e.target.value }))}
-                                        placeholder="Ej. Villa 12, Apto 3B"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end pt-4">
-                                <Button onClick={() => setStep(2)} disabled={!formData.clientId || !formData.locationArea}>
-                                    Siguiente <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {step === 2 && (
-                        <div className="space-y-6">
-                            <h2 className="text-lg font-semibold">Paso 2: Tipo de Servicio</h2>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {ticketTypes.map(type => (
-                                    <button
-                                        key={type.id}
-                                        onClick={() => handleTypeChange(type)}
-                                        className={`p-4 rounded-lg border text-left transition-all ${formData.ticketTypeId === type.id
-                                            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
-                                            : 'hover:border-gray-300 hover:bg-gray-50'
-                                            }`}
-                                        style={{ borderColor: formData.ticketTypeId === type.id ? type.color : '' }}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                                style={{ backgroundColor: type.color || '#3b82f6' }}
-                                            >
-                                                {type.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <span className="font-medium block">{type.name}</span>
-                                                <span className="text-xs text-gray-500">{type.description}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-
-                            {ticketTypes.length === 0 && (
-                                <div className="text-center p-8 border-2 border-dashed rounded-lg text-gray-500">
-                                    No hay tipos de ticket configurados. Ve a Ajustes para crear uno.
-                                </div>
-                            )}
-
-                            <div className="flex justify-between pt-4">
-                                <Button variant="outline" onClick={() => setStep(1)}>
-                                    <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-                                </Button>
-                                <Button onClick={() => setStep(3)} disabled={!formData.ticketTypeId}>
-                                    Siguiente <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {step === 3 && (
-                        <div className="space-y-6">
-                            <h2 className="text-lg font-semibold">Paso 3: Detalles y Asignación</h2>
-
-                            <div className="space-y-2">
-                                <Label>Descripción Inicial</Label>
-                                <Textarea
-                                    value={formData.description}
-                                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Describe el problema o requerimiento..."
-                                    className="h-32"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label>Prioridad</Label>
-                                    <Select
-                                        value={formData.priority}
-                                        onValueChange={(val: TicketPriority) => setFormData(prev => ({ ...prev, priority: val }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="LOW">Baja</SelectItem>
-                                            <SelectItem value="MEDIUM">Media</SelectItem>
-                                            <SelectItem value="HIGH">Alta</SelectItem>
-                                            <SelectItem value="URGENT">Crítica</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Asignar Técnico (Opcional)</Label>
-                                    <TechnicianSelector
-                                        value={formData.technicianId}
-                                        onSelect={handleTechnicianChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between pt-4">
-                                <Button variant="outline" onClick={() => setStep(2)}>
-                                    <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-                                </Button>
-                                <Button onClick={handleSubmit} disabled={loading || !formData.description}>
-                                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Crear Ticket
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                <div className="flex justify-between pt-4">
+                    <Button variant="outline" onClick={() => setStep(2)}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+                    </Button>
+                    <Button onClick={handleSubmit} disabled={loading || !formData.description}>
+                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Crear Ticket
+                    </Button>
                 </div>
             </div>
-        </div>
+        )
+    }
+                </div >
+            </div >
+        </div >
     );
 }
