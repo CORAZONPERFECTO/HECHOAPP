@@ -88,3 +88,24 @@ export interface InventorySupplier {
     rnc?: string;
     notes?: string;
 }
+
+export interface PendingProduct {
+    id: string;
+    detectedName: string;
+    providerName?: string;
+    suggestedUnit?: string;
+    detectedPrice?: number;
+
+    ticketId: string;
+    purchaseId: string;
+    purchaseItemId?: string;
+
+    quantity?: number; // Added for retro-active movement
+    targetLocationId?: string; // Added for retro-active movement
+
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    resolvedProductId?: string;
+
+    createdByUserId: string;
+    createdAt: any;
+}

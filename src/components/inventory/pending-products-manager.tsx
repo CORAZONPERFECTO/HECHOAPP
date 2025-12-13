@@ -28,7 +28,7 @@ export function PendingProductsManager() {
         name: "",
         sku: "",
         category: "MATERIAL",
-        minimumStock: 5,
+        minStock: 5,
         unit: "UND",
         averageCost: 0
     });
@@ -66,6 +66,7 @@ export function PendingProductsManager() {
                 // Create new product
                 finalProductId = await createProduct({
                     ...newProductData,
+                    isActive: true, // Required
                     averageCost: selectedItem.detectedPrice || 0
                 });
             }
@@ -108,7 +109,7 @@ export function PendingProductsManager() {
                 name: item.detectedName,
                 sku: `GEN-${Math.floor(Math.random() * 10000)}`,
                 category: "MATERIAL",
-                minimumStock: 5,
+                minStock: 5,
                 unit: item.suggestedUnit || "UND",
                 averageCost: item.detectedPrice || 0
             });

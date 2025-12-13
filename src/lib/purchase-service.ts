@@ -14,9 +14,11 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
     }
 
     try {
+        // Create ref outside to get ID
+        const purchaseRef = doc(collection(db, "purchases"));
+
         await runTransaction(db, async (transaction) => {
             // 1. Create Purchase Record
-            const purchaseRef = doc(collection(db, "purchases"));
             transaction.set(purchaseRef, {
                 ...purchaseData,
                 createdByUserId: purchaseData.userId,
@@ -26,31 +28,9 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                 inventoryTargetLocationId: undefined
             });
 
-            // 2. If Add to Inventory, process inventory items
-            if (purchaseData.addToInventory && purchaseData.inventoryTargetLocationId) {
-                const inventoryItems = purchaseData.items.filter(item => item.isInventory);
-
-                for (const item of inventoryItems) {
-                    // Logic: If matchedProductId exists, add stock. 
-                    // If NOT matched, we ideally should create a product or handle it. 
-                    // For MVP/Robustness: We ONLY create movement if matchedProductId is present.
-                    // Or we could create a "Provisional Product". 
-                    // Let's assume for this step, the UI forces a match or we skip.
-                    // Requirement: "Si NO hay match: Crear Producto provisional".
-                    // That's complex for a transaction. We'll simplify: 
-                    // Only processes matched products for now, or log warning.
-
-                    if (item.matchedProductId) {
-                        // We can't easily call external function 'registerMovement' inside transaction
-                        // if it uses runsTransaction itself (nested transactions not supported like that).
-                        // 'registerMovement' uses runTransaction. 
-                        // So we must manually do the inventory logic here OR call registerMovement sequentially AFTER this transaction.
-                        // Calling sequentially is safer to avoid nesting issues, but less atomic. 
-                        // Given 'registerMovement' is complex (validation etc), let's do it sequentially.
-                        // But for reliability, the Purchase is the source of truth.
-                    }
-                }
-            }
+            // 2. Inventory Logic inside transaction? 
+            // We moved it to AFTER transaction for simplicity in previous steps, 
+            // but effectively we just set the purchase here.
         });
 
         // 3. Post-Transaction: Process Inventory (Sequential)
