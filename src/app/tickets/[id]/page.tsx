@@ -20,6 +20,7 @@ import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW Editor
 import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
+import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { StatusActionButtons } from "@/components/technician/status-action-buttons";
@@ -214,6 +215,7 @@ export default function TicketDetailPage() {
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
                         <TabsTrigger value="checklist" className="text-xs py-2">Checklist</TabsTrigger>
                         <TabsTrigger value="materials" className="text-xs py-2 font-bold text-blue-700">Materiales</TabsTrigger>
+                        <TabsTrigger value="purchases" className="text-xs py-2">Compras</TabsTrigger>
                         <TabsTrigger value="evidence" className="text-xs py-2">Fotos</TabsTrigger>
                         <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
                         <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
@@ -310,6 +312,23 @@ export default function TicketDetailPage() {
                             ticketNumber={ticket.ticketNumber}
                             currentUserRole={currentUserRole || 'TECNICO'}
                         />
+                    </TabsContent>
+
+                    <TabsContent value="purchases" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Compras y Gastos</CardTitle>
+                                <CardDescription>Registra facturas de materiales comprados en calle.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <TicketPurchases
+                                    ticketId={ticketId}
+                                    ticketNumber={ticket.ticketNumber}
+                                    currentUserRole={currentUserRole || 'TECNICO'}
+                                    userId={currentUserId}
+                                />
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="evidence" className="space-y-4">

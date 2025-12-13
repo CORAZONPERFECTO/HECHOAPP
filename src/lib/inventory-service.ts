@@ -68,6 +68,50 @@ export async function getLocations() {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryLocation));
 }
 
+export async function createLocation(location: Omit<InventoryLocation, 'id' | 'createdAt' | 'updatedAt'>) {
+    await addDoc(collection(db, "inventory_locations"), {
+        ...location,
+        isActive: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+    });
+}
+
+export async function updateLocation(id: string, updates: Partial<InventoryLocation>) {
+    const docRef = doc(db, "inventory_locations", id);
+    await updateDoc(docRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+    });
+}
+
+export async function deleteLocation(id: string) {
+    // Soft delete
+    const docRef = doc(db, "inventory_locations", id);
+    await updateDoc(docRef, { isActive: false });
+}
+
+export async function ensureDefaultLocations() {
+    const locations = await getLocations();
+
+    const defaults = [
+        { name: "Almacén Principal", type: "ALMACEN" },
+        { name: "Camioneta 1", type: "VEHICULO" },
+        { name: "Camioneta 2", type: "VEHICULO" }
+    ];
+
+    for (const def of defaults) {
+        const exists = locations.find(l => l.name === def.name && l.type === def.type);
+        if (!exists) {
+            await createLocation({
+                name: def.name,
+                type: def.type as any,
+                isActive: true
+            });
+        }
+    }
+}
+
 // --- STOCK & MOVEMENTS (CORE LOGIC) ---
 
 /**
