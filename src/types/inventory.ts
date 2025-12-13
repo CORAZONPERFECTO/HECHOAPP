@@ -55,16 +55,16 @@ export interface InventoryStock {
 }
 
 export interface InventoryMovement {
-    id: string;
-    type: MovementType;
+    id?: string;
+    type: 'ENTRADA' | 'SALIDA';
     productId: string;
 
     // Locations
-    originLocationId?: string; // Required for SALIDA, TRANSFERENCIA
-    destinationLocationId?: string; // Required for ENTRADA, TRANSFERENCIA
+    originLocationId?: string; // For transfers or consumption (store/van it came from)
+    destinationLocationId?: string; // For transfers or returns
 
     quantity: number;
-    unitCost?: number; // Only for ENTRADA or AJUSTE (if increasing value)
+    unitCost?: number; // Snapshot of cost at time of movement (optional)
 
     reason: string; // "Compra", "Consumo Ticket", "Merma", etc.
     note?: string;

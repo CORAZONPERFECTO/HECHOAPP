@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LocationManager } from "@/components/inventory/location-manager";
+import { PendingProductsManager } from "@/components/inventory/pending-products-manager";
 
 export default function SettingsPage() {
     return (
@@ -27,8 +28,10 @@ export default function SettingsPage() {
                     <TabsContent value="general" className="space-y-4">
                         <CompanyProfile />
                     </TabsContent>
-                    <TabsContent value="inventory" className="space-y-4">
+                    <TabsContent value="inventory" className="space-y-8">
                         <LocationManager />
+                        <hr className="border-gray-200" />
+                        <PendingProductsManager />
                     </TabsContent>
                 </Tabs>
             </div>

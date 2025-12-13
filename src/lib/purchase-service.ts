@@ -56,20 +56,39 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         // 3. Post-Transaction: Process Inventory (Sequential)
         // This makes "Purchase" the parent. If inventory fails, Purchase still exists (as expense).
         if (purchaseData.addToInventory && purchaseData.inventoryTargetLocationId) {
-            const inventoryItems = purchaseData.items.filter(item => item.isInventory && item.matchedProductId);
+            const inventoryItems = purchaseData.items.filter(item => item.isInventory);
 
             for (const item of inventoryItems) {
-                await registerMovement({
-                    productId: item.matchedProductId!,
-                    type: 'ENTRADA',
-                    quantity: item.quantity,
-                    destinationLocationId: purchaseData.inventoryTargetLocationId,
-                    reason: `Compra Ticket #${purchaseData.ticketNumber || purchaseData.ticketId}`,
-                    unitCost: item.unitPrice,
-                    ticketId: purchaseData.ticketId,
-                    createdByUserId: purchaseData.userId,
-                    createdByType: 'TECHNICIAN'
-                });
+                if (item.matchedProductId) {
+                    // Match found: Create Movement
+                    await registerMovement({
+                        productId: item.matchedProductId,
+                        type: 'ENTRADA',
+                        quantity: item.quantity,
+                        destinationLocationId: purchaseData.inventoryTargetLocationId,
+                        reason: `Compra Ticket #${purchaseData.ticketNumber || purchaseData.ticketId}`,
+                        unitCost: item.unitPrice,
+                        ticketId: purchaseData.ticketId,
+                        createdByUserId: purchaseData.userId,
+                        createdByType: 'TECHNICIAN'
+                    });
+                } else {
+                    // No Match: Create Pending Product (Provisional)
+                    await addDoc(collection(db, "pending_products"), {
+                        detectedName: item.description,
+                        providerName: purchaseData.providerName,
+                        suggestedUnit: 'UND',
+                        detectedPrice: item.unitPrice,
+                        quantity: item.quantity, // Storing quantity for retroactive entry
+                        targetLocationId: purchaseData.inventoryTargetLocationId, // Storing target for retroactive entry
+
+                        ticketId: purchaseData.ticketId,
+                        purchaseId: purchaseRef.id,
+                        status: 'PENDING',
+                        createdByUserId: purchaseData.userId,
+                        createdAt: serverTimestamp()
+                    });
+                }
             }
         }
 

@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase";
 import { Ticket, TicketEvent, TicketStatus, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { Input } from "@/components/ui/input";
