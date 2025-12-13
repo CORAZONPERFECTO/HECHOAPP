@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
-    BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare
+    BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare,
+    PackageSearch, ArrowLeftRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth, db } from "@/lib/firebase";
@@ -24,6 +25,8 @@ const adminMenuItems = [
     { label: "Conduces", icon: Truck, href: "/income/delivery-notes", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recibos", icon: Receipt, href: "/income/receipts", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },

@@ -19,6 +19,7 @@ import { PhotoUploader } from "@/components/tickets/photo-uploader";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW Editor
+import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { StatusActionButtons } from "@/components/technician/status-action-buttons";
@@ -212,6 +213,7 @@ export default function TicketDetailPage() {
                     <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
                         <TabsTrigger value="checklist" className="text-xs py-2">Checklist</TabsTrigger>
+                        <TabsTrigger value="materials" className="text-xs py-2 font-bold text-blue-700">Materiales</TabsTrigger>
                         <TabsTrigger value="evidence" className="text-xs py-2">Fotos</TabsTrigger>
                         <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
                         <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
@@ -300,6 +302,14 @@ export default function TicketDetailPage() {
                                 />
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    <TabsContent value="materials" className="space-y-4">
+                        <TicketMaterialsConsumption
+                            ticketId={ticketId}
+                            ticketNumber={ticket.ticketNumber}
+                            currentUserRole={currentUserRole || 'TECNICO'}
+                        />
                     </TabsContent>
 
                     <TabsContent value="evidence" className="space-y-4">
