@@ -122,11 +122,14 @@ export async function POST(req: NextRequest) {
 
         if (task === 'generate-quote') {
             try {
-                const jsonResponse = JSON.parse(text);
+                // Sanitize text: remove markdown code blocks if present
+                const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                const jsonResponse = JSON.parse(cleanText);
                 return NextResponse.json({ output: jsonResponse });
             } catch (e) {
-                console.error("Failed to parse Gemini Quote JSON:", text);
-                return NextResponse.json({ error: "Error al generar cotización.", raw: text }, { status: 500 });
+                console.error("Failed to parse Gemini Quote JSON:", text, e);
+                // Fallback: try to return text if JSON fails, or error
+                return NextResponse.json({ error: "La IA no generó un formato válido. Intenta de nuevo.", raw: text }, { status: 500 });
             }
         }
 
