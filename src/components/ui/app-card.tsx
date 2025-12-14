@@ -30,7 +30,7 @@ export function AppCard({ icon: Icon, label, href, color = "text-gray-700", onCl
     }
 
     return (
-        <Link href={href} className={containerClasses}>
+        <Link href={href} className={containerClasses} draggable={false}>
             {content}
         </Link>
     );

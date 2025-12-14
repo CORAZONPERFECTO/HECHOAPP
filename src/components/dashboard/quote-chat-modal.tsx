@@ -71,8 +71,8 @@ export function QuoteChatModal() {
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                {/* This trigger might be overriden or used as standalone */}
-                <div />
+                {/* Trigger area - fills parent */}
+                <div className="w-full h-full cursor-pointer" />
             </DialogTrigger>
             <DialogContent className="max-w-md h-[600px] flex flex-col p-0 gap-0">
                 <DialogHeader className="p-4 border-b bg-slate-50">

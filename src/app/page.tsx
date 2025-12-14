@@ -39,6 +39,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // Sortable Item Wrapper
+// Sortable Item Wrapper
 function SortableItem(props: any) {
   const {
     attributes,
@@ -54,10 +55,11 @@ function SortableItem(props: any) {
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1000 : 1,
+    touchAction: 'none' as React.CSSProperties['touchAction'], // Important for PointerSensor
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="h-full w-full relative">
       {props.children}
     </div>
   );
