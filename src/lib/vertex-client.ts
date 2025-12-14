@@ -43,7 +43,7 @@ export async function getGeminiModel(): Promise<GenerativeModel> {
     // gemini-pro is legacy, gemini-1.5-flash is faster and cheaper, or gemini-1.5-pro for complex reasoning
     // Using gemini-1.5-flash by default for responsiveness
     geminiModel = vertexAIClient.getGenerativeModel({
-        model: 'gemini-2.5-flash-preview-09-2025',
+        model: 'gemini-1.5-flash',
         generationConfig: {
             maxOutputTokens: 2048,
             temperature: 0.4, // Lower temperature for more deterministic/professional output

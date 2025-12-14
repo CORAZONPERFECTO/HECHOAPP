@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Trash2, Copy } from "lucide-react";
+import { GripVertical, Trash2, Copy, Sparkles, Loader2 } from "lucide-react";
+import { useState } from "react";
 import Image from "next/image";
 import { BeforeAfterBlock } from "./blocks/before-after-block";
 
@@ -30,6 +31,39 @@ export function SectionEditor({
     isFirst,
     isLast
 }: SectionEditorProps) {
+    const [isRefining, setIsRefining] = useState(false);
+
+    const handleRefine = async (currentContent: string, type: 'text' | 'title') => {
+        if (!currentContent?.trim()) return;
+
+        setIsRefining(true);
+        try {
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: currentContent,
+                    task: 'refine'
+                })
+            });
+
+            const data = await response.json();
+            if (data.output) {
+                // Determine update based on type
+                if (type === 'text') {
+                    onChange({ ...section, content: data.output } as TextSection);
+                } else if (type === 'title') {
+                    onChange({ ...section, content: data.output } as TitleSection);
+                }
+            }
+        } catch (error) {
+            console.error("Refine error:", error);
+            // Optional: visual error feedback?
+        } finally {
+            setIsRefining(false);
+        }
+    };
+
     const renderEditor = () => {
         switch (section.type) {
             case 'h1':
@@ -51,7 +85,20 @@ export function SectionEditor({
             case 'text':
                 return (
                     <div>
-                        <Label className="text-sm font-medium mb-2 block">Texto</Label>
+                        <div className="flex justify-between items-center mb-2">
+                            <Label className="text-sm font-medium block">Texto</Label>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRefine((section as TextSection).content, 'text')}
+                                disabled={isRefining || !(section as TextSection).content}
+                                className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                title="Mejorar redacción con IA"
+                            >
+                                {isRefining ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                                {isRefining ? "Mejorando..." : "Pulir Texto"}
+                            </Button>
+                        </div>
                         <Textarea
                             value={(section as TextSection).content}
                             onChange={(e) => onChange({ ...section, content: e.target.value } as TextSection)}

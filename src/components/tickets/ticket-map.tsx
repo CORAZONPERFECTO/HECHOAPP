@@ -80,110 +80,14 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
     const map = useRef<any>(null); // Type any because we load dynamically
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [mapError, setMapError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const initMap = async () => {
-            // 1. Validate WebGL Support manually
-            const manualCheck = isWebGLSupported();
-            if (!manualCheck) {
-                console.warn("Manual WebGL check failed");
-                setMapError("WebGL Check Failed (Manual Test)");
-                return;
-            }
-
-            if (map.current) return;
-            if (!mapContainer.current) return;
-            if (!MAPBOX_TOKEN) {
-                setMapError("Falta Token de Mapbox");
-                return;
-            }
-
-            try {
-                // Dynamic Import
-                const mapboxgl = (await import("mapbox-gl")).default;
-
-                if (!mapboxgl.supported()) {
-                    setMapError("WebGL Check Failed (Mapbox Test)");
-                    return;
-                }
-
-                mapboxgl.accessToken = MAPBOX_TOKEN;
-
-                map.current = new mapboxgl.Map({
-                    container: mapContainer.current,
-                    style: "mapbox://styles/mapbox/streets-v12",
-                    center: [-69.9312, 18.4861],
-                    zoom: 11,
-                    attributionControl: false,
-                    failIfMajorPerformanceCaveat: true
-                });
-
-                map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-                map.current.on('error', (e: any) => {
-                    const msg = e.error?.message || "Unknown Mapbox runtime error";
-                    logMapError(e.error);
-                    if (msg.includes("WebGL") || msg.includes("context")) {
-                        setMapError(msg);
-                    }
-                });
-
-                // Load tickets once map style is loaded
-                map.current.on('load', () => {
-                    updateMarkers(mapboxgl);
-                });
-
-
-            } catch (error: any) {
-                console.error("Critical Map Init Error:", error);
-                logMapError(error);
-                setMapError(error?.message || "Error fatal al inicializar el mapa");
-            }
-        };
-
-        const updateMarkers = (mapboxgl: any) => {
-            if (!map.current) return;
-            // Logic extracted to function to call it after load
-            // (See next useEffect for updates)
-        }
-
-        initMap();
-
-        return () => {
-            try {
-                map.current?.remove();
-            } catch (e) { console.warn(e); }
-        };
-    }, []);
-
-    // Re-run marker updates when tickets change (but we need mapbox instance)
-    // For simplicity in this dynamic import refactor, we will rely on the map being ready.
-    // We need to keep a reference to mapboxgl library if we need to create markers later?
-    // Actually, we can just use `new (await import("mapbox-gl")).default.Marker` or store the lib.
-    // To minimize complexity, I will just re-import it or store it in a ref.
-
-    // ... (rest of the file needs adjustments for dynamic import)
-    // Actually, let's keep it simple: 
-    // If we need to update markers, we need 'mapboxgl' class.
-
-    // Let's store mapboxLib in state/ref
     const mapboxLib = useRef<any>(null);
 
-    useEffect(() => {
-        // This effect handles Marker Updates
-        if (!map.current || mapError || !mapboxLib.current) return;
 
-        // ... implementation of marker updates using mapboxLib.current
-        const mapboxgl = mapboxLib.current;
-        // ...
-    }, [tickets, mapError]);
-
-    const mapboxLib = useRef<any>(null);
 
     useEffect(() => {
         const initMap = async () => {
             if (map.current) return;
-            
+
             // 1. Validate WebGL Support manually
             const manualCheck = isWebGLSupported();
             if (!manualCheck) {
@@ -235,7 +139,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
             }
         };
 
-        if(!mapError) {
+        if (!mapError) {
             initMap();
         }
 
@@ -263,7 +167,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
         // For now, let's assume we can query them or just rebuild map if tickets change drastically.
         // BETTER: Store markers in a ref.
     }, [tickets, onTicketClick, mapError]);
-    
+
     // We need a ref for markers to clear them properly
     const markersRef = useRef<any[]>([]);
 
@@ -303,7 +207,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
                 onTicketClick(ticket);
             });
 
-             const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
+            const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
                 .setHTML(`
                     <div style="padding: 8px;">
                         <strong>${ticket.ticketNumber || ticket.id.slice(0, 6)}</strong><br/>
