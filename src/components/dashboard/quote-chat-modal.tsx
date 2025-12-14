@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageSquare, Send, Loader2, FileText, X } from "lucide-react";
+import { MessageSquare, Send, Loader2, FileText, X, Mic, MicOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -34,6 +34,7 @@ export function QuoteChatModal() {
         { role: "assistant", type: "text", content: "Hola, soy tu asistente de cotizaciones. Dime qué necesitas cotizar y lo armaré por ti.\n\nEj: 'Cotiza 2 aires de 12000 BTU a 25000 cada uno'." }
     ]);
     const [loading, setLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -65,6 +66,27 @@ export function QuoteChatModal() {
             setMessages(prev => [...prev, { role: "assistant", type: "text", content: "Error de conexión." }]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const toggleListening = () => {
+        if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+            const SpeechRecognition = (window as any).webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'es-DO';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => setIsListening(true);
+            recognition.onend = () => setIsListening(false);
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setInput(prev => (prev ? `${prev} ${transcript}` : transcript));
+            };
+
+            recognition.start();
+        } else {
+            alert("Tu navegador no soporta dictado por voz.");
         }
     };
 
@@ -131,10 +153,18 @@ export function QuoteChatModal() {
                 </div>
 
                 <div className="p-4 bg-white border-t flex gap-2">
+                    <Button
+                        onClick={toggleListening}
+                        variant="ghost"
+                        size="icon"
+                        className={`transition-colors ${isListening ? "text-red-500 bg-red-50 animate-pulse" : "text-gray-500"}`}
+                    >
+                        {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </Button>
                     <Input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Escribe aquí... (Enter para enviar)"
+                        placeholder={isListening ? "Escuchando..." : "Escribe o dicta... (Enter)"}
                         onKeyDown={(e) => e.key === "Enter" && handleSend()}
                         className="flex-1"
                     />
