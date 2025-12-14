@@ -94,8 +94,7 @@ export async function POST(req: NextRequest) {
             throw new Error("No response generated from Gemini");
         }
 
-        // Clean markdown code blocks if present (Gemini loves ```json ... ```)
-        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
 
         if (task === 'generate-report') {
             // Validate JSON
