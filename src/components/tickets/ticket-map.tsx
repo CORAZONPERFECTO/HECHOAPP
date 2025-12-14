@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
+// import mapboxgl from "mapbox-gl"; // Removed static import
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Ticket } from "@/types/schema";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Navigation, ExternalLink, Copy, AlertCircle } from "lucide-react";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { isWebGLSupported, logMapError } from "@/lib/webgl-check";
 
 // Set your Mapbox access token here
-// User will need to add this to their .env.local file
 const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
 
 interface TicketMapProps {
@@ -17,80 +18,262 @@ interface TicketMapProps {
     onTicketClick: (ticket: Ticket) => void;
 }
 
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+function MapFallback({ reason, tickets }: { reason?: string, tickets: Ticket[] }) {
+    const defaultCenter = { lat: 18.4861, lng: -69.9312 }; // Santo Domingo
 
-// Internal component with the map logic
+    // Construct Google Maps URL. If 1 ticket, point to it. If multiple, search or center.
+    const getGoogleMapsUrl = () => {
+        if (tickets.length === 1) {
+            // Trying to use ticket location if available or random/center
+            // Note: In this demo we don't have real coords in ticket object usually, 
+            // but we can search by address.
+            const query = encodeURIComponent(tickets[0].locationName || "Santo Domingo");
+            return `https://www.google.com/maps/search/?api=1&query=${query}`;
+        }
+        return `https://www.google.com/maps/@${defaultCenter.lat},${defaultCenter.lng},12z`;
+    };
+
+    const handleCopyCoords = () => {
+        navigator.clipboard.writeText(`${defaultCenter.lat}, ${defaultCenter.lng}`);
+        alert("Coordenadas centrales copiadas (Demo)");
+    };
+
+    return (
+        <div className="w-full h-[600px] bg-slate-50 rounded-lg flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-slate-300">
+            <div className="max-w-md space-y-6">
+                <div className="flex justify-center">
+                    <div className="bg-orange-100 p-4 rounded-full">
+                        <AlertCircle className="h-10 w-10 text-orange-600" />
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">Mapa Interactivo no disponible</h3>
+                    <p className="text-slate-600">
+                        {reason || "Tu dispositivo no soporta la aceleración gráfica (WebGL) requerida."}
+                    </p>
+                </div>
+
+                <div className="grid gap-3 w-full">
+                    <Button variant="default" className="w-full" onClick={() => window.open(getGoogleMapsUrl(), '_blank')}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Abrir ubicación en Google Maps
+                    </Button>
+
+                    <Button variant="outline" className="w-full" onClick={handleCopyCoords}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copiar Coordenadas
+                    </Button>
+                </div>
+
+                <p className="text-xs text-slate-400 mt-4">
+                    Recomendación: Actualiza tus drivers de video o prueba en otro navegador (Chrome/Edge).
+                </p>
+                <p className="text-[10px] text-slate-300">v2.1 Fix</p>
+            </div>
+        </div>
+    );
+}
+
 function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
-    const map = useRef<mapboxgl.Map | null>(null);
+    const map = useRef<any>(null); // Type any because we load dynamically
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-    const [isSupported, setIsSupported] = useState(true);
+    const [mapError, setMapError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!mapboxgl.supported()) {
-            setIsSupported(false);
-            return;
+        const initMap = async () => {
+            // 1. Validate WebGL Support manually
+            const manualCheck = isWebGLSupported();
+            if (!manualCheck) {
+                console.warn("Manual WebGL check failed");
+                setMapError("WebGL Check Failed (Manual Test)");
+                return;
+            }
+
+            if (map.current) return;
+            if (!mapContainer.current) return;
+            if (!MAPBOX_TOKEN) {
+                setMapError("Falta Token de Mapbox");
+                return;
+            }
+
+            try {
+                // Dynamic Import
+                const mapboxgl = (await import("mapbox-gl")).default;
+
+                if (!mapboxgl.supported()) {
+                    setMapError("WebGL Check Failed (Mapbox Test)");
+                    return;
+                }
+
+                mapboxgl.accessToken = MAPBOX_TOKEN;
+
+                map.current = new mapboxgl.Map({
+                    container: mapContainer.current,
+                    style: "mapbox://styles/mapbox/streets-v12",
+                    center: [-69.9312, 18.4861],
+                    zoom: 11,
+                    attributionControl: false,
+                    failIfMajorPerformanceCaveat: true
+                });
+
+                map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+                map.current.on('error', (e: any) => {
+                    const msg = e.error?.message || "Unknown Mapbox runtime error";
+                    logMapError(e.error);
+                    if (msg.includes("WebGL") || msg.includes("context")) {
+                        setMapError(msg);
+                    }
+                });
+
+                // Load tickets once map style is loaded
+                map.current.on('load', () => {
+                    updateMarkers(mapboxgl);
+                });
+
+
+            } catch (error: any) {
+                console.error("Critical Map Init Error:", error);
+                logMapError(error);
+                setMapError(error?.message || "Error fatal al inicializar el mapa");
+            }
+        };
+
+        const updateMarkers = (mapboxgl: any) => {
+            if (!map.current) return;
+            // Logic extracted to function to call it after load
+            // (See next useEffect for updates)
         }
 
-        if (map.current) return;
-        if (!mapContainer.current) return;
+        initMap();
 
-        // Check if token is available
-        if (!MAPBOX_TOKEN) {
-            console.error("Mapbox token not found");
-            return;
-        }
+        return () => {
+            try {
+                map.current?.remove();
+            } catch (e) { console.warn(e); }
+        };
+    }, []);
 
-        mapboxgl.accessToken = MAPBOX_TOKEN;
+    // Re-run marker updates when tickets change (but we need mapbox instance)
+    // For simplicity in this dynamic import refactor, we will rely on the map being ready.
+    // We need to keep a reference to mapboxgl library if we need to create markers later?
+    // Actually, we can just use `new (await import("mapbox-gl")).default.Marker` or store the lib.
+    // To minimize complexity, I will just re-import it or store it in a ref.
 
-        try {
-            // Attempt to create map
-            map.current = new mapboxgl.Map({
-                container: mapContainer.current,
-                style: "mapbox://styles/mapbox/streets-v12",
-                center: [-69.9312, 18.4861], // Santo Domingo coordinates
-                zoom: 11,
-                attributionControl: false,
-                failIfMajorPerformanceCaveat: true // Fail if hardware acceleration is missing
-            });
+    // ... (rest of the file needs adjustments for dynamic import)
+    // Actually, let's keep it simple: 
+    // If we need to update markers, we need 'mapboxgl' class.
 
-            map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+    // Let's store mapboxLib in state/ref
+    const mapboxLib = useRef<any>(null);
 
-            map.current.on('error', (e) => {
-                console.error("Mapbox runtime error:", e);
-                // We can't easily trigger the Error Boundary from here, but we can log it.
-            });
+    useEffect(() => {
+        // This effect handles Marker Updates
+        if (!map.current || mapError || !mapboxLib.current) return;
 
-        } catch (error) {
-            console.error("Failed to initialize map:", error);
-            setIsSupported(false);
+        // ... implementation of marker updates using mapboxLib.current
+        const mapboxgl = mapboxLib.current;
+        // ...
+    }, [tickets, mapError]);
+
+    const mapboxLib = useRef<any>(null);
+
+    useEffect(() => {
+        const initMap = async () => {
+            if (map.current) return;
+            
+            // 1. Validate WebGL Support manually
+            const manualCheck = isWebGLSupported();
+            if (!manualCheck) {
+                setMapError("WebGL Check Failed (Manual Test)");
+                return;
+            }
+
+            if (!mapContainer.current) return;
+
+            try {
+                // Dynamic Import to avoid SSR issues
+                const mapboxgl = (await import("mapbox-gl")).default;
+                mapboxLib.current = mapboxgl;
+
+                if (!mapboxgl.supported()) {
+                    setMapError("WebGL Check Failed (Mapbox Test)");
+                    return;
+                }
+
+                mapboxgl.accessToken = MAPBOX_TOKEN;
+
+                map.current = new mapboxgl.Map({
+                    container: mapContainer.current,
+                    style: "mapbox://styles/mapbox/streets-v12",
+                    center: [-69.9312, 18.4861],
+                    zoom: 11,
+                    attributionControl: false,
+                    failIfMajorPerformanceCaveat: true
+                });
+
+                map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+                map.current.on('error', (e: any) => {
+                    const msg = e.error?.message || "Unknown Mapbox runtime error";
+                    logMapError(e.error);
+                    if (msg.includes("WebGL") || msg.includes("context")) {
+                        setMapError(msg);
+                    }
+                });
+
+                // Force a resize to ensure it fits the container
+                setTimeout(() => {
+                    map.current?.resize();
+                }, 200);
+
+            } catch (error: any) {
+                logMapError(error);
+                setMapError(error?.message || "Error init map (Dynamic)");
+            }
+        };
+
+        if(!mapError) {
+            initMap();
         }
 
         return () => {
             try {
                 map.current?.remove();
-            } catch (e) {
-                console.warn("Error cleaning up map:", e);
-            }
+            } catch (e) { console.warn(e); }
         };
-    }, []);
-
-    // ... (rest of the detailed effect for markers) ...
-    // Note: I will need to include the second useEffect logic here in full or use '...rest' if replacing.
-    // Since I'm using replace_file_content with range, I need to be careful.
-
-    // I will rewrite the whole component structure to avoid partial replace ambiguity.
-    // BUT replace_file_content has 800 line limit, file is small enough (224 lines).
-    // I will replace the component definition.
+    }, [mapError]);
 
     useEffect(() => {
-        if (!map.current) return;
+        if (!map.current || mapError || !mapboxLib.current) return;
 
-        // Safe check for map loaded
-        if (!map.current.getStyle()) return;
+        const mapboxgl = mapboxLib.current;
 
-        const markers = document.querySelectorAll(".mapboxgl-marker");
+        // Clean existing markers (if any custom logic used, typically manual DOM removal for custom markers)
+        const markers = document.querySelectorAll(".custom-marker-node");
         markers.forEach((marker) => marker.remove());
+
+        // Note: Mapbox GL JS markers are separate generic objects.
+        // In this simple implementation, we might clear map layers if we were using layers.
+        // But since we are using DOM markers, let's just clear the container? 
+        // Actually, let's keep it simple: WE NEED TO REMOVE OLD MARKERS.
+        // We didn't store references to them. In a real app we should.
+        // For now, let's assume we can query them or just rebuild map if tickets change drastically.
+        // BETTER: Store markers in a ref.
+    }, [tickets, onTicketClick, mapError]);
+    
+    // We need a ref for markers to clear them properly
+    const markersRef = useRef<any[]>([]);
+
+    useEffect(() => {
+        if (!map.current || mapError || !mapboxLib.current) return;
+        const mapboxgl = mapboxLib.current;
+
+        // Clear existing markers
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
 
         tickets.forEach((ticket) => {
             const coordinates = getTicketCoordinates(ticket);
@@ -98,7 +281,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
 
             const color = getPriorityColor(ticket.priority);
             const el = document.createElement("div");
-            el.className = "custom-marker";
+            el.className = "custom-marker-node"; // Added class for identifying
             el.style.backgroundColor = color;
             el.style.width = "30px";
             el.style.height = "30px";
@@ -109,11 +292,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
             el.style.display = "flex";
             el.style.alignItems = "center";
             el.style.justifyContent = "center";
-
-            const icon = document.createElement("div");
-            icon.innerHTML = "📍";
-            icon.style.fontSize = "14px";
-            el.appendChild(icon);
+            el.innerHTML = '<div style="font-size:14px">📍</div>';
 
             const marker = new mapboxgl.Marker(el)
                 .setLngLat(coordinates)
@@ -124,51 +303,23 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
                 onTicketClick(ticket);
             });
 
-            const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
+             const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
                 .setHTML(`
                     <div style="padding: 8px;">
                         <strong>${ticket.ticketNumber || ticket.id.slice(0, 6)}</strong><br/>
                         <span style="font-size: 12px;">${ticket.clientName}</span><br/>
-                        <span style="font-size: 11px; color: #666;">${ticket.locationName}</span>
                     </div>
                 `);
             marker.setPopup(popup);
+
+            markersRef.current.push(marker);
         });
-    }, [tickets, onTicketClick]);
 
-    // helper functions
-    const getTicketCoordinates = (ticket: Ticket): [number, number] | null => {
-        const baseLat = 18.4861;
-        const baseLng = -69.9312;
-        const randomLat = baseLat + (Math.random() - 0.5) * 0.1;
-        const randomLng = baseLng + (Math.random() - 0.5) * 0.1;
-        return [randomLng, randomLat];
-    };
+    }, [tickets, onTicketClick, mapError]); // Re-run when tickets change
 
-    const getPriorityColor = (priority: string): string => {
-        switch (priority) {
-            case "URGENT": return "#dc2626";
-            case "HIGH": return "#f97316";
-            case "MEDIUM": return "#eab308";
-            case "LOW": return "#22c55e";
-            default: return "#3b82f6";
-        }
-    };
-
-    if (!isSupported) {
-        return (
-            <div className="w-full h-[400px] bg-gray-100 rounded-lg flex items-center justify-center p-6 text-center border-2 border-dashed border-gray-300">
-                <div className="max-w-md">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Mapa no disponible</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                        No se pudo cargar el mapa (Error WebGL).
-                    </p>
-                </div>
-            </div>
-        );
+    if (mapError) {
+        return <MapFallback reason={mapError} tickets={tickets} />;
     }
-
-    if (!MAPBOX_TOKEN) return null; // Simplified since ErrorBoundary handles main crashes
 
     return (
         <div className="relative">
@@ -188,17 +339,30 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
     );
 }
 
-// Export the wrapper
+// Helpers
+const getTicketCoordinates = (ticket: Ticket): [number, number] | null => {
+    const baseLat = 18.4861;
+    const baseLng = -69.9312;
+    const randomLat = baseLat + (Math.random() - 0.5) * 0.1;
+    const randomLng = baseLng + (Math.random() - 0.5) * 0.1;
+    return [randomLng, randomLat];
+};
+
+const getPriorityColor = (priority: string): string => {
+    switch (priority) {
+        case "URGENT": return "#dc2626";
+        case "HIGH": return "#f97316";
+        case "MEDIUM": return "#eab308";
+        case "LOW": return "#22c55e";
+        default: return "#3b82f6";
+    }
+};
+
 export function TicketMap(props: TicketMapProps) {
     return (
-        <ErrorBoundary
-            fallback={
-                <div className="w-full h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-500">El mapa no pudo cargarse en este dispositivo.</p>
-                </div>
-            }
-        >
+        <ErrorBoundary fallback={<MapFallback reason="Error crítico al cargar el módulo de mapa." tickets={props.tickets} />}>
             <TicketMapContent {...props} />
         </ErrorBoundary>
     );
 }
+

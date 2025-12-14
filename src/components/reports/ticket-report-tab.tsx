@@ -8,11 +8,12 @@ import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-g
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Undo2, Redo2, RefreshCw, Maximize2 } from "lucide-react";
+import { Loader2, Undo2, Redo2, RefreshCw, Maximize2, Sparkles } from "lucide-react";
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDebounce } from "@/hooks/use-debounce";
 import Link from "next/link";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TicketReportTabProps {
     ticket: Ticket;
@@ -22,6 +23,8 @@ interface TicketReportTabProps {
 export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [generating, setGenerating] = useState(false);
+    const { toast } = useToast();
 
     // Undo/Redo para el reporte
     const {
@@ -38,6 +41,8 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
     const [lastSavedReport, setLastSavedReport] = useState<TicketReportNew | null>(null);
     const debouncedReport = useDebounce(report, 2000); // 2 seconds debounce for auto-save
+
+    // ... (keep Auto-save effect and LoadData effect)
 
     // Auto-save effect
     useEffect(() => {
@@ -117,18 +122,11 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             setLastSavedReport(updatedReport);
 
             if (!isAutoSave) {
-                const toast = document.createElement('div');
-                toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-500';
-                toast.textContent = '✓ Informe guardado correctamente';
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    setTimeout(() => toast.remove(), 500);
-                }, 3000);
+                toast({ title: "Guardado", description: "Informe guardado correctamente", variant: "default" });
             }
         } catch (error: any) {
             console.error("Error completo al guardar:", error);
-            if (!isAutoSave) alert("Error al guardar el informe");
+            if (!isAutoSave) toast({ title: "Error", description: "No se pudo guardar el informe", variant: "destructive" });
         } finally {
             if (!isAutoSave) setSaving(false);
         }
@@ -144,14 +142,10 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             setReport(updatedReport);
             setLastSavedReport(updatedReport);
 
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-            toast.textContent = '✓ Fotos actualizadas correctamente';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            toast({ title: "Fotos actualizadas", description: "Se han sincronizado las fotos del ticket.", variant: "default" });
         } catch (error) {
             console.error("Error updating photos:", error);
-            alert("Error al actualizar fotos");
+            toast({ title: "Error", description: "Error al actualizar fotos", variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -168,16 +162,87 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             setReport(newReport);
             setLastSavedReport(newReport);
 
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-4 right-4 bg-orange-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-            toast.textContent = '✓ Informe regenerado desde el ticket';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            toast({ title: "Regenerado", description: "Informe reiniciado a valores del ticket.", variant: "default" });
         } catch (error) {
             console.error("Error regenerating report:", error);
-            alert("Error al regenerar el informe");
+            toast({ title: "Error", description: "Error al regenerar el informe", variant: "destructive" });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleSmartGenerate = async () => {
+        if (!ticket || !report) return;
+        if (!confirm("¿Usar Inteligencia Artificial para redactar el informe? Esto reemplazará el texto actual con una versión profesional.")) return;
+
+        setGenerating(true);
+        try {
+            // Serialize relevant ticket data for the prompt
+            const contextData = {
+                description: ticket.description,
+                diagnosis: ticket.diagnosis,
+                solution: ticket.solution,
+                recommendations: ticket.recommendations,
+                notes: ticket.notes,
+                clientName: ticket.clientName,
+                serviceType: ticket.serviceType
+            };
+
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    context: JSON.stringify(contextData),
+                    task: 'generate-report'
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Error en la API de IA");
+            }
+
+            if (data.output && data.output.sections) {
+                // Merge Logic:
+                // We want to keep photos from current report, but replace text sections with AI ones.
+
+                const existingPhotos = report.sections.filter(s => s.type === 'photo');
+                // We also might want to keep the Title/General Info at the top if AI didn't include it?
+                // But AI prompt asked for full structure.
+                // Let's create a hybrid: AI Text Sections + Existing Photos at the end (safest).
+
+                // Add unique IDs to AI sections
+                const aiSections = data.output.sections.map((s: any) => ({
+                    ...s,
+                    id: crypto.randomUUID()
+                }));
+
+                const newSections = [...aiSections, ...existingPhotos];
+
+                const smartReport: TicketReportNew = {
+                    ...report,
+                    sections: newSections
+                };
+
+                await handleSave(smartReport); // Save immediately
+                setReport(smartReport);
+                toast({
+                    title: "✨ Informe IA Generado",
+                    description: "Gemini ha redactado un informe profesional para ti.",
+                    variant: "success" // Assuming we have success variant, otherwise generic
+                });
+            }
+
+        } catch (error: any) {
+            console.error("AI Generation Error:", error);
+            toast({
+                title: "Error IA",
+                description: "No se pudo generar el reporte. Verifica tus credenciales.",
+                variant: "destructive"
+            });
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -229,7 +294,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-black rounded-lg overflow-hidden border shadow-sm">
             {/* Toolbar Local */}
-            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-2 flex items-center justify-between">
+            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                     <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-md p-1">
                         <Button
@@ -254,18 +319,29 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                         </Button>
                     </div>
                     <div className="h-5 w-px bg-gray-200 dark:bg-zinc-700" />
-                    <Link href={`/tickets/${ticket.id}/report`} target="_blank">
-                        <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-blue-600">
-                            <Maximize2 className="h-3.5 w-3.5" />
-                            Pantalla Completa
-                        </Button>
-                    </Link>
+
+                    {/* Botón Mágico AI */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSmartGenerate}
+                        disabled={generating}
+                        className="h-7 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300 transition-colors"
+                    >
+                        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                        {generating ? "Redactando..." : "Redactar con IA"}
+                    </Button>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400 hidden sm:inline-block">
                         {saving ? "Guardando..." : "Guardado"}
                     </span>
+                    <Link href={`/tickets/${ticket.id}/report`} target="_blank">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Pantalla Completa">
+                            <Maximize2 className="h-4 w-4" />
+                        </Button>
+                    </Link>
                     <ExportMenu report={report} />
                 </div>
             </div>

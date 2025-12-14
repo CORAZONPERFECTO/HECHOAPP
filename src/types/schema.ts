@@ -315,6 +315,12 @@ export interface Ticket {
     slaResolutionDeadline?: Timestamp; // When resolution is due
     firstResponseAt?: Timestamp; // When technician first responded
     resolvedAt?: Timestamp; // When ticket was completed
+
+    // Date Planning
+    scheduledStart?: Timestamp; // Programmed start
+    scheduledEnd?: Timestamp; // Programmed end
+    closedAt?: Timestamp; // Actual closing time
+
     // Profitability Fields
     laborHours?: number; // Hours worked on this ticket
     laborRate?: number; // Hourly rate (RD$/hour)

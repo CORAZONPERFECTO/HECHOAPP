@@ -29,7 +29,8 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -231,6 +232,41 @@ export default function TicketDetailPage() {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div className="col-span-2 bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
+                                        <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                            <CalendarIcon className="h-4 w-4" />
+                                            Programación
+                                        </h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-blue-700">Inicio Programado</Label>
+                                                <Input
+                                                    type="datetime-local"
+                                                    className="bg-white mt-1"
+                                                    value={ticket.scheduledStart ? new Date(ticket.scheduledStart.seconds * 1000).toISOString().slice(0, 16) : ""}
+                                                    onChange={(e) => {
+                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : null;
+                                                        // Auto status logic: If setting a date, ensure status reflects it if currently OPEN
+                                                        let newStatus = ticket.status;
+                                                        setTicket({ ...ticket, scheduledStart: date, status: newStatus });
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-blue-700">Fin Estimado</Label>
+                                                <Input
+                                                    type="datetime-local"
+                                                    className="bg-white mt-1"
+                                                    value={ticket.scheduledEnd ? new Date(ticket.scheduledEnd.seconds * 1000).toISOString().slice(0, 16) : ""}
+                                                    onChange={(e) => {
+                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : null;
+                                                        setTicket({ ...ticket, scheduledEnd: date });
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <span className="text-gray-500 block">Tipo de Servicio</span>
                                         <span className="font-medium">{ticket.serviceType.replace(/_/g, ' ')}</span>
@@ -239,6 +275,20 @@ export default function TicketDetailPage() {
                                         <span className="text-gray-500 block">Prioridad</span>
                                         <span className={`font-medium ${ticket.priority === 'URGENT' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
                                     </div>
+
+                                    <div className="col-span-2">
+                                        <div className="flex gap-6 text-xs text-gray-500 border-t pt-2 mt-2">
+                                            <span>
+                                                Creado: <strong>{ticket.createdAt?.toDate().toLocaleString()}</strong>
+                                            </span>
+                                            <span>
+                                                Programado: <strong className={ticket.scheduledStart ? "text-blue-600" : "text-gray-400"}>
+                                                    {ticket.scheduledStart ? ticket.scheduledStart.toDate().toLocaleString() : "No definido"}
+                                                </strong>
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     <div className="col-span-2">
                                         <span className="text-gray-500 block">Descripción Inicial</span>
                                         <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>

@@ -17,6 +17,7 @@ interface VoiceCommandCenterProps {
 
 export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, onClose }: VoiceCommandCenterProps) {
     const [isListening, setIsListening] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [transcript, setTranscript] = useState("");
     const [parsedData, setParsedData] = useState<{ clientName?: string; items: InvoiceItem[] } | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -64,16 +65,7 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                     const currentFullText = finalTranscript || interimTranscript;
                     setTranscript(currentFullText);
 
-                    // Real-time parsing attempt
-                    if (currentFullText.length > 10) {
-                        const result = parseInvoiceCommand(currentFullText, availableClients);
-                        if (result.confidence > 0) {
-                            setParsedData({
-                                clientName: result.clientName,
-                                items: result.items
-                            });
-                        }
-                    }
+                    // No real-time parsing for AI - wait for end
                 };
 
                 recognition.onerror = (event: any) => {
@@ -84,6 +76,10 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
 
                 recognition.onend = () => {
                     setIsListening(false);
+                    // Auto-trigger processing if we have text
+                    if (transcript.length > 5) {
+                        processCommand(transcript);
+                    }
                 };
 
                 recognitionRef.current = recognition;
@@ -116,6 +112,30 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
         if (recognitionRef.current) {
             recognitionRef.current.stop();
             setIsListening(false);
+            // Processing triggers in onend
+        }
+    };
+
+    const processCommand = async (text: string) => {
+        if (!text || text.length < 5) return;
+
+        setIsProcessing(true);
+        setError(null);
+        try {
+            const result = await parseInvoiceCommand(text, availableClients);
+            if (result.confidence > 0) {
+                setParsedData({
+                    clientName: result.clientName,
+                    items: result.items
+                });
+            } else {
+                setError("No pude entender los datos de la factura. Intenta de nuevo.");
+            }
+        } catch (e) {
+            console.error(e);
+            setError("Error al procesar el comando.");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -143,9 +163,7 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                         Agente de Voz
                     </CardTitle>
                     <p className="text-sm text-gray-500">
-                        {isListening
-                            ? "Te escucho..."
-                            : "Presiona el micrófono para empezar"}
+                        {isListening ? "Te escucho..." : isProcessing ? "Procesando con IA..." : "Presiona el micrófono para empezar"}
                     </p>
                 </CardHeader>
 
@@ -161,6 +179,7 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                     {/* Transcript Area */}
                     <div className="min-h-[80px] p-4 bg-white/80 border rounded-xl text-lg font-medium text-gray-700 shadow-inner flex items-center justify-center text-center">
                         {transcript || <span className="text-gray-300 italic">Esperando comandos...</span>}
+                        {isProcessing && <Loader2 className="h-5 w-5 animate-spin text-purple-600 ml-2 inline" />}
                     </div>
 
                     {/* Detected Data Preview */}
