@@ -59,6 +59,25 @@ export async function POST(req: NextRequest) {
             4. Si no se menciona cantidad, asume 1.
             5. Solo devuelve JSON válido.
             `;
+        } else if (task === 'generate-quote') {
+            systemInstruction += `Tu tarea es actuar como un experto cotizador.
+            El usuario te pedirá una cotización en lenguaje natural (ej: "Cotiza 3 aires de 12000 BTU a 25000 cada uno").
+            
+            Debes extraer la información y devolver un JSON con esta estructura:
+            {
+              "items": [
+                { "description": "Aire Acondicionado 12000 BTU", "quantity": 3, "unitPrice": 25000, "total": 75000 }
+              ],
+              "total": 75000,
+              "notes": "Incluye instalación básica." (Cualquier nota adicional inferida o relevante)
+            }
+
+            Reglas:
+            1. Si no se menciona precio, estima uno realista de mercado en Pesos Dominicanos (DOP) o pon 0 si no estás seguro.
+            2. Si la descripción es vaga, complétala profesionalmente (ej: "Mantenimiento" -> "Mantenimiento Preventivo de Aire Acondicionado").
+            3. Calcula los totales correctamente (cantidad * precio).
+            4. Devuelve SOLO JSON válido.
+            `;
         } else {
             // Default generic helper
             systemInstruction += "Responde de manera útil, concisa y profesional.";
@@ -98,6 +117,16 @@ export async function POST(req: NextRequest) {
             } catch (e) {
                 console.error("Failed to parse Gemini Invoice JSON:", text);
                 return NextResponse.json({ error: "Error al interpretar la factura.", raw: text }, { status: 500 });
+            }
+        }
+
+        if (task === 'generate-quote') {
+            try {
+                const jsonResponse = JSON.parse(text);
+                return NextResponse.json({ output: jsonResponse });
+            } catch (e) {
+                console.error("Failed to parse Gemini Quote JSON:", text);
+                return NextResponse.json({ error: "Error al generar cotización.", raw: text }, { status: 500 });
             }
         }
 
