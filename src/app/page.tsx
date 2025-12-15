@@ -87,6 +87,9 @@ export default function Dashboard() {
   // State for modules order
   const [modules, setModules] = useState(ALL_MODULES);
 
+  // State for Quote Chat Modal
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -209,16 +212,14 @@ export default function Dashboard() {
                   {module.id === 'quote-chat' ? (
                     <div className="h-full">
                       {/* Special Render for Quote Chat which triggers Modal */}
-                      <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer relative overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+                        onClick={() => setIsQuoteModalOpen(true)}
+                      >
                         {/* Visual Content */}
                         <div className="p-6 flex flex-col items-center justify-center gap-3 text-center h-full pointer-events-none">
                           <Sparkles className="h-8 w-8 text-pink-500" />
                           <span className="font-medium text-gray-600">Cotizador IA</span>
-                        </div>
-
-                        {/* Overlay to trigger modal click */}
-                        <div className="absolute inset-0 z-10 opacity-0">
-                          <QuoteChatModal />
                         </div>
                       </div>
                     </div>
@@ -237,6 +238,9 @@ export default function Dashboard() {
           </SortableContext>
         </DndContext>
       </section>
-    </AppLayout>
+
+      {/* Modals */}
+      <QuoteChatModal open={isQuoteModalOpen} onOpenChange={setIsQuoteModalOpen} />
+    </AppLayout >
   );
 }

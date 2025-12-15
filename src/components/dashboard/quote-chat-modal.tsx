@@ -27,8 +27,12 @@ interface Message {
     type: "text" | "quote";
 }
 
-export function QuoteChatModal() {
-    const [isOpen, setIsOpen] = useState(false);
+interface QuoteChatModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}
+
+export function QuoteChatModal({ open, onOpenChange }: QuoteChatModalProps) {
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
         { role: "assistant", type: "text", content: "Hola, soy tu asistente de cotizaciones. Dime qué necesitas cotizar y lo armaré por ti.\n\nEj: 'Cotiza 2 aires de 12000 BTU a 25000 cada uno'." }
@@ -57,7 +61,7 @@ export function QuoteChatModal() {
             const data = await res.json();
 
             if (data.error) {
-                setMessages(prev => [...prev, { role: "assistant", type: "text", content: `Error: ${data.error}` }]);
+                setMessages(prev => [...prev, { role: "assistant", type: "text", content: `Error: ${data.error}\n\nDetalles: ${data.details || 'Sin detalles'}` }]);
             } else {
                 setMessages(prev => [...prev, { role: "assistant", type: "quote", content: data.output }]);
             }
@@ -91,11 +95,7 @@ export function QuoteChatModal() {
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                {/* Trigger area - fills parent */}
-                <div className="w-full h-full cursor-pointer" />
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md h-[600px] flex flex-col p-0 gap-0">
                 <DialogHeader className="p-4 border-b bg-slate-50">
                     <DialogTitle className="flex items-center gap-2">

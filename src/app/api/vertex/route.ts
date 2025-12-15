@@ -31,8 +31,8 @@ export async function POST(req: Request) {
             }
         });
 
-        // Use Gemini 1.5 Flash for speed and cost effectiveness
-        const model = 'gemini-1.5-flash-001';
+        // Use Gemini 2.0 Flash (Experimental) as it is the only active model for this project
+        const model = 'gemini-2.0-flash-exp';
 
         const generativeModel = vertexAI.getGenerativeModel({
             model: model,

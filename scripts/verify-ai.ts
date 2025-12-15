@@ -1,91 +1,54 @@
 
-import fs from 'fs';
-import path from 'path';
+import dotenv from 'dotenv';
 import { VertexAI } from '@google-cloud/vertexai';
-import { GoogleAuth } from 'google-auth-library';
 
-// Load env vars manually
-const envPath = path.resolve(process.cwd(), '.env.local');
-if (fs.existsSync(envPath)) {
-    const envConfig = fs.readFileSync(envPath, 'utf-8');
-    envConfig.split('\n').forEach(line => {
-        const match = line.match(/^([^=]+)=(.*)$/);
-        if (match) {
-            const key = match[1].trim();
-            let value = match[2].trim();
-            // Remove surrounding quotes if present
-            if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-                value = value.slice(1, -1);
-            }
-            process.env[key] = value;
-        }
-    });
-}
+dotenv.config({ path: '.env.local' });
 
-async function main() {
-    console.log("🔍 Verifying Vertex AI Configuration...");
+const projectId = process.env.GCP_PROJECT_ID;
+const clientEmail = process.env.GCP_CLIENT_EMAIL;
+const privateKey = process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-    const projectId = process.env.GCP_PROJECT_ID;
-    const clientEmail = process.env.GCP_CLIENT_EMAIL;
-    const privateKey = process.env.GCP_PRIVATE_KEY;
-    const location = process.env.GCP_LOCATION || 'us-central1';
+async function verify() {
+    console.log(`Verifying AI for project '${projectId}'...`);
 
     if (!projectId || !clientEmail || !privateKey) {
-        console.error("❌ Missing credentials in .env.local");
-        console.log(`GCP_PROJECT_ID: ${projectId ? 'OK' : 'MISSING'}`);
-        console.log(`GCP_CLIENT_EMAIL: ${clientEmail ? 'OK' : 'MISSING'}`);
-        console.log(`GCP_PRIVATE_KEY: ${privateKey ? 'OK' : 'MISSING'}`);
+        console.error("Missing credentials in .env.local");
         process.exit(1);
     }
 
-    console.log(`✅ Credentials found for project: ${projectId}`);
-    // console.log(`   Email: ${clientEmail}`); // Privacy
+    // Robust cleaning
+    const cleanKey = privateKey.replace(/\\n/g, '\n').replace(/"/g, '').trim();
+
+    console.log("Key length:", cleanKey.length);
+    console.log("Contains real newlines?", cleanKey.includes('\n'));
+    console.log("Contains literal \\n?", cleanKey.includes('\\n'));
+    console.log("First 30 chars:", cleanKey.substring(0, 30));
 
     try {
-        // Handle escaped newlines from .env if any
-        const key = privateKey.replace(/\\n/g, '\n');
-
-
-        // Debug Key (safe printing)
-        console.log("Debug - Client Email:", clientEmail);
-        console.log("Debug - Key Length:", key.length);
-        console.log("Debug - Key Start:", JSON.stringify(key.substring(0, 30)));
-        console.log("Debug - Key End:", JSON.stringify(key.substring(key.length - 30)));
-
-        // Try simpler init first
         const vertexAI = new VertexAI({
             project: projectId,
-            location: location,
+            location: 'us-central1',
             googleAuthOptions: {
                 credentials: {
                     client_email: clientEmail,
-                    private_key: key,
-                },
-                scopes: ['https://www.googleapis.com/auth/cloud-platform']
+                    private_key: cleanKey,
+                }
             }
         });
 
+        const model = vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const res = await model.generateContent("Say 'System Operational'");
+        const text = res.response.candidates?.[0].content.parts[0].text;
 
-        // Try Generative Model again with exact knonw one
-        const model = vertexAI.getGenerativeModel({
-            model: 'gemini-1.5-flash-001',
-        });
-
-
-        console.log("📡 Sending test request to Gemini...");
-        const result = await model.generateContent("Respond with exactly: Connection Successful");
-        const response = result.response;
-        const text = response.candidates?.[0].content.parts[0].text;
-
-        console.log("🤖 AI Response:", text);
-        console.log("✨ SUCCESS! Vertex AI is correctly configured.");
+        console.log("\n--- RESULT ---");
+        console.log("Response:", text);
+        console.log("Status: SUCCESS");
 
     } catch (error: any) {
-        console.error("❌ Connection Failed:", error.message);
-        if (error.message.includes("PEM")) {
-            console.error("💡 Hint: There might be an issue with how the Private Key was copied. Check for extra spaces or missing newlines.");
-        }
+        console.error("\n--- FAILED ---");
+        if (error.message) console.error(error.message);
+        if (error.statusDetails) console.error(JSON.stringify(error.statusDetails, null, 2));
     }
 }
 
-main();
+verify();

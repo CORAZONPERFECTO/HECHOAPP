@@ -101,7 +101,12 @@ export async function POST(req: NextRequest) {
             try {
                 // Return parsed object to ensure valid JSON client-side or just string?
                 // Returning object is safer so client doesn't have to parse string again
-                const jsonResponse = JSON.parse(text);
+                // Robust JSON extraction
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonString = jsonMatch ? jsonMatch[0] : text;
+                const cleanText = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+
+                const jsonResponse = JSON.parse(cleanText);
                 return NextResponse.json({ output: jsonResponse });
             } catch (e) {
                 console.error("Failed to parse Gemini JSON:", text);
@@ -111,7 +116,12 @@ export async function POST(req: NextRequest) {
 
         if (task === 'parse-invoice') {
             try {
-                const jsonResponse = JSON.parse(text);
+                // Robust JSON extraction
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonString = jsonMatch ? jsonMatch[0] : text;
+                const cleanText = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+
+                const jsonResponse = JSON.parse(cleanText);
                 return NextResponse.json({ output: jsonResponse });
             } catch (e) {
                 console.error("Failed to parse Gemini Invoice JSON:", text);
@@ -121,8 +131,13 @@ export async function POST(req: NextRequest) {
 
         if (task === 'generate-quote') {
             try {
-                // Sanitize text: remove markdown code blocks if present
-                const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                // Robust JSON extraction
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                const jsonString = jsonMatch ? jsonMatch[0] : text;
+
+                // Sanitize cleanText further just in case
+                const cleanText = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+
                 const jsonResponse = JSON.parse(cleanText);
                 return NextResponse.json({ output: jsonResponse });
             } catch (e) {
