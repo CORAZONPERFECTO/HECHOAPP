@@ -209,18 +209,14 @@ export default function Dashboard() {
                   {module.id === 'quote-chat' ? (
                     <div className="h-full">
                       {/* Special Render for Quote Chat which triggers Modal */}
-                      <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer">
-                        <QuoteChatModal />
-                        {/* We act as a wrapper, the modal trigger inside QuoteChatModal handles the click 
-                                            Actually QuoteChatModal has a Trigger. but we want the Whole Card to trigger it?
-                                            The standard AppCard is a link. 
-                                            Let's wrap the QuoteChatModal in a way that it looks like AppCard
-                                        */}
-                        <div className="p-6 flex flex-col items-center justify-center gap-3 text-center h-full">
+                      <div className="h-full bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer relative overflow-hidden">
+                        {/* Visual Content */}
+                        <div className="p-6 flex flex-col items-center justify-center gap-3 text-center h-full pointer-events-none">
                           <Sparkles className="h-8 w-8 text-pink-500" />
                           <span className="font-medium text-gray-600">Cotizador IA</span>
                         </div>
-                        {/* Overlay to trigger modal click? Or better: Pass a custom trigger to QuoteChatModal */}
+
+                        {/* Overlay to trigger modal click */}
                         <div className="absolute inset-0 z-10 opacity-0">
                           <QuoteChatModal />
                         </div>
