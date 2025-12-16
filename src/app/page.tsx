@@ -200,7 +200,7 @@ export default function Dashboard() {
       {/* 2. Quick Access Grid (Draggable) */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-gray-700 mb-4 px-1 flex justify-between items-center">
-          <span>Acceso Rápido</span>
+          <span>Acceso Rápido ✨</span>
           <span className="text-xs text-gray-400 font-normal hidden md:inline">Arrastra para reordenar</span>
         </h2>
 
