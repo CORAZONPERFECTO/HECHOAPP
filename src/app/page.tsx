@@ -100,6 +100,10 @@ export default function Dashboard() {
         const orderIds = JSON.parse(savedOrder);
         // Sort ALL_MODULES based on saved order
         const sorted = [...ALL_MODULES].sort((a, b) => {
+          // Force Quote Chat to start
+          if (a.id === 'quote-chat') return -1;
+          if (b.id === 'quote-chat') return 1;
+
           const indexA = orderIds.indexOf(a.id);
           const indexB = orderIds.indexOf(b.id);
           // If new items exist that aren't in saved order, put them at the end
