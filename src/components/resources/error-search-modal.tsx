@@ -52,7 +52,13 @@ export function ErrorSearchModal({ brand, onSelectSolution, trigger }: ErrorSear
     const filterResults = (term: string) => {
         if (!allData.length) return;
 
-        const searchLower = term.toLowerCase();
+        // Helper to normalize text (remove accents, lowercase)
+        const normalizeText = (text: string | null | undefined) => {
+            if (!text) return "";
+            return text.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        };
+
+        const searchNorm = normalizeText(term);
 
         const filtered = allData.filter(e => {
             // Safety checks for missing fields
@@ -62,14 +68,14 @@ export function ErrorSearchModal({ brand, onSelectSolution, trigger }: ErrorSear
             const eTags = e.tags || [];
 
             // 1. Matches pre-filter (Brand prop)
-            const matchesBrandProp = brand ? eBrand.toLowerCase().includes(brand.toLowerCase()) : true;
+            const matchesBrandProp = brand ? normalizeText(eBrand).includes(normalizeText(brand)) : true;
 
             // 2. Matches Search Term
             const matchesTerm =
-                eCode.toLowerCase().includes(searchLower) ||
-                eSymptom.toLowerCase().includes(searchLower) ||
-                eBrand.toLowerCase().includes(searchLower) ||
-                eTags.some(t => t.toLowerCase().includes(searchLower));
+                normalizeText(eCode).includes(searchNorm) ||
+                normalizeText(eSymptom).includes(searchNorm) ||
+                normalizeText(eBrand).includes(searchNorm) ||
+                eTags.some(t => normalizeText(t).includes(searchNorm));
 
             // 3. Status Check
             const matchesStatus = e.validationStatus !== 'PENDIENTE';

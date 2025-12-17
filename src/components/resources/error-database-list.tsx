@@ -39,14 +39,21 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
 
     const brands = Array.from(new Set(errors.map(e => e.brand))).sort();
 
+    // Helper to normalize text (remove accents, lowercase)
+    const normalizeText = (text: string | null | undefined) => {
+        if (!text) return "";
+        return text.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    };
+
     const filteredErrors = errors.filter(e => {
         const matchesBrand = brandFilter === "ALL" || e.brand === brandFilter;
-        const searchLower = searchTerm.toLowerCase();
+        const searchNorm = normalizeText(searchTerm);
+
         const matchesSearch =
-            e.errorCode?.toLowerCase().includes(searchLower) ||
-            e.symptom.toLowerCase().includes(searchLower) ||
-            e.model?.toLowerCase().includes(searchLower) ||
-            e.tags?.some(t => t.toLowerCase().includes(searchLower));
+            normalizeText(e.errorCode).includes(searchNorm) ||
+            normalizeText(e.symptom).includes(searchNorm) ||
+            normalizeText(e.model).includes(searchNorm) ||
+            e.tags?.some(t => normalizeText(t).includes(searchNorm));
 
         return matchesBrand && matchesSearch;
     });
@@ -85,8 +92,6 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
             if (file.name.endsWith('.json')) {
                 const text = await file.text();
                 jsonData = JSON.parse(text);
-                // Map specific JSON format if needed
-                // Format: { marca, codigo, descripcion_es, causa_probable, solucion_recomendada }
             } else {
                 const data = await file.arrayBuffer();
                 const workbook = XLSX.read(data);
@@ -95,42 +100,52 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
             }
 
             let count = 0;
-            for (const row of jsonData) {
-                // Normalize keys from JSON or Excel
-                const brand = row.Marca || row.marca;
-                const symptom = row.Sintoma || row.descripcion_es;
+            let skipped = 0;
 
-                if (!brand || !symptom) continue;
+            for (const row of jsonData) {
+                // Normalize keys from JSON or Excel - Expanded mapping
+                const brand = row.Marca || row.marca || row.Brand || row.brand;
+                const symptom = row.Sintoma || row.sintoma || row.descripcion_es || row.Description || row.description || row.Symptom;
+                const code = row.Codigo || row.codigo || row.Error_Code || row.error_code || row.code;
+                const cause = row.Causa || row.causa || row.causa_probable || row.Probable_Cause;
+                const solution = row.Solucion || row.solucion || row.solucion_recomendada || row.Recommended_Solution;
+                const model = row.Modelo || row.modelo || row.Model || row.model;
+
+                if (!brand || !symptom) {
+                    skipped++;
+                    continue;
+                }
 
                 const newError: Partial<ACError> = {
-                    brand: brand,
-                    model: row.Modelo || row.modelo,
-                    errorCode: (row.Codigo || row.codigo || "").toString(),
-                    symptom: symptom,
-                    cause: row.Causa || row.causa_probable,
-                    solution: row.Solucion || row.solucion_recomendada,
+                    brand: brand.toString().trim().toUpperCase(), // Standardize brand
+                    model: model ? model.toString() : "",
+                    errorCode: code ? code.toString().trim() : "",
+                    symptom: symptom.toString().trim(),
+                    cause: cause ? cause.toString().trim() : "",
+                    solution: solution ? solution.toString().trim() : "",
                     criticality: (['BAJA', 'MEDIA', 'ALTA'].includes(row.Criticidad || row.criticality) ? (row.Criticidad || row.criticality) : 'MEDIA') as ACErrorCriticality,
                     tags: row.Tags ? row.Tags.split(",").map((t: string) => t.trim()) : [],
-                    validationStatus: 'VALIDADO', // Auto-validate imports
+                    validationStatus: 'VALIDADO',
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 };
 
                 // Use custom ID to prevent duplicates: Brand_Code
-                const customId = `${newError.brand}_${newError.errorCode}`.replace(/[^a-zA-Z0-9_]/g, '');
-                if (newError.errorCode && customId.length > 2) {
-                    await setDoc(doc(db, "acErrors", customId), newError, { merge: true });
-                } else {
-                    await addDoc(collection(db, "acErrors"), newError);
-                }
+                // Normalize ID: remove spaces, special chars
+                const cleanBrand = newError.brand?.replace(/[^a-zA-Z0-9]/g, '') || 'UNKNOWN';
+                const cleanCode = newError.errorCode?.replace(/[^a-zA-Z0-9]/g, '') || `NOCODE_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+                const customId = `${cleanBrand}_${cleanCode}`;
+
+                await setDoc(doc(db, "acErrors", customId), newError, { merge: true });
                 count++;
             }
 
-            alert(`Se importaron/actualizaron ${count} errores exitosamente.`);
+            alert(`Importación completada: \n- ${count} errores guardados/actualizados.\n- ${skipped} registros omitidos (sin Marca o Síntoma).`);
             if (fileInputRef.current) fileInputRef.current.value = "";
         } catch (error) {
             console.error("Error importing file:", error);
-            alert("Error al importar el archivo. Verifica el formato.");
+            alert("Error crítico al importar el archivo. Revisa la consola para más detalles.");
         } finally {
             setImporting(false);
         }
