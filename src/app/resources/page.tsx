@@ -1,17 +1,20 @@
 "use client";
 
+import { ErrorUploadForm } from "@/components/resources/error-upload-form";
+import { ErrorValidationPanel } from "@/components/resources/error-validation-panel";
+
 import { useState, useEffect } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { UserRole, PersonnelResource, ACError } from "@/types/schema";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader2, Users, AlertTriangle, Building2 } from "lucide-react";
 import { PersonnelList } from "@/components/resources/personnel-list";
 import { PersonnelDetail } from "@/components/resources/personnel-detail";
 import { ErrorDatabaseList } from "@/components/resources/error-database-list";
 import { ErrorDetail } from "@/components/resources/error-detail";
 import { CompanyProfile } from "@/components/resources/company-profile";
-import { PersonnelResource, ACError, UserRole } from "@/types/schema";
-import { Users, AlertTriangle, Building2, Loader2 } from "lucide-react";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
 
 export default function ResourcesPage() {
     const [activeTab, setActiveTab] = useState("personnel");
@@ -23,8 +26,9 @@ export default function ResourcesPage() {
     const [selectedPerson, setSelectedPerson] = useState<PersonnelResource | null>(null);
 
     // Error View State
-    const [errorView, setErrorView] = useState<'list' | 'detail'>('list');
+    const [errorView, setErrorView] = useState<'list' | 'detail' | 'upload' | 'validation'>('list');
     const [selectedError, setSelectedError] = useState<ACError | null>(null);
+    const [validationData, setValidationData] = useState<{ data: any[], brand: string, model: string, photos: File[] } | null>(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -74,12 +78,13 @@ export default function ResourcesPage() {
 
     const handleNewError = () => {
         setSelectedError(null);
-        setErrorView('detail');
+        setErrorView('detail'); // This is kept for manual entry if needed, but 'upload' is triggered by list button now
     };
 
     const handleBackError = () => {
         setErrorView('list');
         setSelectedError(null);
+        setValidationData(null);
     };
 
     if (loading) {
@@ -132,8 +137,33 @@ export default function ResourcesPage() {
                     {errorView === 'list' ? (
                         <ErrorDatabaseList
                             onSelect={handleSelectError}
-                            onNew={handleNewError}
+                            onNew={() => setErrorView('upload')} // Changed key to switch to upload form
                             currentUserRole={currentUserRole}
+                        />
+                    ) : errorView === 'upload' ? (
+                        <ErrorUploadForm
+                            onCancel={() => setErrorView('list')}
+                            onProcessingComplete={(data, brand, model, photos) => {
+                                setValidationData({ data, brand, model, photos });
+                                setErrorView('validation');
+                            }}
+                        />
+                    ) : errorView === 'validation' && validationData ? (
+                        <ErrorValidationPanel
+                            data={validationData.data}
+                            brand={validationData.brand}
+                            model={validationData.model}
+                            photos={validationData.photos}
+                            onComplete={() => {
+                                setValidationData(null);
+                                setErrorView('list');
+                            }}
+                            onCancel={() => {
+                                if (confirm("¿Estás seguro de cancelar? Se perderán los datos extraídos.")) {
+                                    setValidationData(null);
+                                    setErrorView('list');
+                                }
+                            }}
                         />
                     ) : (
                         <ErrorDetail

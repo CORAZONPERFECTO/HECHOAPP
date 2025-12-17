@@ -1,0 +1,1675 @@
+[
+  {
+    "marca": "GREE",
+    "codigo": "F1",
+    "descripcion_es": "Sensor de temperatura de retorno (ambiente) abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F2",
+    "descripcion_es": "Sensor de temperatura del evaporador abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "b5",
+    "descripcion_es": "Sensor de temperatura válvula de líquido interior abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "b7",
+    "descripcion_es": "Sensor de temperatura válvula de gas interior abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F3",
+    "descripcion_es": "Sensor de temperatura ambiente exterior abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F4",
+    "descripcion_es": "Sensor de temperatura tubo medio del condensador exterior abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F5",
+    "descripcion_es": "Sensor de temperatura de descarga abierto/corto",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E6",
+    "descripcion_es": "Error de comunicación unidad interior–unidad exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "P6",
+    "descripcion_es": "Error de comunicación con tarjeta/drive",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "dn",
+    "descripcion_es": "Línea de comunicación desconectada / error de válvula de expansión",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "PL",
+    "descripcion_es": "Protección por bajo voltaje del bus DC",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "PH",
+    "descripcion_es": "Protección por alto voltaje del bus DC",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "U1",
+    "descripcion_es": "Error circuito detección de corriente de fase del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "HE",
+    "descripcion_es": "Protección por desmagnetización del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "Hc",
+    "descripcion_es": "Protección PFC",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "P8",
+    "descripcion_es": "Protección por temperatura del IPM",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "L9",
+    "descripcion_es": "Protección por sobrepotencia",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "PU",
+    "descripcion_es": "Error de carga del capacitor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "Ld",
+    "descripcion_es": "Desincronización del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "U3",
+    "descripcion_es": "Caída de voltaje del bus DC",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "Pd",
+    "descripcion_es": "Protección por conexión de sensor",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "PF",
+    "descripcion_es": "Error sensor temperatura en tarjeta/drive",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "P9",
+    "descripcion_es": "Protección del contactor AC",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F0",
+    "descripcion_es": "Falla de arranque del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E1",
+    "descripcion_es": "Protección por alta presión",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E3",
+    "descripcion_es": "Protección por baja presión",
+    "causa_probable": "Fuga de refrigerante o falta de carga.",
+    "solucion_recomendada": "Detectar y reparar fuga, hacer vacío profundo y recargar según especificación."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "LE",
+    "descripcion_es": "Compresor en pérdida/atasco (stall)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "LF",
+    "descripcion_es": "Protección por sobrevelocidad",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "H1",
+    "descripcion_es": "Deshielo forzado",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E4",
+    "descripcion_es": "Protección por alta temperatura de descarga",
+    "causa_probable": "Mala disipación de calor (condensador sucio/fan), o carga incorrecta.",
+    "solucion_recomendada": "Limpieza profunda, verificar RPM de ventiladores y ajustar carga/presiones."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E8",
+    "descripcion_es": "Protección por sobrecarga",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "P5",
+    "descripcion_es": "Protección por sobrecorriente de fase",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "H7",
+    "descripcion_es": "Protección por pérdida/inversión de fase del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "L3",
+    "descripcion_es": "Protección ventilador exterior 1",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "LA",
+    "descripcion_es": "Protección ventilador exterior 2",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "H6",
+    "descripcion_es": "Bloqueo de motor (stalling)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "U8",
+    "descripcion_es": "Protección cruce por cero motor PG",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "P7",
+    "descripcion_es": "Conflicto de modo (calor/frío)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F8",
+    "descripcion_es": "Frecuencia restringida por corriente total de la unidad",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "En",
+    "descripcion_es": "Frecuencia restringida por corriente del IPM",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "F9",
+    "descripcion_es": "Frecuencia restringida por alta temperatura de descarga",
+    "causa_probable": "Mala disipación de calor (condensador sucio/fan), o carga incorrecta.",
+    "solucion_recomendada": "Limpieza profunda, verificar RPM de ventiladores y ajustar carga/presiones."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "FH",
+    "descripcion_es": "Frecuencia restringida por anti-congelamiento",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "E9",
+    "descripcion_es": "Error de agua llena/desborde en unidad interior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "PP",
+    "descripcion_es": "Anormalidad de voltaje de entrada AC",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "GREE",
+    "codigo": "U5",
+    "descripcion_es": "Error circuito detección de corriente total de la unidad",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH01",
+    "descripcion_es": "Error sensor de temperatura ambiente (unidad interior)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH02",
+    "descripcion_es": "Error sensor del evaporador",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH05",
+    "descripcion_es": "Error de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH10",
+    "descripcion_es": "Error motor ventilador exterior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH21",
+    "descripcion_es": "Protección por sobrecarga eléctrica/sobrecorriente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH26",
+    "descripcion_es": "Baja presión / poco refrigerante",
+    "causa_probable": "Fuga de refrigerante o falta de carga.",
+    "solucion_recomendada": "Detectar y reparar fuga, hacer vacío profundo y recargar según especificación."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH34",
+    "descripcion_es": "Protección por alta presión",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "LG",
+    "codigo": "CH38",
+    "descripcion_es": "Detección de poco refrigerante",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "LG",
+    "codigo": "P4",
+    "descripcion_es": "Protección del módulo IPM",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "LG",
+    "codigo": "FS",
+    "descripcion_es": "Protección por congelamiento del evaporador",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "U0",
+    "descripcion_es": "Poco refrigerante",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "U2",
+    "descripcion_es": "Error de voltaje de alimentación",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "U4",
+    "descripcion_es": "Error de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "A5",
+    "descripcion_es": "Protección por congelamiento/sobrecalentamiento",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "C4",
+    "descripcion_es": "Error sensor intercambiador (unidad interior)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "C9",
+    "descripcion_es": "Error sensor de temperatura ambiente",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E7",
+    "descripcion_es": "Error motor ventilador exterior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F3",
+    "descripcion_es": "Temperatura anormal en tubería de descarga",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "J3",
+    "descripcion_es": "Falla sensor tubería de descarga",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L5",
+    "descripcion_es": "Falla del módulo IPM",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P4",
+    "descripcion_es": "Protección del inverter/módulo",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E0",
+    "descripcion_es": "Falla EEPROM unidad interior",
+    "causa_probable": "Memoria/EEPROM defectuosa en PCB.",
+    "solucion_recomendada": "Revisar conectores, reiniciar y reemplazar PCB si el error persiste."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E1",
+    "descripcion_es": "Falla de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E2",
+    "descripcion_es": "Error detección cruce por cero",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E3",
+    "descripcion_es": "Falla velocidad ventilador interior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E4",
+    "descripcion_es": "Error sensor ambiente interior (abierto/corto)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "E5",
+    "descripcion_es": "Error sensor evaporador (abierto/corto)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "EC",
+    "descripcion_es": "Falla detección de fuga de refrigerante",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F0",
+    "descripcion_es": "Protección por sobrecorriente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F1",
+    "descripcion_es": "Error sensor ambiente exterior (abierto/corto)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F2",
+    "descripcion_es": "Error sensor tubería del condensador exterior",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F3",
+    "descripcion_es": "Error sensor temperatura descarga",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F4",
+    "descripcion_es": "Falla EEPROM unidad exterior",
+    "causa_probable": "Memoria/EEPROM defectuosa en PCB.",
+    "solucion_recomendada": "Revisar conectores, reiniciar y reemplazar PCB si el error persiste."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F5",
+    "descripcion_es": "Falla velocidad ventilador exterior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "F6",
+    "descripcion_es": "Error sensor T2b",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P0",
+    "descripcion_es": "Protección IPM del inverter",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P1",
+    "descripcion_es": "Protección por alto/bajo voltaje",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P2",
+    "descripcion_es": "Protección por alta temperatura en tope del compresor",
+    "causa_probable": "Mala disipación de calor (condensador sucio/fan), o carga incorrecta.",
+    "solucion_recomendada": "Limpieza profunda, verificar RPM de ventiladores y ajustar carga/presiones."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P3",
+    "descripcion_es": "Protección por temperatura exterior muy baja",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P4",
+    "descripcion_es": "Error drive del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P5",
+    "descripcion_es": "Conflicto de modo",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TGM",
+    "codigo": "P6",
+    "descripcion_es": "Protección por baja presión del compresor",
+    "causa_probable": "Fuga de refrigerante o falta de carga.",
+    "solucion_recomendada": "Detectar y reparar fuga, hacer vacío profundo y recargar según especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E0",
+    "descripcion_es": "Falla de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EC",
+    "descripcion_es": "Falla de comunicación exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E1",
+    "descripcion_es": "Falla sensor de temperatura ambiente interior",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E2",
+    "descripcion_es": "Falla sensor de temperatura del serpentín interior",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E3",
+    "descripcion_es": "Falla sensor de temperatura del serpentín exterior",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E4",
+    "descripcion_es": "Anormalidad del sistema",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E5",
+    "descripcion_es": "Configuración de modelo incorrecta",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E6",
+    "descripcion_es": "Falla motor ventilador interior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E7",
+    "descripcion_es": "Falla sensor de temperatura exterior",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E8",
+    "descripcion_es": "Falla sensor de temperatura de escape/descarga",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "E9",
+    "descripcion_es": "Falla drive/módulo IPM",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EF",
+    "descripcion_es": "Falla motor ventilador exterior DC",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EA",
+    "descripcion_es": "Falla sensor de corriente",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EE",
+    "descripcion_es": "Falla EEPROM",
+    "causa_probable": "Memoria/EEPROM defectuosa en PCB.",
+    "solucion_recomendada": "Revisar conectores, reiniciar y reemplazar PCB si el error persiste."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EP",
+    "descripcion_es": "Falla switch térmico (tope del compresor)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "EU",
+    "descripcion_es": "Falla sensor de voltaje",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "CL",
+    "descripcion_es": "Aviso: filtro de aire sucio",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P1",
+    "descripcion_es": "Protección por alto/bajo voltaje",
+    "causa_probable": "Alimentación fuera de rango (alto/bajo voltaje) o conexiones flojas.",
+    "solucion_recomendada": "Medir voltaje bajo carga, corregir instalación y considerar regulador/estabilizador."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P2",
+    "descripcion_es": "Protección por sobrecorriente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P4",
+    "descripcion_es": "Protección por sobretemperatura de descarga",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P5",
+    "descripcion_es": "Protección por demasiado frío en modo frío",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P6",
+    "descripcion_es": "Protección por sobrecalentamiento en modo frío",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P7",
+    "descripcion_es": "Protección por sobrecalentamiento en modo calor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P8",
+    "descripcion_es": "Protección por temperatura exterior alta/baja",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P9",
+    "descripcion_es": "Protección del drive (software)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "TCL",
+    "codigo": "P0",
+    "descripcion_es": "Protección del módulo (hardware)",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E01",
+    "descripcion_es": "Error de comunicación interior–control remoto",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E02",
+    "descripcion_es": "Error de transmisión del control remoto",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E03",
+    "descripcion_es": "Error de comunicación interior–control remoto (lado interior)",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E04",
+    "descripcion_es": "Error de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E06",
+    "descripcion_es": "Salida/desconexión de unidad interior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E08",
+    "descripcion_es": "Dirección duplicada de unidad interior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E09",
+    "descripcion_es": "Control remoto maestro duplicado",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E10",
+    "descripcion_es": "Error de comunicación MCU interior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E12",
+    "descripcion_es": "Error al iniciar direccionamiento automático",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E15",
+    "descripcion_es": "Unidad interior no encontrada en auto-direccionamiento",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E16",
+    "descripcion_es": "Demasiadas unidades interiores conectadas",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E18",
+    "descripcion_es": "Error comunicación entre unidad exterior cabecera y seguidora",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E19",
+    "descripcion_es": "Error en cantidad de exteriores cabecera",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E20",
+    "descripcion_es": "Conexión a otra línea detectada en auto-direccionamiento",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E23",
+    "descripcion_es": "Error comunicación exterior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E25",
+    "descripcion_es": "Dirección duplicada de exterior seguidor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E26",
+    "descripcion_es": "Salida/desconexión de unidad exterior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "E31",
+    "descripcion_es": "Error de comunicación IPDU",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F01",
+    "descripcion_es": "Error sensor interior TCJ",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F02",
+    "descripcion_es": "Error sensor interior TC2",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F03",
+    "descripcion_es": "Error sensor interior TC1",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F04",
+    "descripcion_es": "Error sensor TD1",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F05",
+    "descripcion_es": "Error sensor TD2",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F06",
+    "descripcion_es": "Error sensor TE1/TE2",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F07",
+    "descripcion_es": "Error sensor TL",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F08",
+    "descripcion_es": "Error sensor To",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F10",
+    "descripcion_es": "Error sensor interior TA",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F11",
+    "descripcion_es": "Error sensor interior TF",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F12",
+    "descripcion_es": "Error sensor TS1",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F13",
+    "descripcion_es": "Error sensor TH",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F15",
+    "descripcion_es": "Error cableado sensores exteriores (TE1, TL)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F16",
+    "descripcion_es": "Error cableado sensor de presión exterior (Pd, Ps)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F22",
+    "descripcion_es": "Error sensor TD3",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F23",
+    "descripcion_es": "Error sensor Ps",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F24",
+    "descripcion_es": "Error sensor Pd",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "F31",
+    "descripcion_es": "Error EEPROM exterior",
+    "causa_probable": "Memoria/EEPROM defectuosa en PCB.",
+    "solucion_recomendada": "Revisar conectores, reiniciar y reemplazar PCB si el error persiste."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H01",
+    "descripcion_es": "Avería del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H02",
+    "descripcion_es": "Error de compresor (bloqueo/lockup)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H03",
+    "descripcion_es": "Error circuito detección de corriente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H05",
+    "descripcion_es": "Cableado incorrecto sensor TD1 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H06",
+    "descripcion_es": "Activación protección por baja presión",
+    "causa_probable": "Fuga de refrigerante o falta de carga.",
+    "solucion_recomendada": "Detectar y reparar fuga, hacer vacío profundo y recargar según especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H07",
+    "descripcion_es": "Protección por bajo nivel de aceite",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H08",
+    "descripcion_es": "Error sensor temperatura para nivel de aceite",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H15",
+    "descripcion_es": "Cableado incorrecto sensor TD2 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H16",
+    "descripcion_es": "Error circuito detección nivel de aceite",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "H25",
+    "descripcion_es": "Cableado incorrecto sensor TD3 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L03",
+    "descripcion_es": "Cabecera interior duplicada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L04",
+    "descripcion_es": "Dirección de línea exterior duplicada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L05",
+    "descripcion_es": "Unidad interior prioritaria duplicada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L06",
+    "descripcion_es": "Unidad interior prioritaria duplicada (otra condición)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L07",
+    "descripcion_es": "Cable de control de grupo conectado a unidad independiente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L08",
+    "descripcion_es": "Dirección de grupo interior no configurada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L09",
+    "descripcion_es": "Capacidad interior no configurada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L10",
+    "descripcion_es": "Capacidad exterior no configurada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L28",
+    "descripcion_es": "Demasiadas unidades exteriores conectadas",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L29",
+    "descripcion_es": "Error en número de IPDUs",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "L30",
+    "descripcion_es": "Interlock externo de unidad interior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P01",
+    "descripcion_es": "Error motor ventilador interior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P03",
+    "descripcion_es": "Error temperatura de descarga TD1",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P04",
+    "descripcion_es": "Activación de alta presión (switch)",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P05",
+    "descripcion_es": "Detección de fase abierta / secuencia de fase",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P06",
+    "descripcion_es": "Error de voltaje DC del inverter (compresor)",
+    "causa_probable": "Falla en módulo inverter/IPM por sobretemperatura o picos de tensión.",
+    "solucion_recomendada": "Revisar ventilación/disipadores, medir alimentación y reemplazar módulo/PCB si persiste."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P07",
+    "descripcion_es": "Sobrecalentamiento del disipador (heat sink)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P10",
+    "descripcion_es": "Error overflow/desborde unidad interior",
+    "causa_probable": "Drenaje tapado, bandeja desnivelada o bomba de drenaje defectuosa.",
+    "solucion_recomendada": "Limpiar línea de drenaje, verificar nivel y probar/reemplazar bomba si aplica."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P12",
+    "descripcion_es": "Error motor ventilador interior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P13",
+    "descripcion_es": "Detección de retorno de líquido exterior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P15",
+    "descripcion_es": "Detección de fuga de gas (condición TS1)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P17",
+    "descripcion_es": "Error temperatura de descarga TD2",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P18",
+    "descripcion_es": "Error temperatura de descarga TD3",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P19",
+    "descripcion_es": "Error válvula de 4 vías (reversora)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P20",
+    "descripcion_es": "Activación de protección por alta presión",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P22",
+    "descripcion_es": "Error ventilador exterior IPDU",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P26",
+    "descripcion_es": "Protección por cortocircuito G-TR",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P29",
+    "descripcion_es": "Error detección posición de compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Daikin",
+    "codigo": "P31",
+    "descripcion_es": "Otro error interior (unidad seguidora de grupo)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E06",
+    "descripcion_es": "Disminución del número de unidades interiores",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E07",
+    "descripcion_es": "Aumento del número de unidades interiores",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E08",
+    "descripcion_es": "Direcciones de unidades interiores duplicadas",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E12",
+    "descripcion_es": "Error de comunicación interior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E15",
+    "descripcion_es": "Error de direccionamiento automático",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E19",
+    "descripcion_es": "Error en el número de unidades conectadas (capacidad)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E20",
+    "descripcion_es": "Error de comunicación exterior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E23",
+    "descripcion_es": "Error de transmisión de comunicación exterior–exterior",
+    "causa_probable": "Cableado de comunicación invertido/sulfatado o mala conexión entre placas.",
+    "solucion_recomendada": "Revisar polaridad y continuidad, corregir empalmes y verificar conectores en PCB."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "E25",
+    "descripcion_es": "Dirección de unidad exterior seguidora duplicada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "L04",
+    "descripcion_es": "Dirección exterior duplicada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "L06",
+    "descripcion_es": "Número de unidades interiores con prioridad",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "L10",
+    "descripcion_es": "Capacidad exterior no configurada",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "L28",
+    "descripcion_es": "Demasiadas unidades exteriores conectadas",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "L29",
+    "descripcion_es": "Error en cantidad de IPDU",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F04",
+    "descripcion_es": "Error sensor TD1",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F05",
+    "descripcion_es": "Error sensor TD2",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F06",
+    "descripcion_es": "Error sensor TE1/TE2",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F07",
+    "descripcion_es": "Error sensor TL",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F12",
+    "descripcion_es": "Error sensor TS1",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F13",
+    "descripcion_es": "Error sensor TH",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F15",
+    "descripcion_es": "Error cableado sensor de temperatura exterior (TE1, TL)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F16",
+    "descripcion_es": "Error cableado sensor de presión exterior (Pd, Ps)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F22",
+    "descripcion_es": "Error sensor TD3",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F23",
+    "descripcion_es": "Error sensor Ps",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "F24",
+    "descripcion_es": "Error sensor Pd",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H01",
+    "descripcion_es": "Avería del compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H02",
+    "descripcion_es": "Compresor bloqueado",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H03",
+    "descripcion_es": "Error circuito detección de corriente",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H05",
+    "descripcion_es": "Error cableado sensor TD1 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H06",
+    "descripcion_es": "Activación protección por baja presión",
+    "causa_probable": "Fuga de refrigerante o falta de carga.",
+    "solucion_recomendada": "Detectar y reparar fuga, hacer vacío profundo y recargar según especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H07",
+    "descripcion_es": "Protección por bajo nivel de aceite",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H08",
+    "descripcion_es": "Error sensor de temperatura para detección de nivel de aceite",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H15",
+    "descripcion_es": "Error cableado sensor TD2 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H16",
+    "descripcion_es": "Error circuito detección de nivel de aceite",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "H25",
+    "descripcion_es": "Error cableado sensor TD3 (inserción incompleta)",
+    "causa_probable": "Sensor dañado, humedad en conector o cable partido/aflojado.",
+    "solucion_recomendada": "Medir continuidad/rango, limpiar conectores y reemplazar el sensor si está fuera de especificación."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P03",
+    "descripcion_es": "Error temperatura de descarga",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P04",
+    "descripcion_es": "Activación de alta presión (switch)",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P05",
+    "descripcion_es": "Detección de fase abierta / secuencia de fase",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P07",
+    "descripcion_es": "Sobrecalentamiento del disipador",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P10",
+    "descripcion_es": "Error overflow/desborde unidad interior",
+    "causa_probable": "Drenaje tapado, bandeja desnivelada o bomba de drenaje defectuosa.",
+    "solucion_recomendada": "Limpiar línea de drenaje, verificar nivel y probar/reemplazar bomba si aplica."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P12",
+    "descripcion_es": "Error motor ventilador interior",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P13",
+    "descripcion_es": "Detección de retorno de líquido exterior",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P15",
+    "descripcion_es": "Detección de fuga de gas (condición TS)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P17",
+    "descripcion_es": "Error temperatura de descarga TD2",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P18",
+    "descripcion_es": "Error temperatura de descarga TD3",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P19",
+    "descripcion_es": "Error válvula reversora 4 vías",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P20",
+    "descripcion_es": "Activación protección por alta presión",
+    "causa_probable": "Condensador sucio, exceso de refrigerante o restricción en línea.",
+    "solucion_recomendada": "Lavar condensador, verificar ventiladores y ajustar carga según placa."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P22",
+    "descripcion_es": "Error ventilador exterior IPDU",
+    "causa_probable": "Motor trabado/dañado, capacitor defectuoso o obstrucción.",
+    "solucion_recomendada": "Verificar giro libre, medir capacitor, revisar cableado y reemplazar motor si aplica."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P26",
+    "descripcion_es": "Protección por cortocircuito G-TR",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P29",
+    "descripcion_es": "Error detección posición de compresor",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  },
+  {
+    "marca": "Toshiba",
+    "codigo": "P31",
+    "descripcion_es": "Otro error interior (unidad seguidora de grupo)",
+    "causa_probable": "Condición de protección/anomalía detectada por el equipo.",
+    "solucion_recomendada": "Realizar diagnóstico completo: alimentación, cableado, sensores y estado del sistema."
+  }
+]

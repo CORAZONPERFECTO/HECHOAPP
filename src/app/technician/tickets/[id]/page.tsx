@@ -18,6 +18,7 @@ import { PhotoUploader } from "@/components/technician/photo-uploader";
 import { PermissionRequest } from "@/components/technician/permission-request";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
+import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -245,9 +246,17 @@ export default function TechnicianTicketPage() {
                 {/* Technician Notes */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            Notas del Técnico
+                        <CardTitle className="text-base flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                Notas del Técnico
+                            </div>
+                            <ErrorSearchModal
+                                onSelectSolution={(sol: string) => {
+                                    const current = ticket?.diagnosis || "";
+                                    setTicket({ ...ticket!, diagnosis: current + (current ? "\n\n" : "") + "Solución sugerida: " + sol });
+                                }}
+                            />
                         </CardTitle>
                     </CardHeader>
                     <CardContent>

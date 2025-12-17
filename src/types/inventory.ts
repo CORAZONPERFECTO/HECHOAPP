@@ -56,7 +56,7 @@ export interface InventoryStock {
 
 export interface InventoryMovement {
     id?: string;
-    type: 'ENTRADA' | 'SALIDA';
+    type: MovementType;
     productId: string;
 
     // Locations

@@ -18,48 +18,72 @@ interface ErrorSearchModalProps {
 export function ErrorSearchModal({ brand, onSelectSolution, trigger }: ErrorSearchModalProps) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [allData, setAllData] = useState<ACError[]>([]); // Store all loaded data
     const [results, setResults] = useState<ACError[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Initial load when modal opens
     useEffect(() => {
-        if (open && brand) {
-            searchErrors(brand);
-        } else if (open) {
-            searchErrors("");
+        if (open) {
+            loadAllErrors();
         }
-    }, [open, brand]);
+    }, [open]);
 
-    const searchErrors = async (term: string) => {
+    // Live filtering when search term or data changes
+    useEffect(() => {
+        filterResults(searchTerm);
+    }, [searchTerm, allData, brand]);
+
+    const loadAllErrors = async () => {
         setLoading(true);
         try {
-            // Simple client-side filtering for now as Firestore text search is limited
-            // In production, use Algolia or similar for advanced search
-            const q = query(collection(db, "acErrors"), orderBy("brand"));
+            // Load all errors without ordering to ensure we get everything (client sort is fast enough)
+            const q = query(collection(db, "acErrors"));
             const snapshot = await getDocs(q);
-            const allErrors = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ACError));
-
-            const filtered = allErrors.filter(e => {
-                const searchLower = term.toLowerCase();
-                const matchesBrand = brand ? e.brand.toLowerCase().includes(brand.toLowerCase()) : true;
-                const matchesTerm =
-                    e.errorCode?.toLowerCase().includes(searchLower) ||
-                    e.symptom.toLowerCase().includes(searchLower) ||
-                    e.brand.toLowerCase().includes(searchLower) ||
-                    e.tags?.some(t => t.toLowerCase().includes(searchLower));
-
-                return (brand ? matchesBrand : true) && (term ? matchesTerm : true);
-            });
-
-            setResults(filtered);
+            const loadedErrors = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ACError));
+            setAllData(loadedErrors);
         } catch (error) {
-            console.error("Error searching errors:", error);
+            console.error("Error loading errors:", error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSearch = () => {
-        searchErrors(searchTerm);
+    const filterResults = (term: string) => {
+        if (!allData.length) return;
+
+        const searchLower = term.toLowerCase();
+
+        const filtered = allData.filter(e => {
+            // Safety checks for missing fields
+            const eBrand = e.brand || "";
+            const eCode = e.errorCode || "";
+            const eSymptom = e.symptom || "";
+            const eTags = e.tags || [];
+
+            // 1. Matches pre-filter (Brand prop)
+            const matchesBrandProp = brand ? eBrand.toLowerCase().includes(brand.toLowerCase()) : true;
+
+            // 2. Matches Search Term
+            const matchesTerm =
+                eCode.toLowerCase().includes(searchLower) ||
+                eSymptom.toLowerCase().includes(searchLower) ||
+                eBrand.toLowerCase().includes(searchLower) ||
+                eTags.some(t => t.toLowerCase().includes(searchLower));
+
+            // 3. Status Check
+            const matchesStatus = e.validationStatus !== 'PENDIENTE';
+
+            return matchesBrandProp && matchesTerm && matchesStatus;
+        });
+
+        // Sort by Brand then Code
+        filtered.sort((a, b) => {
+            if (a.brand !== b.brand) return a.brand.localeCompare(b.brand);
+            return (a.errorCode || "").localeCompare(b.errorCode || "");
+        });
+
+        setResults(filtered);
     };
 
     return (
@@ -78,16 +102,24 @@ export function ErrorSearchModal({ brand, onSelectSolution, trigger }: ErrorSear
                             placeholder="Buscar por código, síntoma, marca..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            // No need for onKeyDown, it's live
+                            autoFocus
                         />
-                        <Button onClick={handleSearch} disabled={loading}>
+                        {/* Visual indicator only now */}
+                        <Button disabled size="icon" variant="ghost">
                             <Search className="h-4 w-4" />
                         </Button>
                     </div>
 
                     <div className="space-y-3">
-                        {loading && <p className="text-center text-gray-500">Buscando...</p>}
-                        {!loading && results.length === 0 && <p className="text-center text-gray-500">No se encontraron resultados.</p>}
+                        {loading && <p className="text-center text-gray-500">Cargando base de datos...</p>}
+
+                        {!loading && results.length === 0 && (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500">No se encontraron resultados.</p>
+                                {allData.length === 0 && <p className="text-xs text-red-400 mt-2">La base de datos parece estar vacía.</p>}
+                            </div>
+                        )}
 
                         {results.map(error => (
                             <div key={error.id} className="border rounded-lg p-4 hover:bg-slate-50 transition-colors">

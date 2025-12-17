@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Ticket, TicketReportNew } from "@/types/schema";
+import { Ticket, TicketReport, ReportSection, TicketReportSection, TicketReportNew } from "@/types/schema";
 import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { TicketReportView } from "@/components/reports/ticket-report-view";

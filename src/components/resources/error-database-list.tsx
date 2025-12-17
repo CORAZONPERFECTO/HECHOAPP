@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, AlertTriangle, Tag, Download, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
-import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import * as XLSX from 'xlsx';
 
@@ -26,9 +26,11 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const q = query(collection(db, "acErrors"), orderBy("brand"));
+        const q = query(collection(db, "acErrors"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ACError));
+            // Client-side sort
+            data.sort((a, b) => a.brand.localeCompare(b.brand));
             setErrors(data);
             setLoading(false);
         });
@@ -78,34 +80,53 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
         setImporting(true);
 
         try {
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+            let jsonData: any[] = [];
+
+            if (file.name.endsWith('.json')) {
+                const text = await file.text();
+                jsonData = JSON.parse(text);
+                // Map specific JSON format if needed
+                // Format: { marca, codigo, descripcion_es, causa_probable, solucion_recomendada }
+            } else {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+            }
 
             let count = 0;
             for (const row of jsonData) {
-                // Basic validation
-                if (!row.Marca || !row.Sintoma) continue;
+                // Normalize keys from JSON or Excel
+                const brand = row.Marca || row.marca;
+                const symptom = row.Sintoma || row.descripcion_es;
+
+                if (!brand || !symptom) continue;
 
                 const newError: Partial<ACError> = {
-                    brand: row.Marca,
-                    model: row.Modelo,
-                    errorCode: row.Codigo?.toString(),
-                    symptom: row.Sintoma,
-                    cause: row.Causa,
-                    solution: row.Solucion,
-                    criticality: (['BAJA', 'MEDIA', 'ALTA'].includes(row.Criticidad) ? row.Criticidad : 'MEDIA') as ACErrorCriticality,
+                    brand: brand,
+                    model: row.Modelo || row.modelo,
+                    errorCode: (row.Codigo || row.codigo || "").toString(),
+                    symptom: symptom,
+                    cause: row.Causa || row.causa_probable,
+                    solution: row.Solucion || row.solucion_recomendada,
+                    criticality: (['BAJA', 'MEDIA', 'ALTA'].includes(row.Criticidad || row.criticality) ? (row.Criticidad || row.criticality) : 'MEDIA') as ACErrorCriticality,
                     tags: row.Tags ? row.Tags.split(",").map((t: string) => t.trim()) : [],
+                    validationStatus: 'VALIDADO', // Auto-validate imports
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 };
 
-                await addDoc(collection(db, "acErrors"), newError);
+                // Use custom ID to prevent duplicates: Brand_Code
+                const customId = `${newError.brand}_${newError.errorCode}`.replace(/[^a-zA-Z0-9_]/g, '');
+                if (newError.errorCode && customId.length > 2) {
+                    await setDoc(doc(db, "acErrors", customId), newError, { merge: true });
+                } else {
+                    await addDoc(collection(db, "acErrors"), newError);
+                }
                 count++;
             }
 
-            alert(`Se importaron ${count} errores exitosamente.`);
+            alert(`Se importaron/actualizaron ${count} errores exitosamente.`);
             if (fileInputRef.current) fileInputRef.current.value = "";
         } catch (error) {
             console.error("Error importing file:", error);
@@ -146,14 +167,14 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
                                 <Button variant="outline" onClick={handleExport} title="Descargar Excel">
                                     <Download className="h-4 w-4" />
                                 </Button>
-                                <Button variant="outline" onClick={handleImportClick} disabled={importing} title="Importar Excel">
+                                <Button variant="outline" onClick={handleImportClick} disabled={importing} title="Importar JSON/Excel">
                                     {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                                 </Button>
                                 <input
                                     type="file"
                                     ref={fileInputRef}
                                     onChange={handleFileChange}
-                                    accept=".xlsx, .xls"
+                                    accept=".xlsx, .xls, .json"
                                     className="hidden"
                                 />
                             </>

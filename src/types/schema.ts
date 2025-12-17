@@ -399,6 +399,20 @@ export interface ACError {
     tags?: string[]; // ["Presión", "Sensor"]
     createdAt?: any;
     updatedAt?: any;
+    // Validation Fields
+    validationStatus?: 'PENDIENTE' | 'VALIDADO';
+    sourcePhotoUrl?: string; // Original photo if scanned
+}
+
+export interface ErrorSource {
+    id: string;
+    brand: string;
+    model?: string;
+    type?: string;
+    photoUrls: string[];
+    extractedData: any; // Raw JSON from AI
+    processedAt: Timestamp;
+    status: 'PROCESSED' | 'ERROR';
 }
 
 export interface Permission {

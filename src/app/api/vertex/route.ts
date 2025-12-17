@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
         const generativeModel = vertexAI.getGenerativeModel({
             model: model,
-            systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+            systemInstruction: systemInstruction ? { role: 'system', parts: [{ text: systemInstruction }] } : undefined,
             generationConfig: {
                 maxOutputTokens: 2048,
                 temperature: 0.2, // Lower temperature for more deterministic/structured outputs

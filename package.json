@@ -36,6 +36,7 @@
     "dotenv": "^17.2.3",
     "file-saver": "^2.0.5",
     "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
     "google-auth-library": "^10.5.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",

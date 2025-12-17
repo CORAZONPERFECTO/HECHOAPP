@@ -1,0 +1,51 @@
+[dotenv@17.2.3] injecting env (12) from .env.local -- tip: ≡ƒöæ add access controls to secrets: https://dotenvx.com/ops
+--- Key Diagnostics ---
+Key length: 1731
+Starts with: -----BEGIN PRIVATE KEY-----
+MI
+Ends with: kI=
+-----END PRIVATE KEY-----
+
+Contains real newline: true
+-----------------------
+Starting seed for 239 errors...
+(node:1940) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error: 2 UNKNOWN: Getting metadata from plugin failed with error: error:1E08010C:DECODER routines::unsupported
+    at callErrorFromStatus (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\call.ts:84:17)
+    at Object.onReceiveStatus (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\client.ts:360:55)
+    at Object.onReceiveStatus (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\client-interceptors.ts:424:48)
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\resolving-call.ts:170:24
+    at processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\node_modules\@grpc\grpc-js\src\make-client.ts:189:15)
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@google-cloud\firestore\build\src\v1\firestore_client.js:242:33
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\normalCalls\timeout.ts:54:13
+    at repeat (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\normalCalls\retries.ts:110:19)
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\normalCalls\retries.ts:157:7
+    at OngoingCallPromise.call (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\call.ts:81:23)
+    at NormalApiCaller.call (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\normalCalls\normalApiCaller.ts:43:15)
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\google-gax\src\createApiCall.ts:157:26
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@google-cloud\firestore\build\src\write-batch.js:438:27)
+    at C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@google-cloud\firestore\build\src\telemetry\enabled-trace-util.js:110:30
+    at NoopContextManager.with (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@opentelemetry\api\src\context\NoopContextManager.ts:31:15)
+    at ContextAPI.with (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@opentelemetry\api\src\api\context.ts:77:42)
+    at NoopTracer.startActiveSpan (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@opentelemetry\api\src\trace\NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@opentelemetry\api\src\trace\ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@google-cloud\firestore\build\src\telemetry\enabled-trace-util.js:102:28)
+    at WriteBatch.commit (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\node_modules\@google-cloud\firestore\build\src\write-batch.js:436:43)
+    at seed (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\scripts\seed-errors.ts:118:17)
+    at Object.<anonymous> (C:\Users\Nk0ol\Desktop\NEXUS HECHO\HECHOAPP\scripts\seed-errors.ts:123:1) {
+  code: 2,
+  details: 'Getting metadata from plugin failed with error: error:1E08010C:DECODER routines::unsupported',
+  metadata: Metadata {
+    internalRepr: Map(0) {},
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}

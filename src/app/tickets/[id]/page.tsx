@@ -245,7 +245,7 @@ export default function TicketDetailPage() {
                                                     className="bg-white mt-1"
                                                     value={ticket.scheduledStart ? new Date(ticket.scheduledStart.seconds * 1000).toISOString().slice(0, 16) : ""}
                                                     onChange={(e) => {
-                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : null;
+                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : undefined;
                                                         // Auto status logic: If setting a date, ensure status reflects it if currently OPEN
                                                         let newStatus = ticket.status;
                                                         setTicket({ ...ticket, scheduledStart: date, status: newStatus });
@@ -259,7 +259,7 @@ export default function TicketDetailPage() {
                                                     className="bg-white mt-1"
                                                     value={ticket.scheduledEnd ? new Date(ticket.scheduledEnd.seconds * 1000).toISOString().slice(0, 16) : ""}
                                                     onChange={(e) => {
-                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : null;
+                                                        const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : undefined;
                                                         setTicket({ ...ticket, scheduledEnd: date });
                                                     }}
                                                 />

@@ -169,121 +169,177 @@ export default function NewTicketPage() {
         }
     };
 
-    // ... inside render ...
+    return (
+        <div className="container max-w-2xl py-10">
+            <h1 className="text-2xl font-bold mb-6">Nuevo Ticket de Servicio</h1>
 
-    {
-        step === 2 && (
-            <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Paso 2: Selecciona los Servicios (Múltiple) ✅</h2>
+            {/* Steps Indicator */}
+            <div className="flex gap-4 mb-8">
+                <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+                <div className={`h-2 flex-1 rounded-full ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    {ticketTypes.map(type => {
-                        const isSelected = selectedTypeIds.includes(type.id);
-                        return (
-                            <button
-                                key={type.id}
-                                onClick={() => handleTypeToggle(type)}
-                                className={`p-4 rounded-lg border text-left transition-all ${isSelected
-                                    ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
-                                    : 'hover:border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                style={{ borderColor: isSelected ? type.color : '' }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold transition-transform duration-200"
-                                        style={{
-                                            backgroundColor: type.color || '#3b82f6',
-                                            transform: isSelected ? 'scale(1.1)' : 'scale(1)'
-                                        }}
+            <div className="bg-white p-6 rounded-lg border shadow-sm">
+                {step === 1 && (
+                    <div className="space-y-6">
+                        <h2 className="text-lg font-semibold">Paso 1: Cliente y Ubicación</h2>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Cliente</Label>
+                                <ClientSelector
+                                    onSelect={handleClientChange}
+                                    value={formData.clientId} // Assuming ClientSelector takes value or defaultSelected
+                                />
+                                {formData.clientName && <p className="text-sm text-green-600">Seleccionado: {formData.clientName}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Área / Zona</Label>
+                                    <Select
+                                        value={formData.locationArea}
+                                        onValueChange={(val) => setFormData(prev => ({ ...prev, locationArea: val }))}
                                     >
-                                        {isSelected ? '✓' : type.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <span className="font-medium block">{type.name}</span>
-                                        <span className="text-xs text-gray-500">{type.description}</span>
-                                    </div>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccionar..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {LOCATION_AREAS.map(area => (
+                                                <SelectItem key={area} value={area}>{area}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                            </button>
-                        );
-                    })}
-                </div>
+                                <div className="space-y-2">
+                                    <Label>Ubicación Específica</Label>
+                                    <Input
+                                        value={formData.specificLocation}
+                                        onChange={e => setFormData(prev => ({ ...prev, specificLocation: e.target.value }))}
+                                        placeholder="Ej: Villa 12, Apto 4B..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                {ticketTypes.length === 0 && (
-                    <div className="text-center p-8 border-2 border-dashed rounded-lg text-gray-500">
-                        No hay tipos de ticket configurados. Ve a Ajustes para crear uno.
+                        <div className="flex justify-end pt-4">
+                            <Button onClick={() => setStep(2)} disabled={!formData.clientId}>
+                                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                 )}
+                {step === 2 && (
+                    <div className="space-y-6">
+                        <h2 className="text-lg font-semibold">Paso 2: Selecciona los Servicios (Múltiple) ✅</h2>
 
-                <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={() => setStep(1)}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-                    </Button>
-                    <Button onClick={() => setStep(3)} disabled={selectedTypeIds.length === 0}>
-                        Siguiente <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-        )
-    }
+                        <div className="grid grid-cols-2 gap-4">
+                            {ticketTypes.map(type => {
+                                const isSelected = selectedTypeIds.includes(type.id);
+                                return (
+                                    <button
+                                        key={type.id}
+                                        onClick={() => handleTypeToggle(type)}
+                                        className={`p-4 rounded-lg border text-left transition-all ${isSelected
+                                            ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600'
+                                            : 'hover:border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        style={{ borderColor: isSelected ? type.color : '' }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold transition-transform duration-200"
+                                                style={{
+                                                    backgroundColor: type.color || '#3b82f6',
+                                                    transform: isSelected ? 'scale(1.1)' : 'scale(1)'
+                                                }}
+                                            >
+                                                {isSelected ? '✓' : type.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <span className="font-medium block">{type.name}</span>
+                                                <span className="text-xs text-gray-500">{type.description}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
 
-    {
-        step === 3 && (
-            <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Paso 3: Detalles y Asignación</h2>
+                        {ticketTypes.length === 0 && (
+                            <div className="text-center p-8 border-2 border-dashed rounded-lg text-gray-500">
+                                No hay tipos de ticket configurados. Ve a Ajustes para crear uno.
+                            </div>
+                        )}
 
-                <div className="space-y-2">
-                    <Label>Descripción Inicial</Label>
-                    <Textarea
-                        value={formData.description}
-                        onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe el problema o requerimiento..."
-                        className="h-32"
-                    />
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label>Prioridad</Label>
-                        <Select
-                            value={formData.priority}
-                            onValueChange={(val: TicketPriority) => setFormData(prev => ({ ...prev, priority: val }))}
-                        >
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="LOW">Baja</SelectItem>
-                                <SelectItem value="MEDIUM">Media</SelectItem>
-                                <SelectItem value="HIGH">Alta</SelectItem>
-                                <SelectItem value="URGENT">Crítica</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex justify-between pt-4">
+                            <Button variant="outline" onClick={() => setStep(1)}>
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+                            </Button>
+                            <Button onClick={() => setStep(3)} disabled={selectedTypeIds.length === 0}>
+                                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
+                )
+                }
 
-                    <div className="space-y-2">
-                        <Label>Asignar Técnico (Opcional)</Label>
-                        <TechnicianSelector
-                            value={formData.technicianId}
-                            onSelect={handleTechnicianChange}
-                        />
-                    </div>
-                </div>
+                {
+                    step === 3 && (
+                        <div className="space-y-6">
+                            <h2 className="text-lg font-semibold">Paso 3: Detalles y Asignación</h2>
 
-                <div className="flex justify-between pt-4">
-                    <Button variant="outline" onClick={() => setStep(2)}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-                    </Button>
-                    <Button onClick={handleSubmit} disabled={loading || !formData.description}>
-                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Crear Ticket
-                    </Button>
-                </div>
-            </div>
-        )
-    }
-                </div >
+                            <div className="space-y-2">
+                                <Label>Descripción Inicial</Label>
+                                <Textarea
+                                    value={formData.description}
+                                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Describe el problema o requerimiento..."
+                                    className="h-32"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label>Prioridad</Label>
+                                    <Select
+                                        value={formData.priority}
+                                        onValueChange={(val: TicketPriority) => setFormData(prev => ({ ...prev, priority: val }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="LOW">Baja</SelectItem>
+                                            <SelectItem value="MEDIUM">Media</SelectItem>
+                                            <SelectItem value="HIGH">Alta</SelectItem>
+                                            <SelectItem value="URGENT">Crítica</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Asignar Técnico (Opcional)</Label>
+                                    <TechnicianSelector
+                                        value={formData.technicianId}
+                                        onSelect={handleTechnicianChange}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between pt-4">
+                                <Button variant="outline" onClick={() => setStep(2)}>
+                                    <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+                                </Button>
+                                <Button onClick={handleSubmit} disabled={loading || !formData.description}>
+                                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Crear Ticket
+                                </Button>
+                            </div>
+                        </div>
+                    )
+                }
             </div >
-        </div >
+        </div>
     );
 }
