@@ -19,7 +19,7 @@ import { DateRange } from "react-day-picker";
 import { AppLayout } from "@/components/layout/app-layout";
 import { QuoteChatModal } from "@/components/dashboard/quote-chat-modal";
 
-// DnD Imports
+// ... imports
 import {
   DndContext,
   closestCenter,
@@ -27,7 +27,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  TouchSensor,
+  MouseSensor
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -37,8 +39,8 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { ArrowDownWideNarrow } from "lucide-react";
 
-// Sortable Item Wrapper
 // Sortable Item Wrapper
 function SortableItem(props: any) {
   const {
@@ -51,15 +53,16 @@ function SortableItem(props: any) {
   } = useSortable({ id: props.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // translate is safer than transform for simple list reordering to avoid scaling artifacts
+    transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1000 : 1,
-    touchAction: 'none' as React.CSSProperties['touchAction'], // Important for PointerSensor
+    touchAction: 'none' as React.CSSProperties['touchAction'],
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="h-full w-full relative">
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="h-full w-full relative touch-none">
       {props.children}
     </div>
   );
@@ -78,6 +81,8 @@ const ALL_MODULES = [
   { id: 'ai-diagnostics', label: 'Diagnóstico IA', icon: BrainCircuit, href: '/resources?tab=errors', color: 'text-violet-600', role: 'ALL' },
   { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ALL', isSpecial: true },
 ];
+
+const USAGE_KEY = 'dashboard-usage-stats';
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -101,10 +106,8 @@ export default function Dashboard() {
         const orderIds = JSON.parse(savedOrder);
         // Sort ALL_MODULES based on saved order
         const sorted = [...ALL_MODULES].sort((a, b) => {
-          // Force Quote Chat to start
-          if (a.id === 'quote-chat') return -1;
-          if (b.id === 'quote-chat') return 1;
-
+          // Force Quote Chat to start IF desired, but user might want to reorder it too. 
+          // Let's allow complete reordering properly.
           const indexA = orderIds.indexOf(a.id);
           const indexB = orderIds.indexOf(b.id);
           // If new items exist that aren't in saved order, put them at the end
@@ -118,7 +121,8 @@ export default function Dashboard() {
   }, []);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), // Distance 8px prevents accidental drags on clicks
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -139,8 +143,48 @@ export default function Dashboard() {
     }
   };
 
+  const trackUsage = (moduleId: string) => {
+    try {
+      const currentStatsRaw = localStorage.getItem(USAGE_KEY);
+      const stats: Record<string, number> = currentStatsRaw ? JSON.parse(currentStatsRaw) : {};
+      stats[moduleId] = (stats[moduleId] || 0) + 1;
+      localStorage.setItem(USAGE_KEY, JSON.stringify(stats));
+    } catch (e) {
+      console.error("Error tracking usage", e);
+    }
+  };
+
+  const sortByUsage = () => {
+    try {
+      const currentStatsRaw = localStorage.getItem(USAGE_KEY);
+      // If no stats yet, don't do anything or just stay same
+      if (!currentStatsRaw) {
+        alert("Aún no hay suficientes datos de uso para ordenar.");
+        return;
+      }
+      const stats: Record<string, number> = JSON.parse(currentStatsRaw);
+
+      setModules((currentModules) => {
+        const sorted = [...currentModules].sort((a, b) => {
+          const countA = stats[a.id] || 0;
+          const countB = stats[b.id] || 0;
+          // Descending order (higher usage first)
+          return countB - countA;
+        });
+
+        // Save new order
+        localStorage.setItem('dashboard-order-v2', JSON.stringify(sorted.map(i => i.id)));
+        return sorted;
+      });
+
+    } catch (e) {
+      console.error("Error sorting by usage", e);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // ... same auth logic as before ...
       if (!currentUser) {
         router.push("/login");
       } else {
@@ -201,7 +245,18 @@ export default function Dashboard() {
       {/* 2. Quick Access Grid (Draggable) */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-gray-700 mb-4 px-1 flex justify-between items-center">
-          <span>Acceso Rápido ✨</span>
+          <div className="flex items-center gap-2">
+            <span>Acceso Rápido ✨</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              onClick={sortByUsage}
+            >
+              <ArrowDownWideNarrow className="h-3 w-3 mr-1" />
+              Ordenar por uso
+            </Button>
+          </div>
           <span className="text-xs text-gray-400 font-normal hidden md:inline">Arrastra para reordenar</span>
         </h2>
 
@@ -219,7 +274,10 @@ export default function Dashboard() {
                       {/* Special Render for Quote Chat which triggers Modal */}
                       <div
                         className="h-full bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
-                        onClick={() => setIsQuoteModalOpen(true)}
+                        onClick={() => {
+                          trackUsage(module.id);
+                          setIsQuoteModalOpen(true);
+                        }}
                       >
                         {/* Visual Content */}
                         <div className="p-6 flex flex-col items-center justify-center gap-3 text-center h-full pointer-events-none">
@@ -234,7 +292,17 @@ export default function Dashboard() {
                       label={module.label}
                       href={module.href}
                       color={module.color}
-                      onClick={module.onClick}
+                      onClick={() => {
+                        // Track usage first
+                        trackUsage(module.id);
+                        // If module has specific onClick (like alerts), invoke it
+                        if (module.onClick) {
+                          module.onClick();
+                        }
+                        // Note: Navigation links (with valid href) will still propagate to Link 
+                        // if we didn't prevent default. 
+                        // Our updated AppCard allows onClick propagation.
+                      }}
                     />
                   )}
                 </SortableItem>
@@ -249,3 +317,4 @@ export default function Dashboard() {
     </AppLayout >
   );
 }
+

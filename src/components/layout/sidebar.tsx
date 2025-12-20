@@ -31,6 +31,7 @@ const adminMenuItems = [
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
 ];
 
 export function Sidebar() {

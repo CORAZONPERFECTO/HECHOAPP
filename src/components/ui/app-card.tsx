@@ -21,7 +21,8 @@ export function AppCard({ icon: Icon, label, href, color = "text-gray-700", onCl
 
     const containerClasses = "flex flex-col items-center justify-center p-6 bg-white rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-gray-50 aspect-square border border-gray-100 select-none";
 
-    if (onClick) {
+    // If it's a specific action without navigation (href is '#'), use a div
+    if (href === '#' || !href) {
         return (
             <div onClick={onClick} className={containerClasses} role="button">
                 {content}
@@ -29,8 +30,9 @@ export function AppCard({ icon: Icon, label, href, color = "text-gray-700", onCl
         );
     }
 
+    // Otherwise, use Link but allow onClick (e.g., for tracking)
     return (
-        <Link href={href} className={containerClasses} draggable={false}>
+        <Link href={href} className={containerClasses} draggable={false} onClick={onClick}>
             {content}
         </Link>
     );
