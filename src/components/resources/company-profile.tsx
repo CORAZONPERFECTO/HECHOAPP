@@ -71,43 +71,55 @@ export function CompanyProfile() {
             return;
         }
 
+        // 2. Validate Type & Decide on Compression
+        // Skip compression for SVG (vectors), GIF (animation), or very small files
+        const isVector = file.type.includes('svg');
+        const isGif = file.type.includes('gif');
+        const shouldCompress = !isVector && !isGif && file.size > 200 * 1024; // > 200KB
+
         try {
             setUploading(true);
             let blobToUpload: Blob = file;
 
-            // 2. Try Compression
-            try {
-                // Compress image but preserve transparency for PNGs
-                blobToUpload = await compressImage(file, 800, 0.8);
-            } catch (compressionError) {
-                console.warn("La compresión falló, intentando subir archivo original...", compressionError);
-                // Fallback to original file
-                blobToUpload = file;
+            if (shouldCompress) {
+                try {
+                    // Compress with 5s timeout
+                    const compressionPromise = compressImage(file, 800, 0.9);
+                    const timeoutPromise = new Promise<never>((_, reject) =>
+                        setTimeout(() => reject(new Error("Timeout")), 5000)
+                    );
+
+                    blobToUpload = await Promise.race([compressionPromise, timeoutPromise]) as Blob;
+                } catch (compressionError) {
+                    console.warn("La compresión falló o tardó demasiado, usaremos el archivo original.", compressionError);
+                    blobToUpload = file;
+                }
             }
 
             // 3. Upload Logic
-            // Create a reference with a better path structure
-            // Using a fixed name suffix helps track changes but using timestamp ensures cache busting
-            const storageRef = ref(storage, `company/logo_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`);
+            // Clean filename to avoid issues
+            const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+            const storageRef = ref(storage, `company/logo_${Date.now()}_${cleanName}`);
 
             const snapshot = await uploadBytes(storageRef, blobToUpload);
             const url = await getDownloadURL(snapshot.ref);
 
             setSettings(prev => ({ ...prev, logoUrl: url }));
+
             // Auto-save after upload
             await setDoc(doc(db, "settings", "company"), { ...settings, logoUrl: url });
 
-            // Toast-like alert or proper toast could be used here
-            // alert("Logo subido y guardado correctamente."); 
         } catch (error: any) {
             console.error("Error uploading logo:", error);
             // Check for common storage errors
             if (error.code === 'storage/unauthorized') {
-                alert("No tienes permisos para subir archivos. Verifica tu sesión.");
+                alert("Permiso denegado: No tienes autorización para subir archivos.");
+            } else if (error.code === 'storage/retry-limit-exceeded') {
+                alert("Error de conexión (Time out). Verifica tu internet o contacta soporte (CORS).");
             } else if (error.code === 'storage/canceled') {
                 alert("Subida cancelada.");
             } else {
-                alert("Error al subir el logo: " + (error.message || "Intenta con otra imagen."));
+                alert("Error al subir: " + (error.message || "Error desconocido."));
             }
         } finally {
             setUploading(false);
@@ -137,7 +149,13 @@ export function CompanyProfile() {
                     <div className="flex flex-col items-center space-y-4 p-6 border-2 border-dashed rounded-lg bg-gray-50">
                         <div className="relative w-48 h-24 bg-white rounded shadow-sm flex items-center justify-center overflow-hidden">
                             {settings.logoUrl ? (
-                                <Image src={settings.logoUrl} alt="Logo Empresa" fill className="object-contain p-2" />
+                                <Image
+                                    src={settings.logoUrl}
+                                    alt="Logo Empresa"
+                                    fill
+                                    className="object-contain p-2"
+                                    unoptimized={true}
+                                />
                             ) : (
                                 <span className="text-gray-400 text-sm">Sin Logo</span>
                             )}

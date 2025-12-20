@@ -9,16 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Upload, X, Loader2, Camera, Image as ImageIcon } from "lucide-react";
 
+import { SYSTEM_TYPES } from "./error-detail";
+
 interface ErrorUploadFormProps {
     onCancel: () => void;
-    onProcessingComplete: (results: any, brand: string, model: string, photos: File[]) => void;
+    onProcessingComplete: (results: any, brand: string, model: string, photos: File[], systemType: string) => void;
 }
 
 export function ErrorUploadForm({ onCancel, onProcessingComplete }: ErrorUploadFormProps) {
     const [loading, setLoading] = useState(false);
     const [brand, setBrand] = useState("");
     const [model, setModel] = useState("");
-    const [type, setType] = useState("Split");
+    const [systemType, setSystemType] = useState<string>("Split Muro");
     const [source, setSource] = useState("Manual");
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [notes, setNotes] = useState("");
@@ -50,6 +52,10 @@ export function ErrorUploadForm({ onCancel, onProcessingComplete }: ErrorUploadF
         const formData = new FormData();
         formData.append("brand", brand);
         formData.append("model", model);
+        formData.append("systemType", systemType);
+        formData.append("source", source);
+        formData.append("notes", notes);
+
         selectedFiles.forEach(file => {
             formData.append("photos", file);
         });
@@ -66,7 +72,7 @@ export function ErrorUploadForm({ onCancel, onProcessingComplete }: ErrorUploadF
                 throw new Error(data.error || "Error processing photos");
             }
 
-            onProcessingComplete(data.data, brand, model, selectedFiles);
+            onProcessingComplete(data.data, brand, model, selectedFiles, systemType);
 
         } catch (error: any) {
             console.error("Upload Error:", error);
@@ -104,19 +110,14 @@ export function ErrorUploadForm({ onCancel, onProcessingComplete }: ErrorUploadF
                     </div>
                     <div className="space-y-2">
                         <Label>Tipo de Equipo</Label>
-                        <Select value={type} onValueChange={setType}>
+                        <Select value={systemType} onValueChange={setSystemType}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Split">Split Muro</SelectItem>
-                                <SelectItem value="Cassette">Cassette</SelectItem>
-                                <SelectItem value="Piso Techo">Piso Techo</SelectItem>
-                                <SelectItem value="VRF">VRF</SelectItem>
-                                <SelectItem value="MiniVRF">Mini VRF</SelectItem>
-                                <SelectItem value="Paquete">Paquete / Central</SelectItem>
-                                <SelectItem value="Chiller">Chiller</SelectItem>
-                                <SelectItem value="Portatil">Portátil</SelectItem>
+                                {SYSTEM_TYPES.map(type => (
+                                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>

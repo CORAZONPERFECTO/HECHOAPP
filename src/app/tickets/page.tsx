@@ -103,7 +103,7 @@ export default function TicketsPage() {
         },
         {
             header: "Programado",
-            accessorKey: "scheduledStart",
+            accessorKey: "scheduledStart" as keyof Ticket,
             cell: (item: Ticket) => {
                 if (!item.scheduledStart) return <span className="text-gray-400 text-xs italic">No programado</span>;
                 const date = item.scheduledStart.toDate();

@@ -18,7 +18,22 @@ interface ErrorDetailProps {
     onSave: () => void;
 }
 
-const CRITICALITY_LEVELS: ACErrorCriticality[] = ['BAJA', 'MEDIA', 'ALTA'];
+export const CRITICALITY_LEVELS: ACErrorCriticality[] = ['BAJA', 'MEDIA', 'ALTA'];
+
+export const SYSTEM_TYPES = [
+    "Split Muro",
+    "Cassette",
+    "Piso Techo",
+    "VRF",
+    "Mini VRF",
+    "Paquete / Central",
+    "Chiller",
+    "Portátil",
+    "Fancoil",
+    "Manejadora",
+    "Otro"
+] as const;
+
 
 export function ErrorDetail({ error, onBack, onSave }: ErrorDetailProps) {
     const [loading, setLoading] = useState(false);
@@ -189,11 +204,19 @@ export function ErrorDetail({ error, onBack, onSave }: ErrorDetailProps) {
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Tipo de Sistema</Label>
-                                <Input
+                                <Select
                                     value={formData.systemType || ''}
-                                    onChange={(e) => setFormData({ ...formData, systemType: e.target.value })}
-                                    placeholder="Ej: VRF, Split"
-                                />
+                                    onValueChange={(val) => setFormData({ ...formData, systemType: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {SYSTEM_TYPES.map(type => (
+                                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-2">

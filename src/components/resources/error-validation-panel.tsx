@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle2, XCircle, AlertCircle, Save, ArrowLeft } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Save, ArrowLeft, Loader2 } from "lucide-react";
 import { ACError, ACErrorCriticality } from "@/types/schema";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase"; // Assumes storage is exported

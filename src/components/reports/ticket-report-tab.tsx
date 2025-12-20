@@ -183,7 +183,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                 diagnosis: ticket.diagnosis,
                 solution: ticket.solution,
                 recommendations: ticket.recommendations,
-                notes: ticket.notes,
+                // notes: ticket.notes, // Removed as it doesn't exist on Ticket
                 clientName: ticket.clientName,
                 serviceType: ticket.serviceType
             };

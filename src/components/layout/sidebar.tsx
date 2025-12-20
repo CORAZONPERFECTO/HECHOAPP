@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight
+    PackageSearch, ArrowLeftRight, BrainCircuit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth, db } from "@/lib/firebase";
@@ -30,6 +30,7 @@ const adminMenuItems = [
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
 ];
 
 export function Sidebar() {

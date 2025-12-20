@@ -1,13 +1,12 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ArrowRightLeft, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { getLocations, getProducts, registerMovement } from "@/lib/inventory-service";
 import { InventoryProduct, InventoryLocation, MovementType } from "@/types/inventory";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,7 +17,7 @@ const DEFAULT_LOCATIONS = [
     { id: "camioneta-1", name: "Camioneta 1", type: "VEHICULO" }
 ];
 
-export default function NewMovementPage() {
+function NewMovementForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const defaultType = searchParams.get("type") as MovementType || "SALIDA";
@@ -28,7 +27,6 @@ export default function NewMovementPage() {
     const [products, setProducts] = useState<InventoryProduct[]>([]);
     const [locations, setLocations] = useState<InventoryLocation[]>([]);
 
-    const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         type: defaultType,
         productId: "",
@@ -222,5 +220,13 @@ export default function NewMovementPage() {
                 </Button>
             </div>
         </div>
+    );
+}
+
+export default function NewMovementPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}>
+            <NewMovementForm />
+        </Suspense>
     );
 }

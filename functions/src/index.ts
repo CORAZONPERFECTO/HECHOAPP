@@ -5,6 +5,7 @@ admin.initializeApp();
 
 export * from "./tickets";
 export * from "./seed";
+export * from "./service-agent";
 
 export const createAdminUser = functions.https.onCall(async (data, context) => {
     try {

@@ -6,7 +6,7 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, getCountFromServer, doc, getDoc } from "firebase/firestore";
 import { AppCard } from "@/components/ui/app-card";
-import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles } from "lucide-react";
+import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as UserSchema } from "@/types/schema";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
@@ -75,6 +75,7 @@ const ALL_MODULES = [
   { id: 'settings', label: 'Ajustes', icon: Settings, href: '/settings', color: 'text-gray-600', role: 'ADMIN' },
   { id: 'resources', label: 'Recursos', icon: FileText, href: '/resources', color: 'text-teal-600', role: 'ALL' },
   { id: 'income', label: 'Ingresos', icon: BarChart3, href: '/income', color: 'text-emerald-600', role: 'ADMIN' },
+  { id: 'ai-diagnostics', label: 'Diagnóstico IA', icon: BrainCircuit, href: '/resources?tab=errors', color: 'text-violet-600', role: 'ALL' },
   { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ALL', isSpecial: true },
 ];
 
@@ -94,7 +95,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Load persisted order
-    const savedOrder = localStorage.getItem('dashboard-order');
+    const savedOrder = localStorage.getItem('dashboard-order-v2');
     if (savedOrder) {
       try {
         const orderIds = JSON.parse(savedOrder);
@@ -131,7 +132,7 @@ export default function Dashboard() {
         const newOrder = arrayMove(items, oldIndex, newIndex);
 
         // Save to localStorage
-        localStorage.setItem('dashboard-order', JSON.stringify(newOrder.map(i => i.id)));
+        localStorage.setItem('dashboard-order-v2', JSON.stringify(newOrder.map(i => i.id)));
 
         return newOrder;
       });

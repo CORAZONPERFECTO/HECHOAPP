@@ -66,6 +66,7 @@ export function PendingProductsManager() {
                 // Create new product
                 finalProductId = await createProduct({
                     ...newProductData,
+                    unit: newProductData.unit as any, // Cast to match strict type
                     isActive: true, // Required
                     averageCost: selectedItem.detectedPrice || 0
                 });

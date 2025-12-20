@@ -3,7 +3,8 @@
 import { ErrorUploadForm } from "@/components/resources/error-upload-form";
 import { ErrorValidationPanel } from "@/components/resources/error-validation-panel";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -16,7 +17,10 @@ import { ErrorDatabaseList } from "@/components/resources/error-database-list";
 import { ErrorDetail } from "@/components/resources/error-detail";
 import { CompanyProfile } from "@/components/resources/company-profile";
 
-export default function ResourcesPage() {
+function ResourcesContent() {
+    const searchParams = useSearchParams();
+
+    // Initialize tab from URL or default to personnel
     const [activeTab, setActiveTab] = useState("personnel");
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | undefined>(undefined);
     const [loading, setLoading] = useState(true);
@@ -31,6 +35,13 @@ export default function ResourcesPage() {
     const [validationData, setValidationData] = useState<{ data: any[], brand: string, model: string, photos: File[] } | null>(null);
 
     useEffect(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && ['personnel', 'errors', 'company'].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // Super Admin Override
@@ -42,8 +53,9 @@ export default function ResourcesPage() {
                         const role = userDoc.data().role as UserRole;
                         setCurrentUserRole(role);
 
-                        // If user is Technician, default to errors tab
-                        if (role === 'TECNICO') {
+                        // If user is Technician, default to errors tab ONLY if no URL param overrides it
+                        const tabParam = searchParams.get("tab");
+                        if (role === 'TECNICO' && !tabParam) {
                             setActiveTab("errors");
                         }
                     }
@@ -52,7 +64,7 @@ export default function ResourcesPage() {
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [searchParams]);
 
     // Handlers for Personnel
     const handleSelectPerson = (person: PersonnelResource) => {
@@ -78,7 +90,7 @@ export default function ResourcesPage() {
 
     const handleNewError = () => {
         setSelectedError(null);
-        setErrorView('detail'); // This is kept for manual entry if needed, but 'upload' is triggered by list button now
+        setErrorView('detail');
     };
 
     const handleBackError = () => {
@@ -137,7 +149,7 @@ export default function ResourcesPage() {
                     {errorView === 'list' ? (
                         <ErrorDatabaseList
                             onSelect={handleSelectError}
-                            onNew={() => setErrorView('upload')} // Changed key to switch to upload form
+                            onNew={() => setErrorView('upload')}
                             currentUserRole={currentUserRole}
                         />
                     ) : errorView === 'upload' ? (
@@ -181,5 +193,13 @@ export default function ResourcesPage() {
                 )}
             </Tabs>
         </div>
+    );
+}
+
+export default function ResourcesPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>}>
+            <ResourcesContent />
+        </Suspense>
     );
 }

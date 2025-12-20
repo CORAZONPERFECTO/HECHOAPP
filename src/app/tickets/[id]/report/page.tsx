@@ -92,7 +92,6 @@ export default function TicketReportPage() {
             setLoading(false);
         }
     };
-
     const handleSave = async (updatedReport: TicketReportNew, isAutoSave = false) => {
         try {
             if (!isAutoSave) setSaving(true);
@@ -149,6 +148,40 @@ export default function TicketReportPage() {
             if (!isAutoSave) setSaving(false);
         }
     };
+
+    const loadTicketPhotos = async (tid: string) => {
+        try {
+            setLoading(true);
+            const ticketDoc = await getDoc(doc(db, "tickets", tid));
+            if (!ticketDoc.exists()) return;
+
+            const ticketData = { id: ticketDoc.id, ...ticketDoc.data() } as Ticket;
+            setTicket(ticketData);
+
+            if (report) {
+                const updatedReport = updatePhotosFromTicket(report, ticketData);
+                setReport(updatedReport);
+                // Auto-save the updated report immediately to persist new photos
+                await handleSave(updatedReport, true);
+
+                // Show success toast
+                const toast = document.createElement('div');
+                toast.className = 'fixed top-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-500';
+                toast.textContent = '✓ Fotos actualizadas correctamente';
+                document.body.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 500);
+                }, 3000);
+            }
+        } catch (error) {
+            console.error("Error updating photos:", error);
+            alert("Error al actualizar fotos");
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
     const handleUpdatePhotos = async () => {
         if (!ticket || !report) return;
@@ -209,7 +242,7 @@ export default function TicketReportPage() {
         if (sectionIndex === -1) return;
 
         const updatedSections = [...report.sections];
-        updatedSections[sectionIndex] = { ...updatedSections[sectionIndex], ...updates };
+        updatedSections[sectionIndex] = { ...updatedSections[sectionIndex], ...updates } as any;
 
         const newReport = { ...report, sections: updatedSections };
         setReport(newReport);
@@ -276,7 +309,7 @@ export default function TicketReportPage() {
                 <div className="flex items-center gap-3">
                     <div className="mr-4 flex items-center bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
                         <Button
-                            variant={activeTab === 'edit' ? 'white' : 'ghost'}
+                            variant={activeTab === 'edit' ? 'secondary' : 'ghost'}
                             size="sm"
                             onClick={() => setActiveTab('edit')}
                             className="text-sm gap-2"
@@ -285,7 +318,7 @@ export default function TicketReportPage() {
                             Editor
                         </Button>
                         <Button
-                            variant={activeTab === 'preview' ? 'white' : 'ghost'}
+                            variant={activeTab === 'preview' ? 'secondary' : 'ghost'}
                             size="sm"
                             onClick={() => setActiveTab('preview')}
                             className="text-sm gap-2"
@@ -337,7 +370,6 @@ export default function TicketReportPage() {
                     {report && (
                         <ExportMenu
                             report={report}
-                            ticket={ticket} // Pass ticket for data
                         />
                     )}
                 </div>
@@ -353,13 +385,30 @@ export default function TicketReportPage() {
                     activeTab === 'edit' ? (
                         <div className="absolute inset-0 overflow-y-auto p-6">
                             <div className="max-w-4xl mx-auto bg-white dark:bg-zinc-900 rounded-xl shadow-sm min-h-[calc(100vh-12rem)] pb-20">
-                                {report && (
-                                    <TicketReportEditor
-                                        report={report}
-                                        onChange={setReport}
-                                        availablePhotos={ticket?.photos || []}
-                                    />
-                                )}
+                                <div className="flex-1 overflow-hidden">
+                                    {report ? (
+                                        <TicketReportEditor
+                                            report={report}
+                                            onChange={setReport}
+                                            onSave={async (r) => {
+                                                setReport(r); // Optimistic update
+                                                await handleSave(r);
+                                            }}
+                                            onUpdatePhotos={async () => {
+                                                await loadTicketPhotos(params.id as string);
+                                            }}
+                                            onRegenerate={async () => {
+                                                if (confirm('¿Regenerar reporte? Se perderán los cambios manuales.')) {
+                                                    // Logic to regenerate would go here, or we call the initial generation again
+                                                    // For now, reload the page or re-trigger generation if we had the function exposed
+                                                    window.location.reload();
+                                                }
+                                            }}
+                                            availablePhotos={ticket?.photos || []}
+                                            saving={saving}
+                                        />
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
                     ) : (

@@ -4,29 +4,37 @@ import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 import * as fs from 'fs';
 
-// Load .env.local
+// Load .env.local (optional now, but good to keep)
 dotenv.config({ path: resolve(__dirname, '../.env.local') });
 
-// Decode private key
-const rawKey = process.env.GCP_PRIVATE_KEY || '';
-const privateKey = rawKey.replace(/\\n/g, '\n').replace(/"/g, '');
-
-if (!process.env.GCP_PROJECT_ID || !process.env.GCP_CLIENT_EMAIL || !privateKey) {
-    console.error('Missing credentials in .env.local');
+// Load credentials directly from JSON file to avoid parsing issues
+const serviceAccountPath = resolve(__dirname, './temp-sa.json');
+if (!fs.existsSync(serviceAccountPath)) {
+    console.error(`Service account file not found at ${serviceAccountPath}`);
     process.exit(1);
 }
 
-const saData = {
-    projectId: process.env.GCP_PROJECT_ID,
-    clientEmail: process.env.GCP_CLIENT_EMAIL,
-    privateKey: privateKey,
-};
+// Load credentials
+const serviceAccount = require(serviceAccountPath);
+
+// Aggressive cleanup: Rebuild the private key
+let keyBody = serviceAccount.private_key;
+// Remove headers
+keyBody = keyBody.replace(/-----BEGIN PRIVATE KEY-----/g, '').replace(/-----END PRIVATE KEY-----/g, '');
+// Keep only valid base64 chars
+keyBody = keyBody.replace(/[^a-zA-Z0-9+/=]/g, '');
+
+// Reconstruct properly
+const finalKey = `-----BEGIN PRIVATE KEY-----\n${keyBody}\n-----END PRIVATE KEY-----\n`;
+serviceAccount.private_key = finalKey;
+
+console.log('Refined Key Length:', finalKey.length);
 
 // Initialize Admin
 if (!admin.apps.length) {
     try {
         admin.initializeApp({
-            credential: admin.credential.cert(saData)
+            credential: admin.credential.cert(serviceAccount)
         });
     } catch (e) {
         console.error("Init Error:", e);

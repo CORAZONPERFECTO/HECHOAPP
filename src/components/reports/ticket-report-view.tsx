@@ -1,12 +1,14 @@
 "use client";
 
 import { InlineEditableText } from "@/components/ui/inline-editable-text";
+import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
+import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection } from "@/types/schema";
 
 interface TicketReportViewProps {
     report: TicketReportNew;
     isInteractive?: boolean;
     onUpdateSection?: (sectionId: string, updates: Partial<TicketReportSection>) => void;
-    onUpdateHeader?: (updates: Partial<typeof report.header>) => void;
+    onUpdateHeader?: (updates: Partial<TicketReportNew['header']>) => void;
 }
 
 export function TicketReportView({ report, isInteractive = false, onUpdateSection, onUpdateHeader }: TicketReportViewProps) {

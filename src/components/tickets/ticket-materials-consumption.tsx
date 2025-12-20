@@ -32,6 +32,7 @@ export function TicketMaterialsConsumption({ ticketId, ticketNumber, currentUser
     const [selectedProduct, setSelectedProduct] = useState("");
     const [selectedLocation, setSelectedLocation] = useState("");
     const [quantity, setQuantity] = useState(1);
+    const [mode, setMode] = useState<'CONSUME' | 'RETURN'>('CONSUME');
 
     // Auth context (in real app passed via props or context)
     // We assume we have the current user ID. If not passed in props, we might need to fetch it or use a hook.
