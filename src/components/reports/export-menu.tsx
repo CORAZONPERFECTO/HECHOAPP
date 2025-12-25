@@ -17,6 +17,7 @@ import {
     exportToPDFWith2Photos,
     exportToWord,
 } from '@/lib/export-utils';
+import { generatePdfWithWorker } from '@/lib/worker-api';
 import { useState } from 'react';
 
 interface ExportMenuProps {
@@ -75,6 +76,18 @@ export function ExportMenu({ report }: ExportMenuProps) {
                     <div className="flex flex-col">
                         <span>Moderno 2025</span>
                         <span className="text-[10px] opacity-80">Diseño corporativo + Grid</span>
+                    </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    onClick={() => handleExport('PDF Pro (Worker)', () => generatePdfWithWorker(report))}
+                    disabled={exporting}
+                    className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium cursor-pointer"
+                >
+                    <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
+                    <div className="flex flex-col">
+                        <span>PDF Profesional (Motor Python)</span>
+                        <span className="text-[10px] opacity-80">Renderizado Avanzado (GTK3)</span>
                     </div>
                 </DropdownMenuItem>
 
