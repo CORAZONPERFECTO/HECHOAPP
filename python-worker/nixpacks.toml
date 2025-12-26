@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["python3", "pango", "gobject-introspection", "libffi", "cairo", "gdk-pixbuf"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python main.py"
