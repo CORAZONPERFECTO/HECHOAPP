@@ -26,6 +26,7 @@ interface TicketReportEditorProps {
     onRegenerate: () => Promise<void>;
     availablePhotos?: TicketPhoto[]; // Photos from the ticket for selection
     saving?: boolean;
+    readOnly?: boolean;
 }
 
 // Sortable wrapper for sections
@@ -38,7 +39,8 @@ function SortableSection({
     isActive,
     isFirst,
     isLast,
-    availablePhotos = []
+    availablePhotos = [],
+    readOnly = false // Add prop
 }: {
     section: TicketReportSection;
     onChange: (section: TicketReportSection) => void;
@@ -49,6 +51,7 @@ function SortableSection({
     isFirst: boolean;
     isLast: boolean;
     availablePhotos?: TicketPhoto[];
+    readOnly?: boolean;
 }) {
     const {
         attributes,
@@ -56,7 +59,7 @@ function SortableSection({
         setNodeRef,
         transform,
         transition,
-    } = useSortable({ id: section.id });
+    } = useSortable({ id: section.id, disabled: readOnly }); // Disable drag if readOnly
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -73,7 +76,7 @@ function SortableSection({
                 e.stopPropagation();
                 onClick();
             }}
-            className={`transition-all duration-200 rounded-lg ${isActive ? 'ring-2 ring-blue-500 shadow-md bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-800'}`}
+            className={`transition-all duration-200 rounded-lg ${isActive ? 'ring-2 ring-blue-500 shadow-md bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-800'} ${readOnly ? 'pointer-events-none opacity-80' : ''}`}
         >
             <SectionEditor
                 section={section}
@@ -127,12 +130,13 @@ export function TicketReportEditor({
     onUpdatePhotos,
     onRegenerate,
     availablePhotos = [],
-    saving = false
+    saving = false,
+    readOnly = false
 }: TicketReportEditorProps) {
     const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
     const [darkMode, setDarkMode] = useState(false);
     const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
-    
+
     // Refs for signatures
     const techSigRef = useRef<SignaturePadRef>(null);
     const clientSigRef = useRef<SignaturePadRef>(null);
@@ -142,7 +146,7 @@ export function TicketReportEditor({
         if (ref.current && !ref.current.isEmpty()) {
             const signatureUrl = ref.current.toDataURL();
             const signatures = report.signatures || {};
-            
+
             onChange({
                 ...report,
                 signatures: {
@@ -371,15 +375,17 @@ export function TicketReportEditor({
                             variant="outline"
                             size="sm"
                             onClick={onUpdatePhotos}
+                            disabled={saving || readOnly}
                             className="gap-2 hidden sm:flex dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
                             <span className="hidden lg:inline">Actualizar Fotos</span>
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={onRegenerate}
+                            disabled={saving || readOnly}
                             className="gap-2 text-orange-600 hover:text-orange-700 dark:border-zinc-700 dark:hover:bg-zinc-800"
                         >
                             <RotateCcw className="h-4 w-4" />
@@ -387,7 +393,7 @@ export function TicketReportEditor({
                         </Button>
                         <Button
                             onClick={() => onSave(report)}
-                            disabled={saving}
+                            disabled={saving || readOnly}
                             className="gap-2 bg-green-600 hover:bg-green-700 text-white"
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -507,6 +513,7 @@ export function TicketReportEditor({
                                                 isFirst={index === 0}
                                                 isLast={index === report.sections.length - 1}
                                                 availablePhotos={availablePhotos}
+                                                readOnly={readOnly}
                                             />
                                         ))}
                                     </SortableContext>
@@ -530,18 +537,18 @@ export function TicketReportEditor({
                                             )}
                                         </div>
                                         <div className="h-40">
-                                             <SignaturePad 
+                                            <SignaturePad
                                                 ref={techSigRef}
                                                 onEnd={() => handleSignatureUpdate('technician')}
                                                 className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
                                             />
                                         </div>
-                                        <Input 
-                                            placeholder="Nombre del Técnico" 
+                                        <Input
+                                            placeholder="Nombre del Técnico"
                                             value={report.signatures?.technicianName || report.header.technicianName || ''}
                                             onChange={(e) => onChange({
-                                                ...report, 
-                                                signatures: { ...report.signatures, technicianName: e.target.value } 
+                                                ...report,
+                                                signatures: { ...report.signatures, technicianName: e.target.value }
                                             })}
                                         />
                                     </div>
@@ -554,18 +561,18 @@ export function TicketReportEditor({
                                             )}
                                         </div>
                                         <div className="h-40">
-                                            <SignaturePad 
+                                            <SignaturePad
                                                 ref={clientSigRef}
                                                 onEnd={() => handleSignatureUpdate('client')}
                                                 className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
                                             />
                                         </div>
-                                        <Input 
-                                            placeholder="Nombre del Cliente" 
+                                        <Input
+                                            placeholder="Nombre del Cliente"
                                             value={report.signatures?.clientName || report.header.clientName || ''}
                                             onChange={(e) => onChange({
-                                                ...report, 
-                                                signatures: { ...report.signatures, clientName: e.target.value } 
+                                                ...report,
+                                                signatures: { ...report.signatures, clientName: e.target.value }
                                             })}
                                         />
                                     </div>

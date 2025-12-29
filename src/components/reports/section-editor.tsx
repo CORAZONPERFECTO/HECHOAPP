@@ -1,6 +1,6 @@
 "use client";
 
-import { TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection } from "@/types/schema";
+import { TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -213,6 +213,34 @@ export function SectionEditor({
                     <div className="py-4">
                         <hr className="border-2 border-gray-300" />
                         <p className="text-center text-xs text-gray-500 mt-2">Separador</p>
+                    </div>
+                );
+
+            case 'gallery':
+                const gallerySection = section as GallerySection;
+                return (
+                    <div className="space-y-4">
+                        <Label className="text-sm font-medium">Galería de Fotos ({gallerySection.photos.length})</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {gallerySection.photos.slice(0, 6).map((p, i) => (
+                                <div key={i} className="relative aspect-square bg-gray-100 rounded overflow-hidden border">
+                                    <Image
+                                        src={p.photoUrl}
+                                        alt="Preview"
+                                        fill
+                                        className="object-cover"
+                                    />
+                                </div>
+                            ))}
+                            {gallerySection.photos.length > 6 && (
+                                <div className="flex items-center justify-center bg-gray-50 border rounded aspect-square text-xs text-gray-500 font-medium">
+                                    +{gallerySection.photos.length - 6} más
+                                </div>
+                            )}
+                        </div>
+                        <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                            ℹ️ Las fotos se sincronizan automáticamente desde el ticket. Usa el botón "Actualizar Fotos" para traer nuevas imágenes.
+                        </p>
                     </div>
                 );
 

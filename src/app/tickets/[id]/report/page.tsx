@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, Timestamp } from "firebase/firestore"; // Added updateDoc, onSnapshot, Timestamp
+import { db, auth } from "@/lib/firebase"; // Added auth
 import { Ticket, TicketReport, ReportSection, TicketReportSection, TicketReportNew } from "@/types/schema";
 import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
@@ -11,10 +11,11 @@ import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Eye, Edit, Printer, ArrowLeft, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Eye, Edit, Printer, ArrowLeft, Undo2, Redo2, Lock } from "lucide-react"; // Added Lock
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDebounce } from "@/hooks/use-debounce";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Would need this component, assuming standard shadcn
 
 export default function TicketReportPage() {
     const params = useParams();
@@ -25,6 +26,12 @@ export default function TicketReportPage() {
     const [saving, setSaving] = useState(false);
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+
+    // Locking State
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockedBy, setLockedBy] = useState<{ userId: string; userName: string; at: Timestamp } | null>(null);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
     // Undo/Redo para el reporte
     const {
@@ -52,6 +59,93 @@ export default function TicketReportPage() {
             }
         }
     }, [debouncedReport]);
+
+    // Auth Listener
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setCurrentUser(user);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Locking Logic
+    const claimLock = async () => {
+        if (!currentUser || !ticketId || isLocked) return;
+        try {
+            // Only update the lock fields to avoid overwriting content
+            await updateDoc(doc(db, "ticketReports", ticketId), {
+                lockedBy: {
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName || 'Usuario',
+                    at: Timestamp.now()
+                }
+            });
+        } catch (e) {
+            console.error("Error claiming lock:", e);
+        }
+    };
+
+    const releaseLock = async () => {
+        if (!currentUser || !ticketId) return;
+        try {
+            // We optimistically release assuming we own it or it's stale
+            //Ideally check if we own it, but for now simplify to avoid complex reads on unmount
+            await updateDoc(doc(db, "ticketReports", ticketId), {
+                lockedBy: null
+            });
+        } catch (e) {
+            console.error("Error releasing lock:", e);
+        }
+    };
+
+    // Heartbeat & Lock Check
+    useEffect(() => {
+        if (!ticketId || !currentUser) return;
+
+        // 1. Realtime listener for Lock Status
+        const unsubscribe = onSnapshot(doc(db, "ticketReports", ticketId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data() as TicketReportNew;
+                const lock = data.lockedBy;
+
+                if (lock) {
+                    const lockTime = lock.at.toDate().getTime();
+                    const now = Date.now();
+                    const diffMinutes = (now - lockTime) / 1000 / 60;
+
+                    if (lock.userId !== currentUser.uid && diffMinutes < 5) {
+                        // Locked by someone else active
+                        setIsLocked(true);
+                        setLockedBy(lock);
+                    } else {
+                        // Locked by me OR expired -> We can take it
+                        setIsLocked(false);
+                        setLockedBy(null);
+                    }
+                } else {
+                    setIsLocked(false);
+                    setLockedBy(null);
+                }
+            }
+        });
+
+        // 2. Heartbeat to maintain my lock
+        const interval = setInterval(() => {
+            if (!isLocked && currentUser) {
+                claimLock();
+            }
+        }, 60 * 1000); // Every minute
+
+        // Initial claim
+        claimLock();
+
+        return () => {
+            unsubscribe();
+            clearInterval(interval);
+            // Attempt release on unmount if we weren't locked out
+            if (!isLocked) releaseLock();
+        };
+    }, [ticketId, currentUser, isLocked]);
 
     useEffect(() => {
         loadData();
@@ -93,6 +187,12 @@ export default function TicketReportPage() {
         }
     };
     const handleSave = async (updatedReport: TicketReportNew, isAutoSave = false) => {
+        // Validation: Block save if locked by someone else
+        if (isLocked) {
+            if (!isAutoSave) alert("No puedes guardar cambios: El reporte está bloqueado por otro usuario.");
+            return;
+        }
+
         try {
             if (!isAutoSave) setSaving(true);
 
@@ -355,7 +455,7 @@ export default function TicketReportPage() {
                     <Button
                         variant={saving ? 'secondary' : 'default'}
                         onClick={() => report && handleSave(report)}
-                        disabled={saving || !report}
+                        disabled={saving || !report || isLocked}
                     >
                         {saving ? (
                             <>
@@ -363,7 +463,12 @@ export default function TicketReportPage() {
                                 Guardando...
                             </>
                         ) : (
-                            'Guardar'
+                            isLocked ? (
+                                <>
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    Bloqueado
+                                </>
+                            ) : 'Guardar'
                         )}
                     </Button>
 
@@ -374,6 +479,22 @@ export default function TicketReportPage() {
                     )}
                 </div>
             </div>
+
+            {/* Locked Alert */}
+            {isLocked && lockedBy && (
+                <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-sm text-amber-800">
+                    <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4" />
+                        <span>
+                            <strong>{lockedBy.userName}</strong> está editando este reporte.
+                            <span className="ml-1 opacity-75">
+                                (Desde hace {Math.floor((Date.now() - lockedBy.at.toDate().getTime()) / 1000 / 60)} min)
+                            </span>
+                        </span>
+                    </div>
+                    <div>Modo Solo Lectura</div>
+                </div>
+            )}
 
             {/* Main Content */}
             <div className="flex-1 overflow-hidden relative">
@@ -406,6 +527,7 @@ export default function TicketReportPage() {
                                             }}
                                             availablePhotos={ticket?.photos || []}
                                             saving={saving}
+                                            readOnly={isLocked}
                                         />
                                     ) : null}
                                 </div>

@@ -2,7 +2,7 @@
 
 import { InlineEditableText } from "@/components/ui/inline-editable-text";
 import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
-import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection } from "@/types/schema";
+import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
 
 interface TicketReportViewProps {
     report: TicketReportNew;
@@ -178,6 +178,37 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                 {baSection.description}
                             </p>
                         )}
+                    </div>
+                );
+
+            case 'gallery':
+                const gallerySection = section as GallerySection;
+                return (
+                    <div key={section.id} className="mb-6 break-inside-avoid">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {gallerySection.photos.map((photo, index) => (
+                                <div key={index} className="flex flex-col gap-2 page-break-inside-avoid">
+                                    <div className="relative w-full aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden border border-gray-200 shadow-sm photo-container">
+                                        <img
+                                            src={photo.photoUrl}
+                                            alt={photo.description || `Foto ${index + 1}`}
+                                            className="w-full h-full object-cover photo-print"
+                                            loading="lazy"
+                                        />
+                                        {photo.photoMeta?.phase && (
+                                            <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm">
+                                                {photo.photoMeta.phase}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {photo.description && (
+                                        <p className="text-xs text-gray-600 text-center italic px-1">
+                                            {photo.description}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 );
 

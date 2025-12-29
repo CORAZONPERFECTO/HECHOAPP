@@ -40,7 +40,7 @@ export interface TicketReport {
 
 // --- New Report Module Types ---
 
-export type SectionType = 'h1' | 'h2' | 'text' | 'list' | 'photo' | 'divider' | 'beforeAfter';
+export type SectionType = 'h1' | 'h2' | 'text' | 'list' | 'photo' | 'divider' | 'beforeAfter' | 'gallery';
 
 export interface BaseSection {
     id: string;
@@ -74,6 +74,19 @@ export interface PhotoSection extends BaseSection {
     };
 }
 
+export interface GallerySection extends BaseSection {
+    type: 'gallery';
+    photos: Array<{
+        photoUrl: string;
+        description?: string;
+        photoMeta?: {
+            originalId?: string;
+            area?: string;
+            phase?: 'BEFORE' | 'DURING' | 'AFTER';
+        };
+    }>;
+}
+
 export interface DividerSection extends BaseSection {
     type: 'divider';
 }
@@ -98,6 +111,7 @@ export type TicketReportSection =
     | TextSection
     | ListSection
     | PhotoSection
+    | GallerySection
     | DividerSection
     | BeforeAfterSection;
 
@@ -125,4 +139,9 @@ export interface TicketReportNew {
     sections: TicketReportSection[];
     signatures?: TicketReportSignatures;
     lastGeneratedFromTicketAt?: string;
+    lockedBy?: {
+        userId: string;
+        userName: string;
+        at: Timestamp;
+    };
 }

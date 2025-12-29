@@ -25,17 +25,17 @@
         }
 
         body {
-            font-family: 'Helvetica', sans-serif;
+            font-family: 'Helvetica', 'Arial', sans-serif;
             color: #333;
             line-height: 1.5;
-            font-size: 11pt;
+            font-size: 12px;
+            counter-reset: evidence-counter;
+            /* Ticket #1: Initialize counter */
         }
 
         h1 {
             color: #1a365d;
-            /* Dark Blue */
             border-bottom: 2px solid #ed8936;
-            /* Orange Accent */
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
@@ -103,7 +103,7 @@
             font-weight: bold;
         }
 
-        .photos-grid {
+        .photo-grid {
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
@@ -111,26 +111,47 @@
         }
 
         .photo-item {
-            width: 48%;
-            /* 2 per row approx */
+            width: 31%;
             margin-bottom: 15px;
             page-break-inside: avoid;
             border: 1px solid #ddd;
             padding: 5px;
             background: white;
+            text-align: center;
         }
 
         .photo-item img {
             width: 100%;
-            height: 200px;
+            height: 140px;
             object-fit: cover;
         }
 
-        .photo-caption {
+        .photo-desc {
             font-size: 9pt;
             color: #666;
             margin-top: 5px;
             text-align: center;
+        }
+
+        /* Ticket #1: Automatic Numbering */
+        .photo-number {
+            font-weight: bold;
+            color: #64748b;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .photo-number::before {
+            counter-increment: evidence-counter;
+            content: "Foto #" counter(evidence-counter);
+        }
+
+        .photo-meta {
+            font-size: 8pt;
+            color: #aaa;
+            margin-top: 2px;
         }
 
         .signature-section {
@@ -144,6 +165,61 @@
             margin-top: 40px;
             padding-top: 10px;
             text-align: center;
+        }
+
+        /* Ticket #2: Before/After Styles */
+        .before-after-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .ba-item {
+            width: 48%;
+            text-align: center;
+        }
+
+        .ba-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: contain;
+            background: #f7fafc;
+            border-radius: 4px;
+            border: 1px solid #edf2f7;
+        }
+
+        .ba-label {
+            background: #2d3748;
+            color: #fff;
+            font-size: 8pt;
+            font-weight: bold;
+            padding: 4px 0;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+
+        .ba-meta {
+            font-size: 8pt;
+            color: #718096;
+            margin-top: 4px;
+        }
+
+        .ba-description {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 10px;
+            font-size: 10pt;
+            color: #2c5282;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
         }
     </style>
 </head>
@@ -197,7 +273,12 @@
     <!-- Dynamic Sections from Report -->
     {% for section in report.sections %}
     <div class="section">
+        {% if section.title %}
         <h2>{{ section.title }}</h2>
+        {% endif %}
+
+        <!-- Headers for specific types if they don't have explicit title but need one? 
+             Usually title is enough. -->
 
         {% if section.content %}
         <div>{{ section.content | safe }}</div>
@@ -230,16 +311,47 @@
         </table>
         {% endif %}
 
+        <!-- Check for Photos -->
         {% if section.photos and section.photos|length > 0 %}
-        <div class="photos-grid">
+        <div class="photo-grid">
             {% for photo in section.photos %}
             <div class="photo-item">
-                <img src="{{ photo.url }}" alt="Evidence">
-                <div class="photo-caption">{{ photo.caption }}</div>
+                <span class="photo-number"></span>
+                <img src="{{ photo.photoUrl }}" alt="Evidencia">
+                <div class="photo-desc">{{ photo.description }}</div>
+                {% if photo.photoMeta and photo.photoMeta.area %}
+                <div class="photo-meta">Area: {{ photo.photoMeta.area }}</div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
+
+        <!-- Ticket #2: Before/After Logic -->
+        {% if section.type == 'beforeAfter' %}
+        <div class="before-after-container">
+            <div class="ba-item">
+                <div class="ba-label">ANTES</div>
+                <img src="{{ section.beforePhotoUrl }}" alt="Antes">
+                {% if section.beforeMeta and section.beforeMeta.area %}
+                <div class="ba-meta">{{ section.beforeMeta.area }}</div>
+                {% endif %}
+            </div>
+            <div class="ba-item">
+                <div class="ba-label">DESPUÉS</div>
+                <img src="{{ section.afterPhotoUrl }}" alt="Después">
+                {% if section.afterMeta and section.afterMeta.area %}
+                <div class="ba-meta">{{ section.afterMeta.area }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% if section.description %}
+        <div class="ba-description">
+            <strong>Observación:</strong> {{ section.description }}
+        </div>
+        {% endif %}
+        {% endif %}
+
     </div>
     {% endfor %}
 

@@ -1,9 +1,30 @@
-import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection } from "@/types/schema";
+import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, GallerySection } from "@/types/schema";
 
 /**
  * Helper to create ID
  */
 const uuid = () => crypto.randomUUID();
+
+/**
+ * Helper to safely format ticket date
+ */
+const formatTicketDate = (date: any): string => {
+    if (!date) return 'N/D';
+    try {
+        if (date.seconds) {
+            return new Date(date.seconds * 1000).toLocaleDateString();
+        }
+        if (date instanceof Date) {
+            return date.toLocaleDateString();
+        }
+        if (typeof date === 'string') {
+            return new Date(date).toLocaleDateString();
+        }
+        return 'N/D';
+    } catch (e) {
+        return 'N/D';
+    }
+};
 
 /**
  * Generates a complete report from a ticket
@@ -13,19 +34,16 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
     const sections: TicketReportSection[] = [];
 
     // --- 0. TÍTULO PRINCIPAL & DATOS GENERALES ---
-    // Mapped from user's "KeyValue" to a List for compatibility
     sections.push({
         id: uuid(),
-        type: 'h2', // Using h2 as main section header within the report body
+        type: 'h2',
         content: 'Resumen del Servicio'
     } as TitleSection);
 
     const generalDataItems = [
         `Ticket: ${ticket.ticketNumber || ticket.id.slice(0, 8)}`,
         `Cliente: ${ticket.clientName || 'N/D'}`,
-        `Ubicación: ${ticket.locationName || ticket.specificLocation || 'N/D'}`,
-        `Tipo de servicio: ${ticket.serviceType || 'N/D'}`,
-        `Fecha: ${ticket.createdAt ? new Date((ticket.createdAt as any).seconds * 1000).toLocaleDateString() : 'N/D'}`,
+        `Fecha: ${formatTicketDate(ticket.createdAt)}`,
         `Técnico: ${ticket.technicianName || 'N/D'}`
     ];
 
@@ -35,17 +53,8 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
         items: generalDataItems
     } as ListSection);
 
-    // --- 0.2 RESUMEN DEL SERVICIO (Objective/Notes) ---
-    // The user had objective/initialNotes in their interface. 
-    // We map ticket.description (our equivalent) here if needed, or leave blank if strictly following new template fields we might not have yet.
-    // We'll use ticket.description as "Falla Reportada" or "Objetivo"
+    // --- 1. DESCRIPCIÓN PRINCIPAL ---
     if (ticket.description) {
-        sections.push({
-            id: uuid(),
-            type: 'h2',
-            content: 'Solicitud / Falla Reportada'
-        } as TitleSection);
-
         sections.push({
             id: uuid(),
             type: 'text',
@@ -53,107 +62,42 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
         } as TextSection);
     }
 
-    // --- 1. DIAGNÓSTICO ---
-    if (ticket.diagnosis && ticket.diagnosis.trim().length > 0) {
-        sections.push({
-            id: uuid(),
-            type: 'h2',
-            content: 'Diagnóstico Técnico'
-        } as TitleSection);
-
-        sections.push({
-            id: uuid(),
-            type: 'text',
-            content: ticket.diagnosis
-        } as TextSection);
-    }
-
-    // --- 2. SOLUCIÓN ---
-    if (ticket.solution && ticket.solution.trim().length > 0) {
-        sections.push({
-            id: uuid(),
-            type: 'h2',
-            content: 'Solución Aplicada'
-        } as TitleSection);
-
-        sections.push({
-            id: uuid(),
-            type: 'text',
-            content: ticket.solution
-        } as TextSection);
-    }
-
-    // --- 3. FOTOS (Agrupadas por fase) ---
+    // --- 2. FOTOS (TODAS LAS EVIDENCIAS) ---
+    // Catch-all: Include ALL photos, grouped under one GallerySection
     if (ticket.photos && ticket.photos.length > 0) {
-        const photosBefore = ticket.photos.filter(p => p.type?.toUpperCase() === 'BEFORE');
-        const photosDuring = ticket.photos.filter(p => p.type?.toUpperCase() === 'DURING');
-        const photosAfter = ticket.photos.filter(p => p.type?.toUpperCase() === 'AFTER');
-
-        const addPhotoGroup = (title: string, photos: typeof ticket.photos, phase: 'BEFORE' | 'DURING' | 'AFTER') => {
-            if (photos.length === 0) return;
-
-            sections.push({
-                id: uuid(),
-                type: 'h2',
-                content: title
-            } as TitleSection);
-
-            // Add photos sequentially. The "Modern PDF" export will handle the grid layout.
-            // attempting to create "BeforeAfter" sections if pairs exist could be smart, but let's stick to simple photos for now to be safe.
-            photos.forEach(photo => {
-                sections.push({
-                    id: uuid(),
-                    type: 'photo',
-                    photoUrl: photo.url,
-                    description: photo.description || photo.details || '',
-                    photoMeta: {
-                        originalId: (photo as any).id || uuid(),
-                        area: photo.area,
-                        phase: phase
-                    }
-                } as PhotoSection);
-            });
-        };
-
-        addPhotoGroup('Evidencia ANTES', photosBefore, 'BEFORE');
-        addPhotoGroup('Proceso del trabajo', photosDuring, 'DURING');
-        addPhotoGroup('Resultado FINAL', photosAfter, 'AFTER');
-    }
-
-    // --- 4. CHECKLIST ---
-    if (ticket.checklist && ticket.checklist.length > 0) {
         sections.push({
             id: uuid(),
             type: 'h2',
-            content: 'Checklist de Servicio'
-        } as TitleSection);
-
-        const checklistItems = ticket.checklist.map(item => {
-            const text = item.text || (item as any).label || 'Item';
-            return (item.checked ? '✅ ' : '⬜ ') + text;
-        });
-
-        sections.push({
-            id: uuid(),
-            type: 'list',
-            items: checklistItems
-        } as ListSection);
-    }
-
-    // --- 5. RECOMENDACIONES ---
-    if (ticket.recommendations && ticket.recommendations.trim().length > 0) {
-        sections.push({
-            id: uuid(),
-            type: 'h2',
-            content: 'Recomendaciones'
+            content: 'Evidencia Fotográfica'
         } as TitleSection);
 
         sections.push({
             id: uuid(),
-            type: 'text',
-            content: ticket.recommendations
-        } as TextSection);
+            type: 'gallery',
+            photos: ticket.photos.map(photo => ({
+                photoUrl: photo.url,
+                description: photo.description || photo.details || '',
+                photoMeta: {
+                    originalId: (photo as any).id || uuid(),
+                    area: photo.area,
+                    phase: photo.type
+                }
+            }))
+        } as GallerySection);
     }
+
+    // --- 3. OBSERVACIONES FINALES (Editable) ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Observaciones Finales'
+    } as TitleSection);
+
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: 'El servicio fue realizado a satisfacción. Se realizaron pruebas de funcionamiento y limpieza del área.'
+    } as TextSection);
 
     return {
         ticketId: ticket.id,
@@ -161,11 +105,7 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
             clientName: ticket.clientName,
             ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 6),
             address: ticket.locationName || ticket.specificLocation || '',
-            date: new Date().toLocaleDateString('es-DO', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }),
+            date: formatTicketDate(ticket.createdAt),
             technicianName: ticket.technicianName || 'Técnico Asignado',
             title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
         },
@@ -176,93 +116,68 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
 
 /**
  * Updates photos in report without losing existing content
+ * Rewritten to be a "Catch-all" append using GallerySection
  */
 export function updatePhotosFromTicket(
     report: TicketReportNew,
     ticket: Ticket
 ): TicketReportNew {
-    // Get existing photo IDs
-    const existingPhotoIds = new Set(
-        report.sections
-            .filter((s): s is PhotoSection => s.type === 'photo' && !!s.photoMeta?.originalId)
-            .map(s => s.photoMeta!.originalId!)
-    );
+    // Get existing photo IDs by scanning both PhotoSections and GallerySections
+    const existingPhotoIds = new Set<string>();
 
-    // Find new photos
+    report.sections.forEach(section => {
+        if (section.type === 'photo' && section.photoMeta?.originalId) {
+            existingPhotoIds.add(section.photoMeta.originalId);
+        }
+        if (section.type === 'gallery' && section.photos) {
+            section.photos.forEach(p => {
+                if (p.photoMeta?.originalId) {
+                    existingPhotoIds.add(p.photoMeta.originalId);
+                }
+            });
+        }
+    });
+
+    // Find new photos (ANY photo not in report)
     const newPhotos = (ticket.photos || []).filter(
         photo => !(photo as any).id || !existingPhotoIds.has((photo as any).id)
     );
 
     if (newPhotos.length === 0) {
-        return report; // No new photos
+        return report;
     }
-
-    // Group new photos by phase
-    const newPhotosByPhase = {
-        BEFORE: newPhotos.filter(p => p.type?.toUpperCase() === 'BEFORE'),
-        DURING: newPhotos.filter(p => p.type?.toUpperCase() === 'DURING'),
-        AFTER: newPhotos.filter(p => p.type?.toUpperCase() === 'AFTER')
-    };
 
     const updatedSections = [...report.sections];
 
-    // Helper to find insertion point for a phase
-    const findInsertionPoint = (phase: 'BEFORE' | 'DURING' | 'AFTER'): number => {
-        // Find the subheading
-        const headerTexts = {
-            BEFORE: 'Evidencia ANTES',
-            DURING: 'Proceso del trabajo',
-            AFTER: 'Resultado FINAL'
-        };
-
-        // 1. Try to find the header
-        let headerIndex = updatedSections.findIndex(s => s.type === 'h2' && (s as TitleSection).content === headerTexts[phase]);
-
-        if (headerIndex !== -1) {
-            // Found header, append after the last photo of this group
-            // Scan forward until we hit a non-photo or end
-            let i = headerIndex + 1;
-            while (i < updatedSections.length && updatedSections[i].type === 'photo') {
-                i++;
+    // Create a new GallerySection for new photos
+    const newGallerySection: GallerySection = {
+        id: uuid(),
+        type: 'gallery',
+        photos: newPhotos.map(photo => ({
+            photoUrl: photo.url,
+            description: photo.description || photo.details || '',
+            photoMeta: {
+                originalId: (photo as any).id || uuid(),
+                area: photo.area,
+                phase: photo.type
             }
-            return i;
-        }
-
-        // 2. If header doesn't exist, we need to create it? 
-        // For simplicity in this updater, we append to end if structure is missing, 
-        // or just insert at end. (Refining this would require more logic)
-        return updatedSections.length;
+        }))
     };
 
-    // Add new photos
-    Object.entries(newPhotosByPhase).forEach(([phase, photos]) => {
-        if (photos.length > 0) {
-            const Phase = phase as 'BEFORE' | 'DURING' | 'AFTER';
-            let insertPoint = findInsertionPoint(Phase);
+    // Find insertion point (before Final Observations)
+    let insertIndex = -1;
+    const finalObsIndex = updatedSections.findIndex(s => s.type === 'h2' && (s as TitleSection).content === 'Observaciones Finales');
 
-            // If header didn't exist (insertPoint at end), checking if we should add header
-            // This is complex because we might be appending to a report that deleted sections.
-            // Let's just append the photos for safety.
+    if (finalObsIndex !== -1) {
+        insertIndex = finalObsIndex;
+    } else {
+        insertIndex = updatedSections.length;
+    }
 
-            const newPhotoSections: PhotoSection[] = photos.map(photo => ({
-                id: uuid(),
-                type: 'photo',
-                photoUrl: photo.url,
-                description: photo.description || photo.details || '',
-                photoMeta: {
-                    originalId: (photo as any).id || uuid(),
-                    area: photo.area,
-                    phase: Phase
-                }
-            }));
-
-            updatedSections.splice(insertPoint, 0, ...newPhotoSections);
-        }
-    });
+    updatedSections.splice(insertIndex, 0, newGallerySection);
 
     return {
         ...report,
         sections: updatedSections
     };
 }
-
