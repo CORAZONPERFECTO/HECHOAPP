@@ -10,12 +10,13 @@ import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { UserRole, PersonnelResource, ACError } from "@/types/schema";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Users, AlertTriangle, Building2 } from "lucide-react";
+import { Loader2, Users, AlertTriangle, Building2, BookOpen } from "lucide-react";
 import { PersonnelList } from "@/components/resources/personnel-list";
 import { PersonnelDetail } from "@/components/resources/personnel-detail";
 import { ErrorDatabaseList } from "@/components/resources/error-database-list";
 import { ErrorDetail } from "@/components/resources/error-detail";
 import { CompanyProfile } from "@/components/resources/company-profile";
+import { UserManualViewer } from "@/components/resources/user-manual-viewer";
 
 function ResourcesContent() {
     const searchParams = useSearchParams();
@@ -111,7 +112,7 @@ function ResourcesContent() {
             <h1 className="text-3xl font-bold mb-6 text-gray-900">Módulo de Recursos</h1>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full max-w-md grid-cols-3">
+                <TabsList className="grid w-full max-w-2xl grid-cols-4">
                     {canViewPersonnel ? (
                         <TabsTrigger value="personnel" className="gap-2">
                             <Users className="h-4 w-4" /> Personal
@@ -129,6 +130,9 @@ function ResourcesContent() {
                             <Building2 className="h-4 w-4" /> Empresa
                         </TabsTrigger>
                     )}
+                    <TabsTrigger value="manual" className="gap-2">
+                        <BookOpen className="h-4 w-4" /> Manual
+                    </TabsTrigger>
                 </TabsList>
 
                 {canViewPersonnel && (
@@ -191,6 +195,10 @@ function ResourcesContent() {
                         <CompanyProfile />
                     </TabsContent>
                 )}
+
+                <TabsContent value="manual" className="outline-none">
+                    <UserManualViewer />
+                </TabsContent>
             </Tabs>
         </div>
     );
