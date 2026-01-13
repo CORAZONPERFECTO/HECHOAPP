@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { MessageSquare, Send, Loader2, FileText, X, Mic, MicOff } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useEffect } from "react";
 
 interface QuoteItem {
     description: string;
@@ -98,6 +101,30 @@ export function QuoteChatModal({ open, onOpenChange }: QuoteChatModalProps) {
         }
     };
 
+    // Load Company Settings & Inventory
+    const [companySettings, setCompanySettings] = useState<any>(null);
+    const [inventory, setInventory] = useState<any[]>([]);
+
+    useEffect(() => {
+        // Fetch Company Data
+        const loadContext = async () => {
+            try {
+                const docRef = doc(db, "settings", "company");
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) setCompanySettings(docSnap.data());
+
+                // Fetch Inventory for Price Matching
+                // Note: In a real app we might search on demand, but for speed we'll load basic catalog
+                // Assuming getProducts is available or we fetch from firestore directly
+                // const products = await getProducts(); 
+                // setInventory(products);
+            } catch (e) {
+                console.error("Error loading chat context", e);
+            }
+        };
+        loadContext();
+    }, []);
+
     const handleSend = async () => {
         if (!input.trim() && !selectedImage) return;
 
@@ -135,6 +162,8 @@ export function QuoteChatModal({ open, onOpenChange }: QuoteChatModalProps) {
             if (data.error) {
                 setMessages(prev => [...prev, { role: "assistant", type: "text", content: `Error: ${data.error}` }]);
             } else {
+                // Post-process quote to verify prices/names against inventory could go here
+                // const refinedQuote = matchWithInventory(data.output, inventory);
                 setMessages(prev => [...prev, { role: "assistant", type: "quote", content: data.output }]);
             }
 
@@ -146,56 +175,126 @@ export function QuoteChatModal({ open, onOpenChange }: QuoteChatModalProps) {
     };
 
     const handleDownloadPDF = async (quote: QuoteResponse) => {
-        // Dynamic import to allow server-side builds to pass if jspdf not friendly there (though usually fine)
         const jsPDF = (await import('jspdf')).default;
         const doc = new jsPDF();
 
-        doc.setFontSize(18);
-        doc.text("Cotización Express", 20, 20);
+        // --- Header Section ---
+        let y = 20;
+
+        // Logo (if available)
+        if (companySettings?.logoUrl) {
+            try {
+                // We need to fetch the image to blob to avoid CORS issues if canvas is strict, 
+                // but jspdf addImage often handles base64 best. 
+                // For simplicity assuming the logoUrl is accessible or we use a placeholder.
+                // NOTE: In production, fetching the image server-side or proxying is safer for CORS.
+                // Here we'll try adding it directly, if it fails, we fall back to text.
+                // doc.addImage(companySettings.logoUrl, 'PNG', 150, 10, 40, 20);
+            } catch (e) {
+                console.warn("Could not add logo", e);
+            }
+        }
+
+        // Company Info
+        doc.setFontSize(22);
+        doc.setTextColor(33, 33, 33);
+        doc.text(companySettings?.name || "COTIZACIÓN", 20, y);
+
+        y += 10;
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        if (companySettings?.address) { doc.text(companySettings.address, 20, y); y += 5; }
+        if (companySettings?.phone) { doc.text(`Tel: ${companySettings.phone}`, 20, y); y += 5; }
+        if (companySettings?.email) { doc.text(companySettings.email, 20, y); y += 5; }
+
+        // Title & Date Container
+        y = 20;
+        doc.setFontSize(16);
+        doc.setTextColor(33, 33, 33);
+        doc.text("COTIZACIÓN", 140, y, { align: 'left' });
 
         doc.setFontSize(10);
-        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 30);
+        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 140, y + 8);
+        doc.text(`Ref: #${Math.floor(Math.random() * 10000)}`, 140, y + 13);
 
-        let y = 40;
+        // --- Separator ---
+        y = 55;
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, y, 190, y);
 
-        // Table Header
-        doc.setFontSize(12);
+        // --- Table Header ---
+        y += 10;
+        doc.setFillColor(245, 247, 250); // Light gray background
+        doc.rect(20, y - 5, 170, 10, 'F');
+
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.text("Cant.", 20, y);
-        doc.text("Descripción", 40, y);
-        doc.text("Total", 170, y, { align: 'right' });
+        doc.setTextColor(50, 50, 50);
+        doc.text("CANT", 25, y + 2);
+        doc.text("DESCRIPCIÓN", 50, y + 2);
+        doc.text("TOTAL", 185, y + 2, { align: 'right' });
 
+        // --- Table Body ---
         y += 10;
         doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
 
-        quote.items.forEach(item => {
-            doc.text(item.quantity.toString(), 20, y);
-            const splitDesc = doc.splitTextToSize(item.description, 120);
-            doc.text(splitDesc, 40, y);
-            doc.text(`$${item.total.toLocaleString()}`, 170, y, { align: 'right' });
+        let subtotal = 0;
 
-            y += (10 * splitDesc.length);
+        quote.items.forEach((item, index) => {
+            // Alternating rows
+            if (index % 2 === 1) {
+                doc.setFillColor(252, 252, 252);
+                doc.rect(20, y - 5, 170, Math.max(10, doc.splitTextToSize(item.description, 110).length * 5 + 5), 'F');
+            }
+
+            doc.text(item.quantity.toString(), 25, y);
+
+            const splitDesc = doc.splitTextToSize(item.description, 110);
+            doc.text(splitDesc, 50, y);
+
+            doc.text(`$${item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 185, y, { align: 'right' });
+
+            y += Math.max(10, splitDesc.length * 5);
+            subtotal += item.total;
         });
 
-        y += 10;
-        doc.setLineWidth(0.5);
+        // --- Totals Section ---
+        y += 5;
         doc.line(20, y, 190, y);
         y += 10;
 
-        doc.setFont("helvetica", "bold");
-        doc.text("Total:", 140, y);
-        doc.text(`$${quote.total.toLocaleString()}`, 170, y, { align: 'right' });
+        const tax = subtotal * 0.18; // Example ITBIS
+        const total = subtotal + tax; // Or just use the AI provided total if tax logic is vague
+        // Using AI total for fidelity to quote
 
+        doc.setFont("helvetica", "bold");
+        doc.text("Total Estimado:", 140, y);
+        doc.setFontSize(14);
+        doc.setTextColor(37, 99, 235); // Blue color
+        doc.text(`$${quote.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 185, y, { align: 'right' });
+
+        // --- Notes & Footer ---
         if (quote.notes) {
             y += 20;
             doc.setFont("helvetica", "italic");
-            doc.setFontSize(10);
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
             doc.text("Notas:", 20, y);
+
+            doc.setFont("helvetica", "normal");
             const notes = doc.splitTextToSize(quote.notes, 170);
             doc.text(notes, 20, y + 5);
         }
 
-        doc.save("cotizacion_express.pdf");
+        // Footer
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Documento generado por IA - Sujeto a verificación presencial.", 105, pageHeight - 10, { align: 'center' });
+
+        doc.save(`cotizacion_${new Date().toISOString().split('T')[0]}.pdf`);
     };
 
     return (

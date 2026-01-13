@@ -56,7 +56,8 @@ function SortableItem(props: any) {
     // translate is safer than transform for simple list reordering to avoid scaling artifacts
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.8 : 1,
+    scale: isDragging ? 1.05 : 1,
     zIndex: isDragging ? 1000 : 1,
     touchAction: 'none' as React.CSSProperties['touchAction'],
   };

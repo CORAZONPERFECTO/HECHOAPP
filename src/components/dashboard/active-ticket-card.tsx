@@ -84,7 +84,7 @@ export function ActiveTicketCard() {
                         <Clock className="h-5 w-5" />
                         Tu Misión Actual
                     </CardTitle>
-                    <Badge variant="outline" className={`${statusColors[activeTicket.status as keyof typeof statusColors]} border-transparent`}>
+                    <Badge variant="outline" className={`${statusColors[activeTicket.status as keyof typeof statusColors]} border-transparent ${['ON_ROUTE', 'ON_SITE', 'IN_PROGRESS'].includes(activeTicket.status) ? 'animate-pulse' : ''}`}>
                         {statusLabels[activeTicket.status as keyof typeof statusLabels] || activeTicket.status}
                     </Badge>
                 </div>
