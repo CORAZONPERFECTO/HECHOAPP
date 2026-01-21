@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, getCountFromServer, doc, getDoc } from "firebase/firestore";
+import { collection, getCountFromServer, doc, getDoc, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { AppCard } from "@/components/ui/app-card";
 import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { AppLayout } from "@/components/layout/app-layout";
 import { QuoteChatModal } from "@/components/dashboard/quote-chat-modal";
+import { SLAMetricsCard } from "@/components/tickets/sla-metrics-card";
+
 
 // ... imports
 import {
@@ -96,6 +98,9 @@ export default function Dashboard() {
 
   // State for Quote Chat Modal
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+
+  // State for tickets (for SLA widget)
+  const [tickets, setTickets] = useState<any[]>([]);
 
   const router = useRouter();
 
@@ -206,10 +211,26 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, [router]);
 
-  if (loading) return <div className="flex items-center justify-center h-screen bg-gray-100">Cargando...</div>;
-  if (!user) return null;
-
   const isTechnician = userProfile?.rol === 'TECNICO';
+
+  // Load tickets for SLA metrics
+  useEffect(() => {
+    if (!isTechnician) {
+      const q = query(
+        collection(db, "tickets"),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      );
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTickets(data);
+      });
+      return () => unsubscribe();
+    }
+  }, [isTechnician]);
 
   // Filter modules based on role
   const visibleModules = modules.filter(m => {
@@ -235,6 +256,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <IncomeChart dateRange={dateRange} />
               <div className="space-y-6">
+                <SLAMetricsCard tickets={tickets} />
                 <RecentActivity />
                 <UrgentTicketsList />
               </div>

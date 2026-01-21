@@ -3,9 +3,9 @@ import { getGeminiModel } from "@/lib/vertex-client";
 
 export async function POST(req: NextRequest) {
     try {
-        const { prompt, context, task, image } = await req.json();
+        const { prompt, context, task, image, imageUrl } = await req.json();
 
-        if (!prompt && !context && !image) {
+        if (!prompt && !context && !image && !imageUrl) {
             return NextResponse.json({ error: "Missing prompt, image, or content to process" }, { status: 400 });
         }
 
@@ -17,12 +17,46 @@ export async function POST(req: NextRequest) {
 
         if (task === 'refine') {
             systemInstruction += "Tu tarea es tomar el texto proporcionado y reescribirlo de manera profesional. Corrige ortografía y gramática. Devuelve SOLO el texto corregido.";
+        } else if (task === 'describe-image') {
+            systemInstruction += "Tu tarea es analizar la imagen proporcionada y generar una descripción profesional, técnica y concisa de lo que se observa, enfocándote en el estado del equipo/komponente o el trabajo realizado. Devuelve SOLO el texto de la descripción.";
         } else if (task === 'summarize') {
             systemInstruction += "Tu tarea es resumir el siguiente contenido en puntos clave técnicos.";
         } else if (task === 'generate-report') {
             systemInstruction += `Tu tarea es generar un informe técnico completo en JSON basado en los datos de un ticket.
-            ... (mismas reglas de reporte) ...
-            DEBES devolver SOLO EL JSON VÁLIDO.
+            
+            ESTRUCTURA JSON REQUERIDA:
+            {
+              "sections": [
+                { "type": "h2", "content": "Título de Sección" },
+                { "type": "text", "content": "Párrafo de texto..." },
+                { "type": "list", "items": ["Item 1", "Item 2"] },
+                { 
+                  "type": "beforeAfter", 
+                  "beforePhotoUrl": "url_antes", 
+                  "afterPhotoUrl": "url_despues", 
+                  "description": "Descripción del cambio"
+                },
+                { 
+                  "type": "photo", 
+                  "photoUrl": "url_foto", 
+                  "description": "Descripción de la evidencia" 
+                },
+                 { 
+                  "type": "gallery", 
+                  "photos": [
+                     { "photoUrl": "url1", "description": "desc1" },
+                     { "photoUrl": "url2", "description": "desc2" }
+                  ]
+                }
+              ]
+            }
+
+            REGLAS:
+            1. Analiza el contexto y las DESCRIPCIONES DE FOTOS provistas.
+            2. Si identificas dos fotos que parecen ser "Antes" y "Después" (o una secuencia lógica), AGRÚPALAS en una sección "beforeAfter".
+            3. Si hay varias fotos generales, úsalas en una sección "gallery" o múltiples "photo".
+            4. Genera texto profesional para las secciones de Diagnóstico y Solución.
+            5. DEBES devolver SOLO EL JSON VÁLIDO.
             `;
         } else if (task === 'parse-invoice') {
             systemInstruction += `Tu tarea es extraer datos estructurados de una factura (voz o texto). Devuelve JSON válido con clientName e items.`;
@@ -72,9 +106,24 @@ export async function POST(req: NextRequest) {
 
         parts.push({ text: finalPrompt });
 
-        if (image) {
+        let imageBase64 = image;
+
+        // If imageUrl provided, fetch it
+        if (imageUrl) {
+            try {
+                const imgRes = await fetch(imageUrl);
+                const arrayBuffer = await imgRes.arrayBuffer();
+                imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+            } catch (e) {
+                console.error("Error fetching image URL:", e);
+                // Continue without image or fail? Fail better.
+                return NextResponse.json({ error: "Failed to download image from URL" }, { status: 400 });
+            }
+        }
+
+        if (imageBase64) {
             // Expecting 'image' to be base64 string without data:image/xxx prefix preferably, or strip it
-            const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
             parts.push({
                 inlineData: {
                     mimeType: "image/jpeg",

@@ -177,15 +177,58 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
         setGenerating(true);
         try {
-            // Serialize relevant ticket data for the prompt
+            // 1. Analyze Photos First (if any)
+            const photoContexts: string[] = [];
+
+            // Analyze first 6 photos to avoid timeout/quota
+            const photosToAnalyze = (ticket.photos || []).slice(0, 6);
+
+            if (photosToAnalyze.length > 0) {
+                toast({ title: "Analizando fotos...", description: "Gemini está revisando tus evidencias." });
+
+                // Parallelize for speed, but limit concurrency if needed. For now 6 is fine in parallel.
+                const analysisPromises = photosToAnalyze.map(async (photo, index) => {
+                    try {
+                        const res = await fetch('/api/gemini', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                imageUrl: photo.url,
+                                task: 'describe-image',
+                                context: `Foto del ticket tipo: ${photo.type}`
+                            })
+                        });
+                        const data = await res.json();
+                        return {
+                            index,
+                            description: data.output || "Sin descripción",
+                            url: photo.url,
+                            type: photo.type
+                        };
+                    } catch (e) {
+                        return { index, description: "Error analizando foto", url: photo.url, type: photo.type };
+                    }
+                });
+
+                const results = await Promise.all(analysisPromises);
+
+                results.forEach(r => {
+                    photoContexts.push(`FOTO [${r.url}]: (Tipo: ${r.type}) ${r.description}`);
+                });
+            }
+
+            toast({ title: "Redactando...", description: "Generando estructura del informe." });
+
+            // 2. Serialize relevant ticket data for the prompt
             const contextData = {
                 description: ticket.description,
                 diagnosis: ticket.diagnosis,
                 solution: ticket.solution,
                 recommendations: ticket.recommendations,
-                // notes: ticket.notes, // Removed as it doesn't exist on Ticket
                 clientName: ticket.clientName,
-                serviceType: ticket.serviceType
+                serviceType: ticket.serviceType,
+                // Pass the analyzed photo context
+                photoEvidence: photoContexts.join('\n')
             };
 
             const response = await fetch('/api/gemini', {
@@ -204,33 +247,29 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             }
 
             if (data.output && data.output.sections) {
-                // Merge Logic:
-                // We want to keep photos from current report, but replace text sections with AI ones.
-
-                const existingPhotos = report.sections.filter(s => s.type === 'photo');
-                // We also might want to keep the Title/General Info at the top if AI didn't include it?
-                // But AI prompt asked for full structure.
-                // Let's create a hybrid: AI Text Sections + Existing Photos at the end (safest).
-
                 // Add unique IDs to AI sections
                 const aiSections = data.output.sections.map((s: any) => ({
                     ...s,
-                    id: crypto.randomUUID()
+                    id: crypto.randomUUID(),
+                    // Ensure photo blocks have correct properties if AI missed some
+                    photos: s.photos?.map((p: any) => ({ ...p, photoUrl: p.photoUrl || p.url }))
                 }));
 
-                const newSections = [...aiSections, ...existingPhotos];
+                // We replace sections entirely with the smart plan, 
+                // but we might want to APPEND any photos that weren't used?
+                // For "Ease", let's trust the AI's selection. If user wants more, they can drag them.
 
                 const smartReport: TicketReportNew = {
                     ...report,
-                    sections: newSections
+                    sections: aiSections
                 };
 
                 await handleSave(smartReport); // Save immediately
                 setReport(smartReport);
                 toast({
                     title: "✨ Informe IA Generado",
-                    description: "Gemini ha redactado un informe profesional para ti.",
-                    variant: "success" // Assuming we have success variant, otherwise generic
+                    description: "Se han organizado tus fotos y redactado el texto.",
+                    variant: "default"
                 });
             }
 
@@ -329,7 +368,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                         className="h-7 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300 transition-colors"
                     >
                         {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                        {generating ? "Redactando..." : "Redactar con IA"}
+                        {generating ? "✨ Generando..." : "✨ Auto-Reporte Mágico"}
                     </Button>
                 </div>
 

@@ -122,6 +122,12 @@ export interface TicketReportHeader {
     date: string;
     technicianName?: string;
     title: string;
+    reportNumber?: string; // New: Sequential or Custom Number
+    companyInfo?: {        // New: Customizable Company Data
+        name: string;
+        address?: string;
+        logoUrl?: string;
+    };
 }
 
 export interface TicketReportSignatures {
@@ -139,6 +145,7 @@ export interface TicketReportNew {
     sections: TicketReportSection[];
     signatures?: TicketReportSignatures;
     lastGeneratedFromTicketAt?: string;
+    reportNumber?: string; // Denormalized for searching
     lockedBy?: {
         userId: string;
         userName: string;

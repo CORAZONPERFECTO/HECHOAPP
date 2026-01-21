@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TokenGenerator } from "@/components/tickets/token-generator";
-import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter } from "lucide-react";
+import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
@@ -214,6 +214,12 @@ export default function TicketsPage() {
                     ))}
 
                     <div className="ml-auto flex gap-2">
+                        <Link href="/tickets/analytics">
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                Analítica
+                            </Button>
+                        </Link>
                         <Dialog>
                             <DialogTrigger asChild>
                                 <Button variant="outline" size="sm">
@@ -238,7 +244,7 @@ export default function TicketsPage() {
                     <div className="text-center py-12">Cargando tickets...</div>
                 ) : (
                     <>
-                        <SLADashboard tickets={filteredTickets} />
+                        <SLADashboard />
 
                         <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
                             <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">

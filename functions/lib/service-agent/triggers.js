@@ -136,25 +136,46 @@ exports.onPaymentCreated = functions.firestore
     .document('orgs/{orgId}/payments/{paymentId}')
     .onCreate(async (snap, context) => {
     const payment = snap.data();
-    const { orgId } = context.params;
-    // Assuming payment doc has ticketId reference or invoiceId
-    // Let's assume ticketId is present for simplified correlation
+    const { orgId, paymentId } = context.params;
+    // Ensure we have a proof file to process
+    // Assuming 'proofStoragePath' or 'proofUrl' exists. Based on user req, let's look for storage path.
+    // If the client uploads via client SDK to 'payments/{id}/proof.jpg', we might need that path.
+    // For now, let's assume `proofStoragePath` is field in payment doc.
+    if (payment.proofStoragePath) {
+        console.log(`Payment ${paymentId} created with proof. Enqueueing extraction Job...`);
+        try {
+            // Dynamic import to avoid circular dep issues in triggers if manager not cleanly separated
+            const { createAndDispatchJob } = await Promise.resolve().then(() => require('../jobs/manager'));
+            const jobId = await createAndDispatchJob(orgId, {
+                type: 'EXTRACT_PAYMENT_PROOF',
+                paymentId: paymentId,
+                ticketId: payment.ticketId || 'unknown',
+                input: {
+                    proofStoragePath: payment.proofStoragePath,
+                    mimeType: payment.mimeType || 'image/jpeg' // default
+                }
+            });
+            console.log(`Job ${jobId} created for Payment ${paymentId}`);
+            // Update payment status to indicate processing
+            await snap.ref.update({
+                status: 'PROCESSING_PROOF',
+                currentJobId: jobId
+            });
+        }
+        catch (error) {
+            console.error("Failed to enqueue payment job:", error);
+        }
+    }
+    else {
+        console.log(`Payment ${paymentId} created without proofStoragePath. Skipping Job.`);
+    }
+    // Standard Ticket Status Update logic if ticketId present
     if (payment.ticketId) {
-        console.log(`Payment created for Ticket ${payment.ticketId}`);
-        // Update Ticket Status to PROOF_RECEIVED
         await db.doc(`orgs/${orgId}/tickets/${payment.ticketId}`).update({
             serviceStatus: 'PROOF_RECEIVED',
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        // Trigger Verification Agent (e.g. OCR)
-        await db.collection(`orgs/${orgId}/agentRuns`).add({
-            ticketId: payment.ticketId,
-            trigger: 'PAYMENT_UPLOADED',
-            status: 'RUNNING',
-            startedAt: admin.firestore.FieldValue.serverTimestamp(),
-            logs: [`Payment ${snap.id} uploaded. Starting verification.`]
-        });
-        // Audit
+        // Audit Log
         await db.collection(`orgs/${orgId}/auditLogs`).add({
             ticketId: payment.ticketId,
             action: 'PAYMENT_RECEIVED',

@@ -412,7 +412,21 @@ export function TicketReportEditor({
                             {/* Header Editor */}
                             <Card className="dark:bg-zinc-900 dark:border-zinc-800">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="text-base">Encabezado</CardTitle>
+                                    <CardTitle className="text-base flex justify-between items-center">
+                                        Encabezado
+                                        <div className="flex gap-2">
+                                            {/* Auto-generate Report Number if empty */}
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-xs text-blue-600"
+                                                onClick={() => updateHeader('reportNumber', `${report.header.ticketNumber}-R01`)}
+                                                disabled={!!report.header.reportNumber}
+                                            >
+                                                Generar Folio
+                                            </Button>
+                                        </div>
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid gap-3">
@@ -426,29 +440,12 @@ export function TicketReportEditor({
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="grid gap-1">
-                                                <Label>Cliente</Label>
+                                                <Label>Folio / N° Reporte</Label>
                                                 <Input
-                                                    value={report.header.clientName}
-                                                    onChange={(e) => updateHeader('clientName', e.target.value)}
-                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
-                                                />
-                                            </div>
-                                            <div className="grid gap-1">
-                                                <Label>Ticket</Label>
-                                                <Input
-                                                    value={report.header.ticketNumber}
-                                                    onChange={(e) => updateHeader('ticketNumber', e.target.value)}
-                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="grid gap-1">
-                                                <Label>Técnico</Label>
-                                                <Input
-                                                    value={report.header.technicianName || ''}
-                                                    onChange={(e) => updateHeader('technicianName', e.target.value)}
-                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                    value={report.header.reportNumber || ''}
+                                                    onChange={(e) => updateHeader('reportNumber', e.target.value)}
+                                                    placeholder="Ej: TK-2024-001-FF"
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700 font-mono text-sm"
                                                 />
                                             </div>
                                             <div className="grid gap-1">
@@ -458,6 +455,56 @@ export function TicketReportEditor({
                                                     onChange={(e) => updateHeader('date', e.target.value)}
                                                     className="dark:bg-zinc-800 dark:border-zinc-700"
                                                 />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid gap-1">
+                                                <Label>Cliente</Label>
+                                                <Input
+                                                    value={report.header.clientName}
+                                                    onChange={(e) => updateHeader('clientName', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label>Ticket Ref.</Label>
+                                                <Input
+                                                    value={report.header.ticketNumber}
+                                                    onChange={(e) => updateHeader('ticketNumber', e.target.value)}
+                                                    className="dark:bg-zinc-800 dark:border-zinc-700"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <Label>Técnico Responsable</Label>
+                                            <Input
+                                                value={report.header.technicianName || ''}
+                                                onChange={(e) => updateHeader('technicianName', e.target.value)}
+                                                className="dark:bg-zinc-800 dark:border-zinc-700"
+                                            />
+                                        </div>
+
+                                        {/* Company Info Section */}
+                                        <div className="pt-2 border-t mt-2">
+                                            <Label className="text-xs font-semibold text-gray-500 mb-2 block">DATOS DE LA EMPRESA (Encabezado del PDF)</Label>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid gap-1">
+                                                    <Label className="text-xs">Nombre Empresa</Label>
+                                                    <Input
+                                                        value={report.header.companyInfo?.name || 'HECHO SRL'}
+                                                        onChange={(e) => updateHeader('companyInfo', { ...report.header.companyInfo, name: e.target.value } as any)}
+                                                        className="h-8 text-xs dark:bg-zinc-800 dark:border-zinc-700"
+                                                    />
+                                                </div>
+                                                <div className="grid gap-1">
+                                                    <Label className="text-xs">Dirección / Contacto</Label>
+                                                    <Input
+                                                        value={report.header.companyInfo?.address || ''}
+                                                        onChange={(e) => updateHeader('companyInfo', { ...report.header.companyInfo, address: e.target.value } as any)}
+                                                        className="h-8 text-xs dark:bg-zinc-800 dark:border-zinc-700"
+                                                        placeholder="Dirección, Teléfono, Web..."
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

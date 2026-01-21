@@ -9,6 +9,7 @@ import { GripVertical, Trash2, Copy, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { BeforeAfterBlock } from "./blocks/before-after-block";
+import { BeforeAfterSelector } from "./before-after-selector";
 
 interface SectionEditorProps {
     section: TicketReportSection;
@@ -19,6 +20,7 @@ interface SectionEditorProps {
     onMoveDown: () => void;
     isFirst: boolean;
     isLast: boolean;
+    availablePhotos?: any[]; // Passed down for selection
 }
 
 export function SectionEditor({
@@ -29,12 +31,14 @@ export function SectionEditor({
     onMoveUp,
     onMoveDown,
     isFirst,
-    isLast
+    isLast,
+    availablePhotos
 }: SectionEditorProps) {
     const [isRefining, setIsRefining] = useState(false);
 
-    const handleRefine = async (currentContent: string, type: 'text' | 'title') => {
-        if (!currentContent?.trim()) return;
+    const handleRefine = async (currentContent: string, type: 'text' | 'title' | 'photoDescription', imageUrl?: string) => {
+        // Allow empty content if we have an image (generation vs refinement)
+        if (!currentContent?.trim() && !imageUrl) return;
 
         setIsRefining(true);
         try {
@@ -43,7 +47,8 @@ export function SectionEditor({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: currentContent,
-                    task: 'refine'
+                    imageUrl, // Pass image URL if available
+                    task: imageUrl ? 'describe-image' : 'refine' // Switch task if image present
                 })
             });
 
@@ -54,6 +59,8 @@ export function SectionEditor({
                     onChange({ ...section, content: data.output } as TextSection);
                 } else if (type === 'title') {
                     onChange({ ...section, content: data.output } as TitleSection);
+                } else if (type === 'photoDescription') {
+                    onChange({ ...section, description: data.output } as PhotoSection);
                 }
             }
         } catch (error) {
@@ -68,6 +75,11 @@ export function SectionEditor({
         switch (section.type) {
             case 'h1':
             case 'h2':
+                // ... (omitting unchanged parts for brevity if possible, but replace_file_content needs contiguous block. 
+                // I will target the handleRefine function specifically first to be safe, then the button.
+                // ACTUALLY, I can do it in one go if I include the lines in between, but that's risky. 
+                // I will split into two edits.)
+
                 return (
                     <div>
                         <Label className="text-sm font-medium mb-2 block">
@@ -143,20 +155,16 @@ export function SectionEditor({
                 return (
                     <div className="space-y-3">
                         <div className="flex gap-4">
-                            <div className="relative w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 shrink-0 overflow-hidden">
-                                {photoSection.photoUrl ? (
-                                    <Image
-                                        src={photoSection.photoUrl}
-                                        alt="Preview"
-                                        fill
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-400 text-xs">
-                                        Sin imagen
-                                    </div>
-                                )}
+                            {/* Reusing BeforeAfterSelector for single photo selection */}
+                            <div className="w-1/3 min-w-[150px]">
+                                <BeforeAfterSelector
+                                    label="Seleccionar Foto"
+                                    photoUrl={photoSection.photoUrl}
+                                    onSelect={(url, meta) => onChange({ ...section, photoUrl: url, photoMeta: meta } as PhotoSection)}
+                                    availablePhotos={availablePhotos || []}
+                                />
                             </div>
+
                             <div className="flex-1 space-y-2">
                                 <div>
                                     <Label className="text-sm font-medium mb-1 block">URL de la imagen</Label>
@@ -184,7 +192,20 @@ export function SectionEditor({
                             </div>
                         </div>
                         <div>
-                            <Label className="text-sm font-medium mb-1 block">Descripción</Label>
+                            <div className="flex justify-between items-center mb-1">
+                                <Label className="text-sm font-medium block">Descripción</Label>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRefine(photoSection.description || "Describe esta foto profesionalmente.", 'photoDescription', photoSection.photoUrl)}
+                                    disabled={isRefining}
+                                    className="h-6 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                    title="Mejorar descripción con IA"
+                                >
+                                    {isRefining ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+                                    IA
+                                </Button>
+                            </div>
                             <Textarea
                                 value={photoSection.description || ''}
                                 onChange={(e) => onChange({ ...section, description: e.target.value } as PhotoSection)}
