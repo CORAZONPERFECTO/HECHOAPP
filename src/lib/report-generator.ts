@@ -1,4 +1,5 @@
-import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, GallerySection } from "@/types/schema";
+import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, GallerySection } from "@/types/schema";
+import { Timestamp } from "firebase/firestore";
 
 /**
  * Helper to create ID
@@ -8,10 +9,10 @@ const uuid = () => crypto.randomUUID();
 /**
  * Helper to safely format ticket date
  */
-const formatTicketDate = (date: any): string => {
+const formatTicketDate = (date: Timestamp | Date | string | number | null | undefined): string => {
     if (!date) return 'N/D';
     try {
-        if (date.seconds) {
+        if (date instanceof Timestamp) {
             return new Date(date.seconds * 1000).toLocaleDateString();
         }
         if (date instanceof Date) {
@@ -21,7 +22,7 @@ const formatTicketDate = (date: any): string => {
             return new Date(date).toLocaleDateString();
         }
         return 'N/D';
-    } catch (e) {
+    } catch (_e) {
         return 'N/D';
     }
 };
@@ -78,7 +79,7 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
                 photoUrl: photo.url,
                 description: photo.description || photo.details || '',
                 photoMeta: {
-                    originalId: (photo as any).id || uuid(),
+                    originalId: (photo as { id?: string }).id || uuid(),
                     area: photo.area,
                     phase: photo.type
                 }
@@ -140,7 +141,7 @@ export function updatePhotosFromTicket(
 
     // Find new photos (ANY photo not in report)
     const newPhotos = (ticket.photos || []).filter(
-        photo => !(photo as any).id || !existingPhotoIds.has((photo as any).id)
+        photo => !(photo as { id?: string }).id || !existingPhotoIds.has((photo as { id?: string }).id!)
     );
 
     if (newPhotos.length === 0) {
@@ -157,9 +158,9 @@ export function updatePhotosFromTicket(
             photoUrl: photo.url,
             description: photo.description || photo.details || '',
             photoMeta: {
-                originalId: (photo as any).id || uuid(),
-                area: photo.area,
-                phase: photo.type
+                originalId: (photo as { id?: string }).id || uuid(),
+                area: photo.area || undefined,
+                phase: photo.type || 'EVIDENCE'
             }
         }))
     };

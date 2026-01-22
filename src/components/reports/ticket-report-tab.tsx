@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Ticket, TicketReportNew, UserRole } from "@/types/schema";
+import { Ticket, TicketReportNew, TicketReportSection, UserRole } from "@/types/schema";
 import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Undo2, Redo2, RefreshCw, Maximize2, Sparkles } from "lucide-react";
+import { Loader2, Undo2, Redo2, Maximize2, Sparkles } from "lucide-react";
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -21,6 +21,22 @@ interface TicketReportTabProps {
 }
 
 export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProps) {
+    interface AIResponse {
+        output?: {
+            sections?: Array<{
+                type: string;
+                content?: string;
+                photos?: Array<{
+                    url: string;
+                    photoUrl?: string; // AI might send this or just url
+                    description?: string;
+                }>;
+                [key: string]: unknown;
+            }>;
+        };
+        error?: string;
+    }
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [generating, setGenerating] = useState(false);
@@ -96,25 +112,27 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             }
 
             // Sanitizar datos
-            const sanitizeData = (obj: any): any => {
+            type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+            const sanitizeData = (obj: unknown): JsonValue => {
                 if (obj === null || obj === undefined) return null;
                 if (Array.isArray(obj)) {
                     return obj.map(item => sanitizeData(item)).filter(item => item !== null && item !== undefined);
                 }
                 if (typeof obj === 'object') {
-                    const cleaned: any = {};
-                    Object.keys(obj).forEach(key => {
-                        const value = sanitizeData(obj[key]);
+                    const cleaned: Record<string, JsonValue> = {};
+                    Object.keys(obj as Record<string, unknown>).forEach(key => {
+                        const value = sanitizeData((obj as Record<string, unknown>)[key]);
                         if (value !== undefined && value !== null) {
                             cleaned[key] = value;
                         }
                     });
                     return cleaned;
                 }
-                return obj;
+                return obj as JsonValue;
             };
 
-            const cleanedReport = sanitizeData(updatedReport);
+            const cleanedReport = sanitizeData(updatedReport) as unknown as TicketReportNew;
 
             if (!isAutoSave) console.log("Guardando informe:", ticket.id, cleanedReport);
             await setDoc(doc(db, "ticketReports", ticket.id), cleanedReport);
@@ -124,7 +142,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
             if (!isAutoSave) {
                 toast({ title: "Guardado", description: "Informe guardado correctamente", variant: "default" });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error completo al guardar:", error);
             if (!isAutoSave) toast({ title: "Error", description: "No se pudo guardar el informe", variant: "destructive" });
         } finally {
@@ -135,20 +153,12 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
     const handleUpdatePhotos = async () => {
         if (!report) return;
 
-        try {
-            setSaving(true);
-            const updatedReport = updatePhotosFromTicket(report, ticket);
-            await setDoc(doc(db, "ticketReports", ticket.id), updatedReport);
-            setReport(updatedReport);
-            setLastSavedReport(updatedReport);
+        // Optimistic update
+        const updatedReport = updatePhotosFromTicket(report, ticket);
+        setReport(updatedReport); // Update UI immediately
 
-            toast({ title: "Fotos actualizadas", description: "Se han sincronizado las fotos del ticket.", variant: "default" });
-        } catch (error) {
-            console.error("Error updating photos:", error);
-            toast({ title: "Error", description: "Error al actualizar fotos", variant: "destructive" });
-        } finally {
-            setSaving(false);
-        }
+        // Save using the safe handler (deals with sanitization and toast)
+        await handleSave(updatedReport);
     };
 
     const handleRegenerate = async () => {
@@ -205,7 +215,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                             url: photo.url,
                             type: photo.type
                         };
-                    } catch (e) {
+                    } catch (_e) {
                         return { index, description: "Error analizando foto", url: photo.url, type: photo.type };
                     }
                 });
@@ -248,11 +258,14 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
             if (data.output && data.output.sections) {
                 // Add unique IDs to AI sections
-                const aiSections = data.output.sections.map((s: any) => ({
+                const aiSections = (data as AIResponse).output!.sections!.map((s) => ({
                     ...s,
                     id: crypto.randomUUID(),
                     // Ensure photo blocks have correct properties if AI missed some
-                    photos: s.photos?.map((p: any) => ({ ...p, photoUrl: p.photoUrl || p.url }))
+                    photos: s.photos?.map((p) => ({
+                        ...p,
+                        photoUrl: p.photoUrl || p.url
+                    }))
                 }));
 
                 // We replace sections entirely with the smart plan, 
@@ -261,7 +274,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
                 const smartReport: TicketReportNew = {
                     ...report,
-                    sections: aiSections
+                    sections: aiSections as TicketReportSection[]
                 };
 
                 await handleSave(smartReport); // Save immediately
@@ -273,7 +286,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                 });
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("AI Generation Error:", error);
             toast({
                 title: "Error IA",
