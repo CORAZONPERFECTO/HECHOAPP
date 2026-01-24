@@ -77,7 +77,7 @@ const ALL_MODULES = [
   { id: 'clients', label: 'Clientes', icon: Users, href: '/clients', color: 'text-blue-600', role: 'ADMIN' },
   { id: 'technicians', label: 'Técnicos', icon: Wrench, href: '/technicians', color: 'text-orange-600', role: 'ADMIN' },
   { id: 'messages', label: 'Mensajes', icon: MessageSquare, href: '#', color: 'text-green-600', role: 'ALL', onClick: () => alert("Integración WhatsApp en desarrollo") },
-  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '#', color: 'text-indigo-600', role: 'ALL', onClick: () => alert("Reportes en desarrollo") },
+  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '/reports', color: 'text-indigo-600', role: 'ALL' },
   { id: 'settings', label: 'Ajustes', icon: Settings, href: '/settings', color: 'text-gray-600', role: 'ADMIN' },
   { id: 'resources', label: 'Recursos', icon: FileText, href: '/resources', color: 'text-teal-600', role: 'ALL' },
   { id: 'income', label: 'Ingresos', icon: BarChart3, href: '/income', color: 'text-emerald-600', role: 'ADMIN' },
@@ -215,7 +215,7 @@ export default function Dashboard() {
 
   // Load tickets for SLA metrics
   useEffect(() => {
-    if (!isTechnician) {
+    if (user && !isTechnician) {
       const q = query(
         collection(db, "tickets"),
         orderBy("createdAt", "desc"),
@@ -230,7 +230,7 @@ export default function Dashboard() {
       });
       return () => unsubscribe();
     }
-  }, [isTechnician]);
+  }, [user, isTechnician]);
 
   // Filter modules based on role
   const visibleModules = modules.filter(m => {
@@ -284,6 +284,7 @@ export default function Dashboard() {
         </h2>
 
         <DndContext
+          id="dashboard-dnd-context"
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}

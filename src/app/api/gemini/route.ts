@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         // BUT vertex-client might support systemInstruction. 
         // For safety/flexibility with multimodal, let's combine text.
 
-        let finalPrompt = `${systemInstruction}\n\n---\nCONTENIDO:\n"${prompt || context || "Analiza la imagen adjunta"}"\n---`;
+        const finalPrompt = `${systemInstruction}\n\n---\nCONTENIDO:\n"${prompt || context || "Analiza la imagen adjunta"}"\n---`;
 
         parts.push({ text: finalPrompt });
 
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
         });
 
         const response = result.response;
-        let text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!text) {
             throw new Error("No response generated from Gemini");

@@ -1,8 +1,11 @@
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Invoice } from "@/types/finance";
+import { Payment } from "@/types/finance";
+import { Client } from "@/types/users";
 
-export function exportToExcel(data: any[], fileName: string, sheetName: string = "Sheet1") {
+export function exportToExcel(data: Record<string, unknown>[], fileName: string, sheetName: string = "Sheet1") {
     // 1. Convert standard JSON data to Worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);
 
@@ -14,7 +17,7 @@ export function exportToExcel(data: any[], fileName: string, sheetName: string =
     XLSX.writeFile(workbook, `${fileName}.xlsx`);
 }
 
-export function formatInvoiceForExport(invoices: any[]) {
+export function formatInvoiceForExport(invoices: Invoice[]) {
     return invoices.map(inv => ({
         "Número": inv.number,
         "Cliente": inv.clientName || "N/A",
@@ -24,12 +27,12 @@ export function formatInvoiceForExport(invoices: any[]) {
         "Subtotal": inv.subtotal,
         "ITBIS": inv.taxAmount,
         "Total": inv.total,
-        "Estado": inv.status === "PAID" ? "Pagada" : inv.status === "PENDING" ? "Pendiente" : "Cancelada",
+        "Estado": inv.status === "PAID" ? "Pagada" : inv.status === "CANCELLED" ? "Cancelada" : "Pendiente",
         "Notas": inv.notes || ""
     }));
 }
 
-export function formatPaymentForExport(payments: any[]) {
+export function formatPaymentForExport(payments: Payment[]) {
     return payments.map(pay => ({
         "Número": pay.number,
         "Cliente": pay.clientName,
@@ -41,7 +44,7 @@ export function formatPaymentForExport(payments: any[]) {
     }));
 }
 
-export function formatClientForExport(clients: any[]) {
+export function formatClientForExport(clients: Client[]) {
     return clients.map(client => ({
         "Nombre Comercial": client.nombreComercial,
         "RNC": client.rnc || "N/A",

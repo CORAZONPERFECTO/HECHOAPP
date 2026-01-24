@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, TicketPhoto } from "@/types/schema";
+import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, GallerySection, TicketPhoto } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -380,6 +380,35 @@ export function TicketReportEditor({
                         >
                             <RefreshCw className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
                             <span className="hidden lg:inline">Actualizar Fotos</span>
+                            {/* NEW: Badge for new photos */}
+                            {(() => {
+                                const reportPhotoUrls = new Set<string>();
+                                report.sections.forEach(s => {
+                                    if (s.type === 'photo' && (s as PhotoSection).photoUrl) {
+                                        reportPhotoUrls.add((s as PhotoSection).photoUrl);
+                                    }
+                                    if (s.type === 'gallery' && (s as GallerySection).photos) {
+                                        (s as GallerySection).photos.forEach(p => {
+                                            if (p.photoUrl) reportPhotoUrls.add(p.photoUrl);
+                                        });
+                                    }
+                                    if (s.type === 'beforeAfter') {
+                                        const ba = s as BeforeAfterSection;
+                                        if (ba.beforePhotoUrl) reportPhotoUrls.add(ba.beforePhotoUrl);
+                                        if (ba.afterPhotoUrl) reportPhotoUrls.add(ba.afterPhotoUrl);
+                                    }
+                                });
+                                const newCount = availablePhotos.filter(p => !reportPhotoUrls.has(p.url)).length;
+
+                                if (newCount > 0) {
+                                    return (
+                                        <span className="ml-1 -mr-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
+                                            {newCount}
+                                        </span>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </Button>
                         <Button
                             variant="outline"

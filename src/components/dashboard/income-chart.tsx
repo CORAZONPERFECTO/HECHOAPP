@@ -13,12 +13,17 @@ import { Loader2 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { differenceInDays, eachDayOfInterval } from "date-fns";
 
+interface ChartData {
+    name: string;
+    total: number;
+}
+
 interface IncomeChartProps {
     dateRange?: DateRange;
 }
 
 export function IncomeChart({ dateRange }: IncomeChartProps) {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<ChartData[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -144,7 +149,7 @@ export function IncomeChart({ dateRange }: IncomeChartProps) {
                                 tickFormatter={(value) => `RD$${value.toLocaleString()}`}
                             />
                             <Tooltip
-                                formatter={(value: number) => [`RD$ ${value.toLocaleString()}`, "Ingresos"]}
+                                formatter={(value: number | undefined) => [value ? `RD$ ${value.toLocaleString()}` : "RD$ 0", "Ingresos"]}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
                             <Area

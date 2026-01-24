@@ -247,7 +247,7 @@ export default function TicketDetailPage() {
                                                     onChange={(e) => {
                                                         const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : undefined;
                                                         // Auto status logic: If setting a date, ensure status reflects it if currently OPEN
-                                                        let newStatus = ticket.status;
+                                                        const newStatus = ticket.status;
                                                         setTicket({ ...ticket, scheduledStart: date, status: newStatus });
                                                     }}
                                                 />

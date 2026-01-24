@@ -1,9 +1,9 @@
 
 import jsPDF from 'jspdf';
 // html2canvas import removed as it is not used in modern export
-import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType, Table } from 'docx';
 import { saveAs } from 'file-saver';
-import { TicketReportNew, PhotoSection, Quote, CompanySettings } from '@/types/schema';
+import { TicketReportNew, PhotoSection, Quote, CompanySettings, BeforeAfterSection, GallerySection } from '@/types/schema';
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -284,7 +284,11 @@ export async function exportToPDFModern(report: TicketReportNew) {
             yPos += 5;
         }
         else if (section.type === 'beforeAfter') {
-            const baSection = section as any;
+            const baSection = section as BeforeAfterSection;
+
+            // SKIP IF EMPTY
+            if (!baSection.beforePhotoUrl && !baSection.afterPhotoUrl) continue;
+
             if (yPos > pageHeight - 90) { // Check space for big block
                 drawFooter(pdf.getCurrentPageInfo().pageNumber);
                 pdf.addPage();
@@ -338,6 +342,78 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 pdf.text(baSection.description, margin + 5, yPos);
             }
             yPos += 15;
+        }
+        else if (section.type === 'gallery') {
+            const gallerySection = section as GallerySection;
+            if (!gallerySection.photos || gallerySection.photos.length === 0) continue;
+
+            // Header for Gallery if needed, or just space?
+            // Let's check space first. We need at least enough for one row (~60mm)
+            if (yPos > pageHeight - 60) {
+                drawFooter(pdf.getCurrentPageInfo().pageNumber);
+                pdf.addPage();
+                yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
+            }
+
+            // Optional: Title for Gallery Section? Usually no specific title in schema, but we can add small label
+            // pdf.setFontSize(10);
+            // pdf.setTextColor(COLORS.lightText);
+            // pdf.text("GALERÍA DE IMÁGENES", margin, yPos);
+            // yPos += 5;
+
+            const contentWidth = pageWidth - (margin * 2);
+            const cols = 3;
+            const gap = 5;
+            const photoW = (contentWidth - ((cols - 1) * gap)) / cols;
+            const photoH = photoW; // Square photos for grid
+
+            let colIndex = 0;
+            let startRowY = yPos;
+
+            for (let i = 0; i < gallerySection.photos.length; i++) {
+                const photo = gallerySection.photos[i];
+
+                // Check page break (NEW ROW check)
+                if (colIndex === 0 && yPos + photoH + 20 > pageHeight - 30) {
+                    drawFooter(pdf.getCurrentPageInfo().pageNumber);
+                    pdf.addPage();
+                    yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
+                    startRowY = yPos;
+                }
+
+                const x = margin + (colIndex * (photoW + gap));
+
+                // Draw Photo
+                try {
+                    const img = await loadImage(photo.photoUrl);
+                    pdf.addImage(img, 'JPEG', x, yPos, photoW, photoH);
+                } catch (e) {
+                    // Placeholder
+                }
+
+                // Small Description/Caption below photo
+                if (photo.description) {
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(80, 80, 80);
+                    const safeDesc = typeof photo.description === 'string'
+                        ? photo.description.substring(0, 50) + (photo.description.length > 50 ? '...' : '')
+                        : '';
+                    pdf.text(safeDesc, x, yPos + photoH + 4, { maxWidth: photoW });
+                }
+
+                colIndex++;
+                if (colIndex >= cols) {
+                    colIndex = 0;
+                    yPos += photoH + 12; // Row height + padding
+                }
+            }
+
+            // If we finished in the middle of a row, advanced Y
+            if (colIndex !== 0) {
+                yPos += photoH + 12;
+            }
+
+            yPos += 5; // Extra spacing after gallery
         }
     }
 
@@ -490,13 +566,14 @@ export async function exportToPDFModern(report: TicketReportNew) {
 export async function exportToPDFStandard() {
     // Pre-cargar imágenes
     const images = document.querySelectorAll('.photo-print');
-    const imagePromises = Array.from(images).map((img: any) => {
+    const imagePromises = Array.from(images).map((img) => {
+        const imageElement = img as HTMLImageElement;
         return new Promise((resolve) => {
-            if (img.complete) {
+            if (imageElement.complete) {
                 resolve(true);
             } else {
-                img.onload = () => resolve(true);
-                img.onerror = () => resolve(false);
+                imageElement.onload = () => resolve(true);
+                imageElement.onerror = () => resolve(false);
                 setTimeout(() => resolve(false), 5000);
             }
         });
@@ -550,10 +627,7 @@ function extractPhotos(report: TicketReportNew): PhotoSection[] {
 export async function exportToPDFWith2Photos(report: TicketReportNew) {
     // Implementation kept largely same but using new addPhotoToPDF -> loadImage
     const pdf = new jsPDF('p', 'mm', 'a4');
-    // ... (simplified re-implementation or copy paste from previous view if strictly required)
-    // For brevity in this fix, I am assuming the user cares mostly about the MODERN export which is what broke.
-    // I will just stub this or try to include the basic loop if verified.
-    // Re-implementing the function body from what I saw in previous steps to ensure file integrity.
+    // Basic layout implementation for compatibility
 
     const settings = await getCompanySettings();
     let yPos = 20;
@@ -588,7 +662,7 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
  * Exporta el informe como documento Word (.docx)
  */
 export async function exportToWord(report: TicketReportNew) {
-    const children: any[] = [];
+    const children: (Paragraph | Table)[] = [];
     // Basic implementation to avoid compile errors
     children.push(new Paragraph({ text: report.header.title, heading: HeadingLevel.HEADING_1 }));
 

@@ -86,11 +86,12 @@ export async function generateReportWithAI(params: GenerateReportParams): Promis
 
         return { success: true, report };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error generating report with AI:", error);
+        const err = error as Error;
         return {
             success: false,
-            error: error.message || "Error desconocido al generar reporte"
+            error: err.message || "Error desconocido al generar reporte"
         };
     }
 }
@@ -157,73 +158,113 @@ function parseAIResponseToSections(aiOutput: string, ticket: Ticket): TicketRepo
     let currentSection: TicketReportSection | null = null;
     let currentContent: string[] = [];
 
+    const flushSection = () => {
+        if (!currentSection) return;
+
+        if (currentSection.type === 'text' || currentSection.type === 'h1' || currentSection.type === 'h2') {
+            // Manually set content field since TS union access is tricky inside generic function logic
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (currentSection as any).content = (currentSection as any).content || currentContent.join('\n').trim();
+
+            // Append explicit currentContent to text sections if accumulating
+            if (currentSection.type === 'text' && currentContent.length > 0) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (currentSection as any).content = currentContent.join('\n').trim();
+            }
+        }
+
+        // Push section logic
+        if (currentSection.type === 'list') {
+            if (currentSection.items && currentSection.items.length > 0) {
+                sections.push(currentSection);
+            }
+        } else {
+            // For text/headers
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((currentSection as any).content) {
+                sections.push(currentSection);
+            }
+        }
+
+        currentSection = null;
+        currentContent = [];
+    };
+
     for (const line of lines) {
         // Check for H1
         if (line.startsWith('# ')) {
-            if (currentSection) {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-            }
+            flushSection();
             currentSection = {
                 id: crypto.randomUUID(),
                 type: 'h1',
                 content: line.substring(2).trim()
             };
-            currentContent = [];
         }
         // Check for H2
         else if (line.startsWith('## ')) {
-            if (currentSection) {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-            }
+            flushSection();
             currentSection = {
                 id: crypto.randomUUID(),
                 type: 'h2',
                 content: line.substring(3).trim()
             };
-            currentContent = [];
         }
         // Check for list items
         else if (line.startsWith('- ') || line.startsWith('* ')) {
+            // If we were in a non-list section, flush it
             if (currentSection && currentSection.type !== 'list') {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
+                flushSection();
+            }
+
+            // Start new list if needed
+            if (!currentSection || currentSection.type !== 'list') {
                 currentSection = {
                     id: crypto.randomUUID(),
                     type: 'list',
-                    items: [line.substring(2).trim()]
+                    items: []
                 };
-                currentContent = [];
-            } else if (currentSection && currentSection.type === 'list') {
-                currentSection.items = currentSection.items || [];
+            }
+
+            // Append item
+            if (currentSection.type === 'list') {
                 currentSection.items.push(line.substring(2).trim());
             }
         }
         // Regular text
         else if (line.trim()) {
+            if (currentSection && currentSection.type !== 'text') {
+                // We were in a header or list, and found text. Flush previous and start text.
+                flushSection();
+            }
+
+            if (!currentSection) {
+                currentSection = {
+                    id: crypto.randomUUID(),
+                    type: 'text',
+                    content: ''
+                };
+            }
+
             currentContent.push(line);
         }
-        // Empty line
-        else if (currentSection && currentContent.length > 0) {
-            if (currentSection.type === 'text') {
-                currentSection.content = (currentSection.content || '') + '\n' + currentContent.join('\n');
+        // Empty line (Paragraph break)
+        else if (currentContent.length > 0) {
+            if (currentSection && currentSection.type === 'text') {
+                // Append paragraph
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const prev = (currentSection as any).content;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (currentSection as any).content = (prev ? prev + '\n\n' : '') + currentContent.join('\n');
+                currentContent = [];
             } else {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-                currentSection = null;
+                // If we were in other types, flush
+                flushSection();
             }
-            currentContent = [];
         }
     }
 
     // Push last section
-    if (currentSection) {
-        if (currentContent.length > 0) {
-            currentSection.content = currentContent.join('\n').trim();
-        }
-        sections.push(currentSection);
-    }
+    flushSection();
 
     // Add photo sections from ticket
     const photoSections = addPhotoSections(ticket);

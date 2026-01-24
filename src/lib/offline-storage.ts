@@ -1,4 +1,5 @@
 // Offline Storage using IndexedDB for ticket data and LocalStorage for sync queue
+import { ServiceTicket } from "@/types/service";
 
 const DB_NAME = 'TechnicianOfflineDB';
 const DB_VERSION = 1;
@@ -8,7 +9,7 @@ const SYNC_QUEUE_KEY = 'syncQueue';
 interface SyncOperation {
     id: string;
     type: 'UPDATE_TICKET' | 'UPLOAD_PHOTO';
-    data: any;
+    data: ServiceTicket | { ticketId: string; photoData: unknown };
     timestamp: number;
     retries: number;
 }
@@ -33,7 +34,7 @@ export const initDB = (): Promise<IDBDatabase> => {
 };
 
 // Save ticket to IndexedDB
-export const saveTicketOffline = async (ticket: any): Promise<void> => {
+export const saveTicketOffline = async (ticket: ServiceTicket): Promise<void> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([TICKET_STORE], 'readwrite');
@@ -49,7 +50,7 @@ export const saveTicketOffline = async (ticket: any): Promise<void> => {
 };
 
 // Get ticket from IndexedDB
-export const getTicketOffline = async (ticketId: string): Promise<any> => {
+export const getTicketOffline = async (ticketId: string): Promise<ServiceTicket | undefined> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([TICKET_STORE], 'readonly');

@@ -1,5 +1,7 @@
 "use client";
 
+import { ServiceTicket } from "@/types/service";
+
 import { useEffect, useState, useCallback } from 'react';
 import { useOnlineStatus } from './use-online-status';
 import {
@@ -61,7 +63,7 @@ export function useOfflineSync() {
         console.log('✅ Sync complete');
     }, []);
 
-    const syncTicketUpdate = async (ticketData: any) => {
+    const syncTicketUpdate = async (ticketData: Partial<ServiceTicket> & { id: string }) => {
         const docRef = doc(db, 'tickets', ticketData.id);
         await updateDoc(docRef, {
             ...ticketData,
@@ -70,7 +72,7 @@ export function useOfflineSync() {
         console.log('✅ Synced ticket:', ticketData.id);
     };
 
-    const syncPhotoUpload = async (photoData: any) => {
+    const syncPhotoUpload = async (photoData: { ticketId: string; blob: Blob; type: string; location?: string; filename: string }) => {
         const { ticketId, blob, type, location } = photoData;
 
         // Upload to Firebase Storage
@@ -100,7 +102,7 @@ export function useOfflineSync() {
         console.log('✅ Synced photo for ticket:', ticketId);
     };
 
-    const saveOffline = useCallback(async (ticketId: string, updates: any) => {
+    const saveOffline = useCallback(async (ticketId: string, updates: Partial<ServiceTicket>) => {
         // Save to IndexedDB
         await saveTicketOffline({ id: ticketId, ...updates });
 

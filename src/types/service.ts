@@ -81,7 +81,7 @@ export interface AgentMessage {
     mediaUrl?: string; // Image/Doc
     mediaType?: 'image' | 'document' | 'audio';
     timestamp: Timestamp;
-    metadata?: any; // e.g., WhatsApp message ID
+    metadata?: Record<string, unknown>; // e.g., WhatsApp message ID
 }
 
 export interface AgentConversation {

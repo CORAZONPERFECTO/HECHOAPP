@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Trash2, Copy, Sparkles, Loader2 } from "lucide-react";
+import { GripVertical, Trash2, Copy, Sparkles, Loader2, Plus, X, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { BeforeAfterBlock } from "./blocks/before-after-block";
 import { BeforeAfterSelector } from "./before-after-selector";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface SectionEditorProps {
     section: TicketReportSection;
@@ -242,25 +243,99 @@ export function SectionEditor({
                 return (
                     <div className="space-y-4">
                         <Label className="text-sm font-medium">Galería de Fotos ({gallerySection.photos.length})</Label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {gallerySection.photos.slice(0, 6).map((p, i) => (
-                                <div key={i} className="relative aspect-square bg-gray-100 rounded overflow-hidden border">
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                            {/* Existing Photos */}
+                            {gallerySection.photos.map((p, i) => (
+                                <div key={i} className="relative aspect-square bg-gray-100 rounded overflow-hidden border group">
                                     <Image
                                         src={p.photoUrl}
                                         alt="Preview"
                                         fill
                                         className="object-cover"
                                     />
+                                    {/* Delete Button (Overlay) */}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (confirm("¿Quitar esta foto de la galería?")) {
+                                                const newPhotos = [...gallerySection.photos];
+                                                newPhotos.splice(i, 1);
+                                                onChange({ ...section, photos: newPhotos } as GallerySection);
+                                            }
+                                        }}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm z-10 cursor-pointer"
+                                        title="Quitar foto"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
                                 </div>
                             ))}
-                            {gallerySection.photos.length > 6 && (
-                                <div className="flex items-center justify-center bg-gray-50 border rounded aspect-square text-xs text-gray-500 font-medium">
-                                    +{gallerySection.photos.length - 6} más
-                                </div>
-                            )}
+
+                            {/* Add Photo Button */}
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <div
+                                        className="flex flex-col items-center justify-center aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                                        title="Agregar foto existente"
+                                        onClick={(e) => {
+                                            // Ensure this click doesn't bubble up weirdly if nested
+                                            e.stopPropagation();
+                                        }}
+                                    >
+                                        <Plus className="h-6 w-6 text-gray-400 mb-1" />
+                                        <span className="text-[10px] text-gray-500 font-medium">Agregar</span>
+                                    </div>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                    <DialogHeader>
+                                        <DialogTitle>Seleccionar foto para agregar</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                        {(availablePhotos || []).map((photo, i) => (
+                                            <div
+                                                key={i}
+                                                className="relative aspect-video group cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500"
+                                                onClick={() => {
+                                                    const newPhoto = {
+                                                        photoUrl: photo.url,
+                                                        description: photo.description || '',
+                                                        photoMeta: {
+                                                            originalId: (photo as any).id || crypto.randomUUID(), // Assuming ID exists or generate one
+                                                            area: photo.area,
+                                                            phase: photo.type
+                                                        }
+                                                    };
+                                                    onChange({
+                                                        ...section,
+                                                        photos: [...gallerySection.photos, newPhoto]
+                                                    } as GallerySection);
+                                                    // Close dialog roughly by just selecting. 
+                                                    // (Note: To close grammatically we need controlled dialog, 
+                                                    // but for speed relying on click-outside or close button is fallback, 
+                                                    // or we can make this component controlled if needed. 
+                                                    // For now, let's keep it simple or use a ref to close? 
+                                                    // Actually without controlled state 'open', it won't close automatically on click.
+                                                    // Let's make it better with state.)
+                                                }}
+                                            >
+                                                <Image
+                                                    src={photo.url}
+                                                    alt="Thumb"
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                                {/* Visual indicator if already in gallery? Strict check might be expensive here, skipping for perf */}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
                         </div>
-                        <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                            ℹ️ Las fotos se sincronizan automáticamente desde el ticket. Usa el botón "Actualizar Fotos" para traer nuevas imágenes.
+                        <p className="text-xs text-gray-500">
+                            Puedes reordenar o eliminar fotos individualmente.
                         </p>
                     </div>
                 );

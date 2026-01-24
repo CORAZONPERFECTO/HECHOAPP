@@ -11,23 +11,51 @@ interface VoiceTextareaProps extends TextareaProps {
     onValueChange?: (value: string) => void;
 }
 
+interface SpeechRecognitionEvent {
+    resultIndex: number;
+    results: {
+        [key: number]: {
+            isFinal: boolean;
+            [key: number]: {
+                transcript: string;
+            };
+        };
+        length: number;
+    };
+}
+
+interface SpeechRecognitionErrorEvent {
+    error: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start(): void;
+    stop(): void;
+    onresult: (event: SpeechRecognitionEvent) => void;
+    onerror: (event: SpeechRecognitionErrorEvent) => void;
+    onend: () => void;
+}
+
 export function VoiceTextarea({ className, value, onChange, onValueChange, ...props }: VoiceTextareaProps) {
     const [isListening, setIsListening] = React.useState(false);
     const [isProcessing, setIsProcessing] = React.useState(false);
     const [isSupported, setIsSupported] = React.useState(true);
-    const recognitionRef = React.useRef<any>(null);
+    const recognitionRef = React.useRef<SpeechRecognition | null>(null);
     const { toast } = useToast();
 
     React.useEffect(() => {
         if (typeof window !== "undefined") {
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
             if (SpeechRecognition) {
-                const recognition = new SpeechRecognition();
+                const recognition = new SpeechRecognition() as SpeechRecognition;
                 recognition.continuous = true;
                 recognition.interimResults = true;
                 recognition.lang = 'es-DO'; // Default to Dominican Spanish
 
-                recognition.onresult = (event: any) => {
+                recognition.onresult = (event: SpeechRecognitionEvent) => {
                     let finalTranscript = '';
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         if (event.results[i].isFinal) {
@@ -42,7 +70,7 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
                     }
                 };
 
-                recognition.onerror = (event: any) => {
+                recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
                     console.error("Speech recognition error", event.error);
                     setIsListening(false);
                 };
@@ -118,10 +146,11 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
                 toast({ title: "¡Mejorado con IA!", description: "El texto ha sido profesionalizado.", variant: "success" });
             }
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("AI Refine Error:", error);
+            const err = error as Error;
 
-            if (error.message?.includes("Faltan credenciales")) {
+            if (err.message?.includes("Faltan credenciales")) {
                 toast({
                     title: "Falta Configuración",
                     description: "No se han detectado las llaves de Vertex AI (Google Cloud).",

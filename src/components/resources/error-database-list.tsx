@@ -87,7 +87,7 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
         setImporting(true);
 
         try {
-            let jsonData: any[] = [];
+            let jsonData: Record<string, any>[] = [];
 
             if (file.name.endsWith('.json')) {
                 const text = await file.text();
@@ -96,7 +96,7 @@ export function ErrorDatabaseList({ onSelect, onNew, currentUserRole }: ErrorDat
                 const data = await file.arrayBuffer();
                 const workbook = XLSX.read(data);
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+                jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, any>[];
             }
 
             let count = 0;

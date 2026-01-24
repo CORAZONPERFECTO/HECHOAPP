@@ -85,7 +85,7 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                     cx="50%"
                                     cy="50%"
                                     labelLine={false}
-                                    label={({ serviceType, percentage }) => `${serviceType.substring(0, 12)}: ${percentage.toFixed(0)}%`}
+                                    label={({ serviceType, percentage }: any) => `${serviceType.substring(0, 12)}: ${percentage.toFixed(0)}%`}
                                     outerRadius={80}
                                     fill="#8884d8"
                                     dataKey="count"
@@ -122,7 +122,7 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                     style={{ fontSize: 12 }}
                                 />
                                 <Tooltip
-                                    formatter={(value: number) => `$${value.toFixed(2)}`}
+                                    formatter={(value: any) => `$${Number(value).toFixed(2)}`}
                                     contentStyle={{
                                         backgroundColor: '#fff',
                                         border: '1px solid #e5e7eb',
@@ -162,7 +162,7 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                 label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
                             />
                             <Tooltip
-                                formatter={(value: number) => `${value.toFixed(1)}h`}
+                                formatter={(value: any) => `${Number(value).toFixed(1)}h`}
                                 contentStyle={{
                                     backgroundColor: '#fff',
                                     border: '1px solid #e5e7eb',

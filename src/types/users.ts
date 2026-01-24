@@ -43,8 +43,8 @@ export interface PersonnelResource {
     notes?: string;
     documents: string[]; // Array of URLs
     active: boolean;
-    createdAt?: any;
-    updatedAt?: any;
+    createdAt?: Timestamp | Date;
+    updatedAt?: Timestamp | Date;
 }
 
 export interface Role {

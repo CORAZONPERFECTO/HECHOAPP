@@ -107,5 +107,5 @@ export interface PendingProduct {
     resolvedProductId?: string;
 
     createdByUserId: string;
-    createdAt: any;
+    createdAt: Timestamp | Date;
 }

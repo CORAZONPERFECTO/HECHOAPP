@@ -24,8 +24,8 @@ export interface Location {
     direccion?: string;
     descripcion?: string;
     clientId?: string;
-    createdAt?: any;
-    updatedAt?: any;
+    createdAt?: Timestamp | Date;
+    updatedAt?: Timestamp | Date;
 }
 
 export type ACErrorCriticality = 'BAJA' | 'MEDIA' | 'ALTA';
@@ -42,8 +42,8 @@ export interface ACError {
     criticality: ACErrorCriticality;
     notes?: string;
     tags?: string[]; // ["Presión", "Sensor"]
-    createdAt?: any;
-    updatedAt?: any;
+    createdAt?: Timestamp | Date;
+    updatedAt?: Timestamp | Date;
     // Validation Fields
     validationStatus?: 'PENDIENTE' | 'VALIDADO';
     sourcePhotoUrl?: string; // Original photo if scanned
@@ -55,7 +55,7 @@ export interface ErrorSource {
     model?: string;
     type?: string;
     photoUrls: string[];
-    extractedData: any; // Raw JSON from AI
+    extractedData: Record<string, unknown>; // Raw JSON from AI
     processedAt: Timestamp;
     status: 'PROCESSED' | 'ERROR';
 }
