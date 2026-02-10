@@ -23,15 +23,36 @@ export default function InventoryDashboard() {
 
     const loadStats = async () => {
         try {
-            const products = await getProducts();
+            const [products, allStock] = await Promise.all([
+                getProducts(),
+                import("@/lib/inventory-service").then(mod => mod.getAllStock())
+            ]);
+
             const totalProducts = products.length;
 
-            // In a real app, we'd fetch stock levels to calculate this accurately
-            // For MVP dashboard, just showing product count is a start
+            // Map stock by productId
+            const stockMap = new Map<string, number>();
+            allStock.forEach(s => {
+                const current = stockMap.get(s.productId) || 0;
+                stockMap.set(s.productId, current + s.quantity);
+            });
+
+            // Calculate low stock and value
+            const lowStockCount = products.filter(p => {
+                const totalStock = stockMap.get(p.id) || 0;
+                // Consider low stock if defined minStock and current <= minStock
+                return p.minStock !== undefined && totalStock <= p.minStock;
+            }).length;
+
+            const totalVal = products.reduce((acc, p) => {
+                const totalStock = stockMap.get(p.id) || 0;
+                return acc + (totalStock * (p.averageCost || 0));
+            }, 0);
+
             setStats({
                 totalProducts,
-                lowStock: 0, // Todo: implement check against stock levels
-                totalValue: 0
+                lowStock: lowStockCount,
+                totalValue: totalVal
             });
         } finally {
             setLoading(false);

@@ -1,4 +1,38 @@
 import { ServiceTicket, ServiceTicketStatus } from "@/types/service";
+import { Timestamp } from "firebase/firestore";
+
+/**
+ * Calculates the current SLA status for a ticket.
+ */
+export function calculateSLAStatus(ticket: ServiceTicket): 'ON_TRACK' | 'AT_RISK' | 'BREACHED' {
+    if (!ticket.slaResolutionTimeHours) return 'ON_TRACK'; // No SLA defined
+
+    const now = Timestamp.now().toMillis();
+    const created = ticket.createdAt instanceof Timestamp ? ticket.createdAt.toMillis() : new Date(ticket.createdAt).getTime();
+
+    // Check Resolution SLA
+    const resolutionDeadline = created + (ticket.slaResolutionTimeHours * 60 * 60 * 1000);
+
+    // If ticket is closed, check if it met the deadline
+    if (ticket.serviceStatus === 'CLOSED' || ticket.serviceStatus === 'WORK_DONE') {
+        const resolutionTime = ticket.resolvedAt ? ticket.resolvedAt.toMillis() : now; // Fallback if missing
+        return resolutionTime <= resolutionDeadline ? 'ON_TRACK' : 'BREACHED';
+    }
+
+    // Active ticket checks
+    if (now > resolutionDeadline) {
+        return 'BREACHED';
+    }
+
+    // "At Risk" if within 20% of deadline remaining
+    const timeRemaining = resolutionDeadline - now;
+    const totalDuration = resolutionDeadline - created;
+    if (timeRemaining < (totalDuration * 0.2)) {
+        return 'AT_RISK';
+    }
+
+    return 'ON_TRACK';
+}
 
 // Define allowed transitions
 const TRANSITIONS: Record<ServiceTicketStatus, ServiceTicketStatus[]> = {
@@ -17,6 +51,7 @@ const TRANSITIONS: Record<ServiceTicketStatus, ServiceTicketStatus[]> = {
     'PAYMENT_REQUESTED': ['PROOF_RECEIVED', 'CLOSED'],
     'PROOF_RECEIVED': ['PAYMENT_VERIFIED', 'PAYMENT_REQUESTED', 'CLOSED'], // Back to REQUESTED if proof rejected
     'PAYMENT_VERIFIED': ['CLOSED'],
+    'CANCELLED': ['CLOSED', 'CREATED'], // Allow reset? or just closed.
     'CLOSED': [], // Terminal state? Or maybe REOPEN?
 };
 

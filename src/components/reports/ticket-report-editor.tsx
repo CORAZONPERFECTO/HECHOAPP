@@ -70,8 +70,9 @@ function SortableSection({
         <div
             ref={setNodeRef}
             style={style}
-            {...attributes}
-            {...listeners}
+            // Removed attributes/listeners from here to fix interaction issues
+            // {...attributes}
+            // {...listeners}
             onClick={(e) => {
                 e.stopPropagation();
                 onClick();
@@ -87,6 +88,9 @@ function SortableSection({
                 onMoveDown={() => { }}
                 isFirst={isFirst}
                 isLast={isLast}
+                dragAttributes={attributes}
+                dragListeners={listeners}
+                readOnly={readOnly}
             />
 
             {/* Custom Editor for Before/After Block */}

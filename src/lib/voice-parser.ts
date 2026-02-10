@@ -37,7 +37,19 @@ export async function parseInvoiceCommand(text: string, availableClients: Client
         }
 
         const data = await response.json();
-        const aiResult = data.output;
+        // Type definition for the expected AI response structure directly from the API result
+        interface AIResponseItem {
+            description: string;
+            quantity: string | number;
+            unitPrice: string | number;
+        }
+
+        interface AIResponse {
+            clientName?: string;
+            items: AIResponseItem[];
+        }
+
+        const aiResult: AIResponse = data.output;
 
         // Map AI result to our internal structure
         // Expecting { clientName: string, items: [] }
@@ -46,7 +58,7 @@ export async function parseInvoiceCommand(text: string, availableClients: Client
             let matchedClientId = undefined;
             if (aiResult.clientName) {
                 const found = availableClients.find(c =>
-                    c.nombreComercial.toLowerCase().includes(aiResult.clientName.toLowerCase())
+                    c.nombreComercial.toLowerCase().includes(aiResult.clientName!.toLowerCase())
                 );
                 if (found) {
                     matchedClientId = found.id;
@@ -57,7 +69,7 @@ export async function parseInvoiceCommand(text: string, availableClients: Client
                 }
             }
 
-            result.items = aiResult.items.map((item: any) => ({
+            result.items = (aiResult.items || []).map((item: AIResponseItem) => ({
                 description: item.description,
                 quantity: Number(item.quantity) || 1,
                 unitPrice: Number(item.unitPrice) || 0,

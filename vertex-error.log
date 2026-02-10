@@ -1,0 +1,230 @@
+[2026-01-25T04:27:32.532Z] Error: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+Stack: GoogleAuthError: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+    at C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:1300:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:769:16)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__9c2ba147._.js:225:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"GoogleAuthError","stackTrace":{"opensslErrorStack":["error:1E08010C:DECODER routines::unsupported"],"library":"DECODER routines","reason":"unsupported","code":"ERR_OSSL_UNSUPPORTED"}}
+
+[2026-01-25T04:28:57.809Z] Error: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+Stack: GoogleAuthError: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+    at C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:1300:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:769:16)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__9c2ba147._.js:225:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"GoogleAuthError","stackTrace":{"opensslErrorStack":["error:1E08010C:DECODER routines::unsupported"],"library":"DECODER routines","reason":"unsupported","code":"ERR_OSSL_UNSUPPORTED"}}
+
+[2026-01-25T04:29:57.104Z] Error: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+Stack: GoogleAuthError: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+    at C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:1300:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:769:16)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__9c2ba147._.js:230:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"GoogleAuthError","stackTrace":{"opensslErrorStack":["error:1E08010C:DECODER routines::unsupported"],"library":"DECODER routines","reason":"unsupported","code":"ERR_OSSL_UNSUPPORTED"}}
+
+[2026-01-25T04:32:13.220Z] Error: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+Stack: GoogleAuthError: [VertexAI.GoogleAuthError]: 
+Unable to authenticate your request        
+Depending on your run time environment, you can get authentication by        
+- if in local instance or cloud shell: `!gcloud auth login`        
+- if in Colab:        
+    -`from google.colab import auth`        
+    -`auth.authenticate_user()`        
+- if in service account or other: please follow guidance in https://cloud.google.com/docs/authentication
+    at C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:1300:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:769:16)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__9c2ba147._.js:230:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"GoogleAuthError","stackTrace":{"opensslErrorStack":["error:1E08010C:DECODER routines::unsupported"],"library":"DECODER routines","reason":"unsupported","code":"ERR_OSSL_UNSUPPORTED"}}
+
+[2026-01-26T00:22:36.919Z] Error: [VertexAI.ClientError]: got status: 404 Not Found. {"error":{"code":404,"message":"Publisher Model `projects/hecho-srl-free/locations/us-central1/publishers/google/models/gemini-1.5-flash-001` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions","status":"NOT_FOUND"}}
+Stack: ClientError: [VertexAI.ClientError]: got status: 404 Not Found. {"error":{"code":404,"message":"Publisher Model `projects/hecho-srl-free/locations/us-central1/publishers/google/models/gemini-1.5-flash-001` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions","status":"NOT_FOUND"}}
+    at throwErrorIfNotOK (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:231:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:777:5)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__19cdd84b._.js:270:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"ClientError","stackTrace":{"code":404,"status":"NOT_FOUND"}}
+
+[2026-01-26T00:54:06.391Z] Error: [VertexAI.ClientError]: got status: 404 Not Found. {"error":{"code":404,"message":"Publisher Model `projects/hecho-srl-free/locations/us-central1/publishers/google/models/gemini-1.5-flash-001` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions","status":"NOT_FOUND"}}
+Stack: ClientError: [VertexAI.ClientError]: got status: 404 Not Found. {"error":{"code":404,"message":"Publisher Model `projects/hecho-srl-free/locations/us-central1/publishers/google/models/gemini-1.5-flash-001` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions","status":"NOT_FOUND"}}
+    at throwErrorIfNotOK (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:231:27)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async generateContent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_@google-cloud_vertexai_build_src_140f0347._.js:777:5)
+    at async analyzeReceiptAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\[root-of-the-server]__19cdd84b._.js:270:24)
+    at async executeActionAndPrepareForRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:4449)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:35:2264
+    at async handleAction (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:34:23622)
+    at async renderToHTMLOrFlightImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:40:41714)
+    at async doRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8088:28)
+    at async AppPageRouteModule.handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\compiled\next-server\app-page-turbo.runtime.dev.js:42:63162)
+    at async handleResponse (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8294:32)
+    at async handler (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\.next\dev\server\chunks\ssr\node_modules_next_dist_0a1dfa6a._.js:8665:20)
+    at async DevServer.renderToResponseWithComponentsImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1413:9)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1465:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1515:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:1021:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\next-server.js:394:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\base-server.js:912:17)
+    at async C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:382:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\dev\next-dev-server.js:378:24)
+    at async invokeRender (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:240:21)
+    at async handleRequest (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:436:24)
+    at async requestHandlerImpl (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\router-server.js:484:13)
+    at async Server.requestListener (C:\Users\Lenovo Y560\Desktop\DESARROLLO CP\HECHOAPP\node_modules\next\dist\server\lib\start-server.js:226:13)
+Details: {"name":"ClientError","stackTrace":{"code":404,"status":"NOT_FOUND"}}
+

@@ -42,8 +42,8 @@ export interface ACError {
     criticality: ACErrorCriticality;
     notes?: string;
     tags?: string[]; // ["Presión", "Sensor"]
-    createdAt?: Timestamp | Date;
-    updatedAt?: Timestamp | Date;
+    createdAt?: Timestamp | Date | any; // allow FieldValue
+    updatedAt?: Timestamp | Date | any;
     // Validation Fields
     validationStatus?: 'PENDIENTE' | 'VALIDADO';
     sourcePhotoUrl?: string; // Original photo if scanned

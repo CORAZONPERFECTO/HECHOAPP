@@ -222,7 +222,7 @@ export class TicketAnalyticsEngine {
             const location = ticket.locationArea || ticket.locationName || 'Sin especificar';
             const current = zoneMap.get(location) || {
                 count: 0,
-                priorities: [],
+                priorities: [] as number[],
                 revenue: 0,
                 issues: new Map()
             };
@@ -238,7 +238,7 @@ export class TicketAnalyticsEngine {
             }[ticket.priority] || 2;
 
             current.priorities.push(priorityValue);
-            current.revenue += ticket.revenue || 0;
+            current.revenue += (ticket as any).revenue || 0;
 
             // Track service types
             const issue = ticket.serviceType;

@@ -21,11 +21,11 @@ export function formatInvoiceForExport(invoices: Invoice[]) {
     return invoices.map(inv => ({
         "Número": inv.number,
         "Cliente": inv.clientName || "N/A",
-        "RNC": inv.rnc || "N/A",
-        "Fecha": inv.date?.seconds ? format(new Date(inv.date.seconds * 1000), "dd/MM/yyyy", { locale: es }) : "N/A",
+        "RNC": inv.clientRnc || "N/A",
+        "Fecha": inv.issueDate?.seconds ? format(new Date(inv.issueDate.seconds * 1000), "dd/MM/yyyy", { locale: es }) : "N/A",
         "Vencimiento": inv.dueDate?.seconds ? format(new Date(inv.dueDate.seconds * 1000), "dd/MM/yyyy", { locale: es }) : "N/A",
         "Subtotal": inv.subtotal,
-        "ITBIS": inv.taxAmount,
+        "ITBIS": inv.taxTotal,
         "Total": inv.total,
         "Estado": inv.status === "PAID" ? "Pagada" : inv.status === "CANCELLED" ? "Cancelada" : "Pendiente",
         "Notas": inv.notes || ""
@@ -40,7 +40,7 @@ export function formatPaymentForExport(payments: Payment[]) {
         "Método": pay.method,
         "Referencia": pay.reference || "N/A",
         "Fecha": pay.date?.seconds ? format(new Date(pay.date.seconds * 1000), "dd/MM/yyyy HH:mm", { locale: es }) : "N/A",
-        "Factura Asociada": pay.invoiceNumber || "N/A"
+        "Factura Asociada": pay.invoiceId || "N/A"
     }));
 }
 

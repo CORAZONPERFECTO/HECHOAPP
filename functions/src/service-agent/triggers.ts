@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import { notificationService } from "../notifications";
 
 const db = admin.firestore();
 
@@ -128,14 +129,20 @@ export const onApprovalUpdated = functions.firestore
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            // C. Send WhatsApp to Client
-            // await sendWhatsAppMessage(ticket.clientPhone, "Su cotización está lista: " + pdfUrl);
+            // C. Notify Admins/Staff
+            await notificationService.broadcastToRole("ADMIN", {
+                title: "Cotización Aprobada",
+                body: `El cliente ha aprobado la cotización ${newValue.code || change.after.id}`,
+                type: "SUCCESS",
+                link: `/hvac/asset/${ticketId}` // Deep link
+            });
+
             await db.collection(`orgs/${orgId}/agentRuns`).add({
                 ticketId,
                 trigger: 'APPROVAL_GRANTED',
                 status: 'RUNNING',
                 startedAt: admin.firestore.FieldValue.serverTimestamp(),
-                logs: [`Approval granted. Sending Quote PDF to client.`]
+                logs: [`Approval granted. Notification sent.`]
             });
 
             // Audit

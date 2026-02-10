@@ -45,3 +45,7 @@ next-env.d.ts
 
 # credentials
 vercel-setup.txt
+
+# local secrets
+temp-service-key.json
+vertex-error.log

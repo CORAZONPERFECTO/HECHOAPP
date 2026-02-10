@@ -11,8 +11,8 @@ import { MapPin, Navigation, ExternalLink, Copy, AlertCircle } from "lucide-reac
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { isWebGLSupported, logMapError } from "@/lib/webgl-check";
 
-// Set your Mapbox access token here
-const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
+// Set your Mapbox access token in .env.local
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
 
 interface TicketMapProps {
     tickets: Ticket[];

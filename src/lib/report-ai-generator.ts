@@ -97,31 +97,30 @@ export async function generateReportWithAI(params: GenerateReportParams): Promis
 }
 
 function buildReportPrompt(ticket: Ticket): string {
-    return `Genera un reporte técnico profesional en español para un ticket de servicio.
+    return `Genera un reporte técnico experto en español para un ticket de servicio de mantenimiento HVAC/Refrigeración.
 
 CONTEXTO DEL TICKET:
 - Tipo de Servicio: ${ticket.serviceType.replace(/_/g, ' ')}
 - Cliente: ${ticket.clientName}
 - Ubicación: ${ticket.locationName}
 - Descripción Inicial: ${ticket.description}
-- Diagnóstico: ${ticket.diagnosis || 'No especificado'}
-- Solución: ${ticket.solution || 'No especificada'}
+- Diagnóstico Técnico: ${ticket.diagnosis || 'No especificado'}
+- Solución Implementada: ${ticket.solution || 'No especificada'}
 - Recomendaciones: ${ticket.recommendations || 'Ninguna'}
 
-INSTRUCCIONES:
-1. Crea un reporte estructurado y profesional
-2. Usa títulos (h1, h2) para organizar secciones
-3. Incluye:
-   - Resumen ejecutivo
-   - Diagnóstico técnico
-   - Trabajo realizado
-   - Recomendaciones
-   - Conclusión
-4. Usa lenguaje técnico pero comprensible
-5. Si hay fotos, menciona que se incluyen evidencias fotográficas
-6. Sé conciso pero completo
+INSTRUCCIONES PARA EL AI:
+1. Adopta el rol de un Ingeniero Senior de Mantenimiento.
+2. Estructura el reporte para ser entregado al cliente final (profesional, claro, autoritario).
+3. SECCIONES REQUERIDAS (Usa Markdown H2):
+   - 📋 Resumen Ejecutivo (Breve descripción del problema y resultado)
+   - 🔍 Diagnóstico Técnico (Detalla fallas encontradas, lecturas, códigos de error)
+   - 🛠️ Trabajo Realizado (Paso a paso de la intervención)
+   - 💡 Recomendaciones (Sugerencias preventivas o correctivas futuras)
+   - ✅ Conclusión
+4. LENGUAJE: Técnico pero accesible. Evita redundancias.
+5. FOTOS: Si se proporcionan descripciones de fotos, intégralas en el análisis como evidencia visual confirmada.
 
-Devuelve el reporte en formato markdown estructurado.`;
+Devuelve SOLO el contenido Markdown.`;
 }
 
 async function analyzePhoto(photoUrl: string, photoType: string): Promise<string> {
@@ -134,7 +133,7 @@ async function analyzePhoto(photoUrl: string, photoType: string): Promise<string
             body: JSON.stringify({
                 task: "analyze-photo",
                 image: photoUrl,
-                context: `Imagen tipo: ${photoType}`
+                context: `Analiza esta imagen de mantenimiento técnico (${photoType}). Identifica: Equipos, marcas, daños visibles, corrosión, lecturas de instrumentos o estado de conexiones. Sé técico y directo.`
             })
         });
 

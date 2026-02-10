@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp, getDoc, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ServiceTicket } from "@/types/service";
 import { TicketToken } from "@/types/tickets";
@@ -101,7 +101,7 @@ export default function ClientApprovalPage() {
                 description: `Client accepted quote. Signed by: ${signature}`,
                 timestamp: serverTimestamp(),
                 userId: 'CLIENT'
-            });
+            } as any);
 
             toast({ title: "Success", description: "Quote accepted! Technician will be notified." });
 
@@ -155,13 +155,13 @@ export default function ClientApprovalPage() {
                         <p className="text-xs text-gray-500">Includes diagnosis, labor, and parts if listed.</p>
                     </div>
 
-                    {ticket.currentQuoteUrl && (
+                    {/* {(ticket as any).currentQuoteUrl && (
                         <div className="text-center">
-                            <a href={ticket.currentQuoteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
+                            <a href={(ticket as any).currentQuoteUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm">
                                 View Full PDF Quote
                             </a>
                         </div>
-                    )}
+                    )} */}
                 </CardContent>
             </Card>
 

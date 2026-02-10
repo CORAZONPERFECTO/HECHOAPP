@@ -70,6 +70,7 @@ const updatedTicket = {
 
 // 3. Update Report
 console.log('3. Updating Report with New Photo...');
+// @ts-ignore
 const updatedReport = updatePhotosFromTicket(report, updatedTicket);
 
 // Verify Update

@@ -42,10 +42,10 @@ export default function ClientPaymentPage() {
 
             if (snap.empty) throw new Error("Invalid Token");
 
-            const tokenDoc = snap.docs[0].data() as TicketToken;
+            const tokenDoc = snap.docs[0].data() as TicketToken & { orgId?: string };
             if (tokenDoc.status !== 'ACTIVE') throw new Error("Token expired or used");
 
-            setTokenData({ id: snap.docs[0].id, ...tokenDoc });
+            setTokenData({ ...tokenDoc, id: snap.docs[0].id });
 
             if (tokenDoc.ticketId) {
                 const ticketSnap = await getDoc(doc(db, "tickets", tokenDoc.ticketId)); // Assuming root/org specific logic handled by ID or path helper
@@ -77,7 +77,7 @@ export default function ClientPaymentPage() {
 
             // 1. Upload File
             if (file) {
-                const orgId = tokenData.orgId || "root";
+                const orgId = (tokenData as any).orgId || "root";
                 proofPath = `payments/${orgId}/${ticket.id}/${Date.now()}_${file.name}`;
                 const storageRef = ref(storage, proofPath);
                 const snapshot = await uploadBytes(storageRef, file);
@@ -85,7 +85,7 @@ export default function ClientPaymentPage() {
             }
 
             // 2. Create Payment Record (Triggers 'onPaymentCreated')
-            const orgId = tokenData.orgId || "demo-org"; // Fallback
+            const orgId = (tokenData as any).orgId || "demo-org"; // Fallback
             // If using root 'payments' vs 'orgs/{id}/payments'
             // Trigger expects `orgs/{orgId}/payments`.
             // So we must write there.

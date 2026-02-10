@@ -77,12 +77,12 @@ const ALL_MODULES = [
   { id: 'clients', label: 'Clientes', icon: Users, href: '/clients', color: 'text-blue-600', role: 'ADMIN' },
   { id: 'technicians', label: 'Técnicos', icon: Wrench, href: '/technicians', color: 'text-orange-600', role: 'ADMIN' },
   { id: 'messages', label: 'Mensajes', icon: MessageSquare, href: '#', color: 'text-green-600', role: 'ALL', onClick: () => alert("Integración WhatsApp en desarrollo") },
-  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '/reports', color: 'text-indigo-600', role: 'ALL' },
+  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '/reports', color: 'text-indigo-600', role: 'ADMIN' },
   { id: 'settings', label: 'Ajustes', icon: Settings, href: '/settings', color: 'text-gray-600', role: 'ADMIN' },
   { id: 'resources', label: 'Recursos', icon: FileText, href: '/resources', color: 'text-teal-600', role: 'ALL' },
   { id: 'income', label: 'Ingresos', icon: BarChart3, href: '/income', color: 'text-emerald-600', role: 'ADMIN' },
   { id: 'ai-diagnostics', label: 'Diagnóstico IA', icon: BrainCircuit, href: '/resources?tab=errors', color: 'text-violet-600', role: 'ALL' },
-  { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ALL', isSpecial: true },
+  { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ADMIN', isSpecial: true },
 ];
 
 const USAGE_KEY = 'dashboard-usage-stats';

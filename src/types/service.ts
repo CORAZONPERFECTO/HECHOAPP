@@ -22,6 +22,7 @@ export type ServiceTicketStatus =
     | 'PAYMENT_REQUESTED'
     | 'PROOF_RECEIVED'
     | 'PAYMENT_VERIFIED'
+    | 'CANCELLED'
     | 'CLOSED';
 
 export interface ServiceTicket extends Ticket {
@@ -46,6 +47,14 @@ export interface ServiceTicket extends Ticket {
         conversationId?: string;
         pendingAction?: string; // e.g., 'WAITING_FOR_PAYMENT_PROOF'
     };
+
+
+    // SLA Tracking
+    firstResponseAt?: Timestamp; // Creation -> Scheduled/OnSite
+    // resolvedAt is inherited from Ticket
+    slaResponseTimeHours?: number;   // e.g. 24
+    slaResolutionTimeHours?: number; // e.g. 72
+    slaStatus?: 'ON_TRACK' | 'AT_RISK' | 'BREACHED';
 }
 
 // ------------------------------------------------------------------

@@ -36,18 +36,26 @@ export function ActiveTicketCard() {
 
         const fetchActiveTicket = async () => {
             try {
-                // Look for tickets assigned to this user that are 'active'
+                // Modified query to avoid "Index Required" error.
+                // We fetch all active tickets for the user and sort/limit in client-side.
                 const q = query(
                     collection(db, "tickets"),
                     where("technicianId", "==", userId),
-                    where("status", "in", ["ASSIGNED", "ON_ROUTE", "ON_SITE", "IN_PROGRESS"]),
-                    orderBy("updatedAt", "desc"),
-                    limit(1)
+                    where("status", "in", ["ASSIGNED", "ON_ROUTE", "ON_SITE", "IN_PROGRESS"])
+                    // Removed orderBy and limit to bypass index requirement
                 );
 
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
-                    setActiveTicket({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Ticket);
+                    // Sort by updatedAt desc in memory
+                    const tickets = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Ticket));
+                    tickets.sort((a, b) => {
+                        const dateA = a.updatedAt instanceof Date ? a.updatedAt.getTime() : (a.updatedAt as any)?.seconds * 1000 || 0;
+                        const dateB = b.updatedAt instanceof Date ? b.updatedAt.getTime() : (b.updatedAt as any)?.seconds * 1000 || 0;
+                        return dateB - dateA;
+                    });
+
+                    setActiveTicket(tickets[0]);
                 }
             } catch (error) {
                 console.error("Error fetching active ticket:", error);

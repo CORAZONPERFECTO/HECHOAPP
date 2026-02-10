@@ -12,6 +12,14 @@ import {
     PackageSearch, ArrowLeftRight, BrainCircuit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -71,21 +79,21 @@ export function Sidebar() {
         >
             {/* Header / Logo */}
             <div className="h-16 flex items-center justify-center border-b border-gray-200/50 dark:border-gray-800/50 relative">
-                <div className={cn("flex items-center gap-2 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
+                <Link href="/" className={cn("flex items-center gap-2 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
                     <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
-                        N
+                        H
                     </div>
                     <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-                        NEXUS
+                        HECHOAPP
                     </span>
-                </div>
+                </Link>
 
                 {/* Collapsed Logo */}
-                <div className={cn("absolute transition-all duration-300", collapsed ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
+                <Link href="/" className={cn("absolute transition-all duration-300", collapsed ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-purple-500/30">
-                        N
+                        H
                     </div>
-                </div>
+                </Link>
 
                 {/* Toggle Button */}
                 <Button
@@ -154,26 +162,60 @@ export function Sidebar() {
                 })}
             </nav>
 
+
             {/* Footer / User Profile */}
             <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
-                <Link
-                    href="/settings"
-                    className={cn(
-                        "flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors",
-                        collapsed ? "justify-center" : ""
-                    )}
-                >
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                        {userRole === "TECNICO" ? "T" : "A"}
-                    </div>
-                    {!collapsed && (
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{auth.currentUser?.displayName || "Usuario"}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole || "Cargando..."}</p>
-                        </div>
-                    )}
-                    {!collapsed && <Settings className="h-4 w-4 text-gray-400" />}
-                </Link>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            className={cn(
+                                "w-full flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors h-auto",
+                                collapsed ? "justify-center" : "justify-start"
+                            )}
+                        >
+                            <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
+                                {userRole === "TECNICO" ? "T" : "A"}
+                            </div>
+                            {!collapsed && (
+                                <div className="flex-1 min-w-0 text-left">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{auth.currentUser?.displayName || "Usuario"}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole || "Cargando..."}</p>
+                                </div>
+                            )}
+                            {!collapsed && <Settings className="h-4 w-4 text-gray-400" />}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                            <Link href="/settings" className="cursor-pointer w-full flex items-center">
+                                <Settings className="mr-2 h-4 w-4" />
+                                <span>Configuración</span>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600 cursor-pointer"
+                            onClick={async () => {
+                                try {
+                                    await auth.signOut();
+                                    // Router push not strictly needed if onAuthStateChanged handles it, 
+                                    // but good for immediate feedback if listener is slow.
+                                    // However, simpler to let the global auth listener handle the redirect 
+                                    // if it exists in the main layout/provider.
+                                    window.location.href = "/login";
+                                } catch (error) {
+                                    console.error("Error signing out:", error);
+                                }
+                            }}
+                        >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Cerrar Sesión</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </aside>
     );

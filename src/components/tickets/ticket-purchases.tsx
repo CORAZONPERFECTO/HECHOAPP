@@ -15,6 +15,8 @@ import { InventoryProduct, InventoryLocation } from "@/types/inventory";
 import { getProducts, getLocations } from "@/lib/inventory-service";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { Timestamp } from "firebase/firestore";
 
 // Keywords for auto-classification
 const KW_INVENTORY = ['cobre', 'tubo', 'gas', 'r410', 'alambre', 'breaker', 'tornillo', 'cinta', 'varilla', 'capacit', 'soldadura', 'filtro', 'compresor', 'valvula'];
@@ -31,6 +33,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const [purchases, setPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const { isOnline, queuePurchaseCreation } = useOfflineSync();
 
     // Form State
     const [step, setStep] = useState<1 | 2>(1); // 1: Upload, 2: Review
@@ -42,8 +45,12 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     // Purchase Data
     const [formData, setFormData] = useState({
         providerName: "",
+        rnc: "",
+        ncf: "",
+        tax: 0,
         total: 0,
         items: [] as PurchaseItem[],
+        paymentMethod: "CASH" as "CASH" | "CARD" | "TRANSFER",
         addToInventory: false,
         targetLocationId: ""
     });
@@ -97,10 +104,23 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
         if (!file) return;
         setAnalyzing(true);
         try {
-            const result = await analyzeReceiptImage(file);
+            // Import Server Action dynamically or use regular import if safe
+            // Ideally should be imported at top: import { analyzeReceiptAction } from "@/app/actions/analyze-receipt";
+            const { analyzeReceiptAction } = await import("@/app/actions/analyze-receipt");
+
+            const reqData = new FormData();
+            reqData.append("file", file);
+
+            const result = await analyzeReceiptAction(reqData);
+
+            if (!result.success || !result.data) {
+                throw new Error(result.error || "Failed to analyze receipt");
+            }
+
+            const data = result.data;
 
             // Auto-Classify Logic
-            const processedItems = (result.items || []).map(item => {
+            const processedItems = (data.items || []).map((item: any) => {
                 const desc = (item.description || "").toLowerCase();
                 let isInv = false;
 
@@ -139,15 +159,20 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
             setFormData(prev => ({
                 ...prev,
-                providerName: result.provider || "",
-                total: result.total || 0, // In user edit we will recalc total from items
+                providerName: data.provider || "",
+                rnc: data.rnc || "",
+                ncf: data.ncf || "",
+                tax: data.tax || 0,
+                // We trust sum of items or AI total? Let's act smart:
+                // If items were found, let UI recalc total. If not, use AI total.
+                total: data.total || 0,
                 items: processedItems
             }));
 
             setStep(2);
         } catch (error) {
             console.error(error);
-            alert("Error analizando imagen");
+            alert("Error analizando imagen (AI): " + (error as Error).message);
         } finally {
             setAnalyzing(false);
         }
@@ -180,27 +205,63 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
             // Assuming `file` is uploaded and we get URL.
             const fakeUrl = previewUrl || "https://placeholder.com/receipt.jpg";
 
-            await registerPurchase({
+            const itemSubtotal = formData.items.reduce((acc, i) => acc + i.total, 0);
+            const total = itemSubtotal + (formData.tax || 0);
+
+            const purchaseParams = {
                 ticketId,
                 ticketNumber,
                 providerName: formData.providerName || "Proveedor General",
-                date: new Date(),
-                subtotal: formData.total, // Simplify
-                tax: 0,
-                total: formData.items.reduce((acc, i) => acc + i.total, 0),
+                rnc: formData.rnc,
+                ncf: formData.ncf,
+                date: new Date() as any,
+                subtotal: itemSubtotal,
+                tax: formData.tax || 0,
+                total: total,
                 items: formData.items,
-                paymentMethod: 'CASH', // Default or add selector
+                paymentMethod: formData.paymentMethod,
                 evidenceUrls: [fakeUrl],
                 userId: userId || 'unknown',
                 addToInventory: formData.addToInventory,
                 inventoryTargetLocationId: formData.targetLocationId
-            });
+            };
+
+            if (isOnline) {
+                await registerPurchase(purchaseParams);
+            } else {
+                // Offline Logic
+                const tempId = `temp_${Date.now()}`;
+                const offlinePurchase: Purchase = {
+                    ...purchaseParams,
+                    id: tempId,
+                    date: { seconds: Date.now() / 1000, nanoseconds: 0 } as Timestamp,
+                    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as Timestamp,
+                    createdByUserId: userId || 'unknown',
+                    // Clean up extra params not in Purchase type
+                    // (They are used in queuePurchaseCreation params, but strictly filtered for UI object)
+                } as unknown as Purchase; // Cast to avoid strict type mismatch on 'addToInventory' if present in spread
+
+                await queuePurchaseCreation(purchaseParams, offlinePurchase);
+
+                // Optimistic UI Update
+                setPurchases(prev => [offlinePurchase, ...prev]);
+            }
 
             setIsDialogOpen(false);
             setFile(null);
             setStep(1);
-            setFormData({ providerName: "", total: 0, items: [], addToInventory: false, targetLocationId: "" });
-            loadData();
+            setFormData({
+                providerName: "",
+                rnc: "",
+                ncf: "",
+                tax: 0,
+                total: 0,
+                items: [],
+                paymentMethod: "CASH",
+                addToInventory: false,
+                targetLocationId: ""
+            });
+            if (isOnline) loadData(); // Reload if online, otherwise we did optimistic update
         } catch (error) {
             console.error(error);
             alert("Error guardando compra");
@@ -259,7 +320,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
                     {step === 2 && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Proveedor</Label>
                                     <Input
@@ -269,8 +330,27 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                     />
                                 </div>
                                 <div className="space-y-2">
+                                    <Label>RNC / Cédula</Label>
+                                    <Input
+                                        value={formData.rnc}
+                                        onChange={e => setFormData({ ...formData, rnc: e.target.value })}
+                                        placeholder="001-0000000-0"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>NCF (Comprobante)</Label>
+                                    <Input
+                                        value={formData.ncf}
+                                        onChange={e => setFormData({ ...formData, ncf: e.target.value })}
+                                        placeholder="B0100000001"
+                                    />
+                                </div>
+                                <div className="space-y-2">
                                     <Label>Método Pago</Label>
-                                    <Select defaultValue="CASH">
+                                    <Select
+                                        value={formData.paymentMethod}
+                                        onValueChange={(val: any) => setFormData({ ...formData, paymentMethod: val })}
+                                    >
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="CASH">Efectivo</SelectItem>
@@ -291,6 +371,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                                 value={item.description}
                                                 onChange={e => updateItem(idx, { description: e.target.value })}
                                                 className="h-8 text-sm font-medium w-full mr-2"
+                                                placeholder="Descripción del item"
                                             />
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => {
                                                 const newItems = formData.items.filter((_, i) => i !== idx);
@@ -302,17 +383,23 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
                                         <div className="flex justify-between items-center gap-2">
                                             <div className="flex items-center gap-2 text-sm">
-                                                <Input type="number" className="w-16 h-8" value={item.quantity} onChange={e => updateItem(idx, { quantity: Number(e.target.value) })} />
-                                                <span>x</span>
-                                                <Input type="number" className="w-20 h-8" value={item.unitPrice} onChange={e => updateItem(idx, { unitPrice: Number(e.target.value) })} />
+                                                <div className="flex items-center">
+                                                    <span className="text-xs text-gray-500 mr-1">Cant:</span>
+                                                    <Input type="number" className="w-16 h-8" value={item.quantity} onChange={e => updateItem(idx, { quantity: Number(e.target.value) })} />
+                                                </div>
+                                                <span className="text-gray-400">x</span>
+                                                <div className="flex items-center">
+                                                    <span className="text-xs text-gray-500 mr-1">Precio:</span>
+                                                    <Input type="number" className="w-24 h-8" value={item.unitPrice} onChange={e => updateItem(idx, { unitPrice: Number(e.target.value) })} />
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="font-bold">${(item.quantity * item.unitPrice).toLocaleString()}</span>
+                                                <span className="font-bold min-w-[60px] text-right">${(item.quantity * item.unitPrice).toLocaleString()}</span>
                                                 <div
                                                     onClick={() => toggleItemType(idx)}
-                                                    className={`cursor-pointer px-3 py-1 rounded-full text-xs font-bold transition-all select-none ${item.isInventory ? 'bg-green-500 text-white shadow-green-200' : 'bg-gray-300 text-gray-700'}`}
+                                                    className={`cursor-pointer px-3 py-1 rounded-full text-[10px] font-bold transition-all select-none uppercase tracking-wider ${item.isInventory ? 'bg-green-500 text-white shadow-green-200' : 'bg-gray-300 text-gray-700'}`}
                                                 >
-                                                    {item.isInventory ? 'INVENTARIABLE' : 'GASTO / OTRO'}
+                                                    {item.isInventory ? 'Inventario' : 'Gasto'}
                                                 </div>
                                             </div>
                                         </div>
@@ -325,34 +412,43 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
                             {/* Summary & Inventory Toggle */}
                             <div className="space-y-4 pt-4 border-t">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Total Gastos:</span>
-                                    <span>${expTotal.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm font-bold text-green-700">
-                                    <span>Total Inventariable:</span>
-                                    <span>${invTotal.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-xl font-bold border-t pt-2">
-                                    <span>TOTAL:</span>
-                                    <span>${(invTotal + expTotal).toLocaleString()}</span>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500">Subtotal (Items):</span>
+                                        <span>${(invTotal + expTotal).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm items-center">
+                                        <span className="text-gray-500">ITBIS / Impuestos:</span>
+                                        <Input
+                                            type="number"
+                                            className="w-24 h-8 text-right"
+                                            value={formData.tax}
+                                            onChange={e => setFormData({ ...formData, tax: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-xl font-bold border-t pt-2 mt-2">
+                                        <span>TOTAL A PAGAR:</span>
+                                        <span>${(invTotal + expTotal + (formData.tax || 0)).toLocaleString()}</span>
+                                    </div>
                                 </div>
 
                                 {invTotal > 0 && (
-                                    <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3">
+                                    <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3 border border-blue-100">
                                         <Switch
                                             checked={formData.addToInventory}
                                             onCheckedChange={v => setFormData({ ...formData, addToInventory: v })}
                                         />
-                                        <div className="space-y-1">
-                                            <Label className="font-bold">Ingresar a Inventario</Label>
-                                            <p className="text-xs text-gray-500">
-                                                Se crearán movimientos de ENTRADA para los {formData.items.filter(i => i.isInventory).length} items marcados como inventariables.
+                                        <div className="space-y-2 w-full">
+                                            <Label className="font-bold text-blue-900 cursor-pointer" onClick={() => setFormData(prev => ({ ...prev, addToInventory: !prev.addToInventory }))}>
+                                                Ingresar a Inventario
+                                            </Label>
+                                            <p className="text-xs text-blue-700">
+                                                Se crearán movimientos de ENTRADA para los {formData.items.filter(i => i.isInventory).length} items marcados.
                                             </p>
                                             {formData.addToInventory && (
                                                 <div className="pt-2">
                                                     <Select value={formData.targetLocationId} onValueChange={v => setFormData({ ...formData, targetLocationId: v })}>
-                                                        <SelectTrigger className="h-8 bg-white"><SelectValue placeholder="Destino..." /></SelectTrigger>
+                                                        <SelectTrigger className="h-9 bg-white border-blue-200"><SelectValue placeholder="Seleccionar Almacén / Vehículo..." /></SelectTrigger>
                                                         <SelectContent>
                                                             {locations.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
                                                         </SelectContent>
@@ -364,9 +460,9 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                 )}
                             </div>
 
-                            <Button onClick={handleSave} disabled={saving} className="w-full" size="lg">
+                            <Button onClick={handleSave} disabled={saving} className="w-full h-12 text-lg font-bold shadow-lg" size="lg">
                                 {saving ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />}
-                                Guardar Compra
+                                Guardar Compra Completa
                             </Button>
                         </div>
                     )}

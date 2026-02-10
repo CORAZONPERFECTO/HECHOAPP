@@ -1,17 +1,22 @@
 // Offline Storage using IndexedDB for ticket data and LocalStorage for sync queue
 import { ServiceTicket } from "@/types/service";
+import { Purchase } from "@/types/purchase";
 
 const DB_NAME = 'TechnicianOfflineDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented version
 const TICKET_STORE = 'tickets';
+const PURCHASES_STORE = 'purchases';
 const SYNC_QUEUE_KEY = 'syncQueue';
 
 interface SyncOperation {
     id: string;
-    type: 'UPDATE_TICKET' | 'UPLOAD_PHOTO';
-    data: ServiceTicket | { ticketId: string; photoData: unknown };
+    type: 'UPDATE_TICKET' | 'UPLOAD_PHOTO' | 'CREATE_PURCHASE';
+    data: any;
     timestamp: number;
     retries: number;
+    lastAttempt?: number;
+    error?: string;
+    status: 'PENDING' | 'RETRYING' | 'FAILED' | 'CONFLICT';
 }
 
 // Initialize IndexedDB
@@ -29,12 +34,16 @@ export const initDB = (): Promise<IDBDatabase> => {
             if (!db.objectStoreNames.contains(TICKET_STORE)) {
                 db.createObjectStore(TICKET_STORE, { keyPath: 'id' });
             }
+            // Create purchases store
+            if (!db.objectStoreNames.contains(PURCHASES_STORE)) {
+                db.createObjectStore(PURCHASES_STORE, { keyPath: 'id' });
+            }
         };
     });
 };
 
 // Save ticket to IndexedDB
-export const saveTicketOffline = async (ticket: ServiceTicket): Promise<void> => {
+export const saveTicketOffline = async (ticket: Partial<ServiceTicket> & { id: string }): Promise<void> => {
     const db = await initDB();
     return new Promise((resolve, reject) => {
         const transaction = db.transaction([TICKET_STORE], 'readwrite');
@@ -62,14 +71,44 @@ export const getTicketOffline = async (ticketId: string): Promise<ServiceTicket 
     });
 };
 
+// Save purchase to IndexedDB
+export const savePurchaseOffline = async (purchase: Purchase): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PURCHASES_STORE], 'readwrite');
+        const store = transaction.objectStore(PURCHASES_STORE);
+        const request = store.put(purchase);
+
+        request.onsuccess = () => {
+            console.log('✅ Purchase saved offline:', purchase.id);
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+// Get purchase from IndexedDB
+export const getPurchaseOffline = async (purchaseId: string): Promise<Purchase | undefined> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PURCHASES_STORE], 'readonly');
+        const store = transaction.objectStore(PURCHASES_STORE);
+        const request = store.get(purchaseId);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+};
+
 // Sync Queue Management (using LocalStorage for simplicity)
-export const addToSyncQueue = (operation: Omit<SyncOperation, 'id' | 'timestamp' | 'retries'>): void => {
+export const addToSyncQueue = (operation: Omit<SyncOperation, 'id' | 'timestamp' | 'retries' | 'status'>): void => {
     const queue = getSyncQueue();
     const newOperation: SyncOperation = {
         ...operation,
         id: `${Date.now()}_${Math.random()}`,
         timestamp: Date.now(),
-        retries: 0
+        retries: 0,
+        status: 'PENDING'
     };
     queue.push(newOperation);
     localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
@@ -79,6 +118,16 @@ export const addToSyncQueue = (operation: Omit<SyncOperation, 'id' | 'timestamp'
 export const getSyncQueue = (): SyncOperation[] => {
     const queueStr = localStorage.getItem(SYNC_QUEUE_KEY);
     return queueStr ? JSON.parse(queueStr) : [];
+};
+
+export const updateSyncOperation = (id: string, updates: Partial<SyncOperation>): void => {
+    const queue = getSyncQueue();
+    const index = queue.findIndex(op => op.id === id);
+
+    if (index !== -1) {
+        queue[index] = { ...queue[index], ...updates };
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+    }
 };
 
 export const removeFromSyncQueue = (operationId: string): void => {

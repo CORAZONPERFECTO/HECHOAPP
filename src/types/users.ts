@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'TECNICO';
+export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'TECNICO' | 'CLIENTE';
 export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
 export type PersonnelType = 'EMPLEADO' | 'CONTRATISTA' | 'TECNICO' | 'AYUDANTE' | 'GERENTE' | 'ADMINISTRATIVO';
 
@@ -10,6 +10,7 @@ export interface User {
     email: string;
     telefono?: string;
     rol: UserRole;
+    clientId?: string; // For CLIENTE role, binds them to a specific tenant
     activo: boolean;
     createdAt: Timestamp;
     updatedAt: Timestamp;

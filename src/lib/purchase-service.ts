@@ -4,13 +4,51 @@ import { collection, addDoc, serverTimestamp, runTransaction, doc, query, where,
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerMovement } from "./inventory-service";
 
+// Helper for mathematical integrity
+function validatePurchaseIntegrity(data: { items: any[], subtotal: number, tax: number, total: number }) {
+    const calculatedSubtotal = data.items.reduce((sum, item) => sum + (item.total || 0), 0);
+    const calculatedTotal = calculatedSubtotal + data.tax;
+
+    // Tolerance for floating point math
+    const TOLERANCE = 0.05;
+
+    if (Math.abs(calculatedSubtotal - data.subtotal) > TOLERANCE) {
+        throw new Error(`Integrity Error: Sum of items (${calculatedSubtotal.toFixed(2)}) does not match subtotal (${data.subtotal.toFixed(2)})`);
+    }
+
+    if (Math.abs(calculatedTotal - data.total) > TOLERANCE) {
+        throw new Error(`Integrity Error: Subtotal + Tax (${calculatedTotal.toFixed(2)}) does not match Total (${data.total.toFixed(2)})`);
+    }
+}
+
 export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'createdAt' | 'createdByUserId'> & {
     userId: string;
     addToInventory: boolean;
     inventoryTargetLocationId?: string;
 }) {
+    // 1. Validation
     if (purchaseData.addToInventory && !purchaseData.inventoryTargetLocationId) {
         throw new Error("Target location is required for inventory entry");
+    }
+
+    validatePurchaseIntegrity({
+        items: purchaseData.items,
+        subtotal: purchaseData.subtotal,
+        tax: purchaseData.tax,
+        total: purchaseData.total
+    });
+
+    // 2. Duplicate Check (NCF + Provider)
+    if (purchaseData.ncf) {
+        const q = query(
+            collection(db, "purchases"),
+            where("ncf", "==", purchaseData.ncf),
+            where("providerName", "==", purchaseData.providerName)
+        );
+        const duplicateSnap = await getDocs(q);
+        if (!duplicateSnap.empty) {
+            throw new Error(`Duplicate Invoice: A purchase from ${purchaseData.providerName} with NCF ${purchaseData.ncf} already exists.`);
+        }
     }
 
     try {
@@ -18,7 +56,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         const purchaseRef = doc(collection(db, "purchases"));
 
         await runTransaction(db, async (transaction) => {
-            // 1. Create Purchase Record
+            // 3. Create Purchase Record
             transaction.set(purchaseRef, {
                 ...purchaseData,
                 createdByUserId: purchaseData.userId,
@@ -27,14 +65,9 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                 addToInventory: undefined,
                 inventoryTargetLocationId: undefined
             });
-
-            // 2. Inventory Logic inside transaction? 
-            // We moved it to AFTER transaction for simplicity in previous steps, 
-            // but effectively we just set the purchase here.
         });
 
-        // 3. Post-Transaction: Process Inventory (Sequential)
-        // This makes "Purchase" the parent. If inventory fails, Purchase still exists (as expense).
+        // 4. Post-Transaction: Process Inventory (Sequential)
         if (purchaseData.addToInventory && purchaseData.inventoryTargetLocationId) {
             const inventoryItems = purchaseData.items.filter(item => item.isInventory);
 

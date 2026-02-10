@@ -22,6 +22,9 @@ interface SectionEditorProps {
     isFirst: boolean;
     isLast: boolean;
     availablePhotos?: any[]; // Passed down for selection
+    dragAttributes?: any;
+    dragListeners?: any;
+    readOnly?: boolean;
 }
 
 export function SectionEditor({
@@ -33,9 +36,13 @@ export function SectionEditor({
     onMoveDown,
     isFirst,
     isLast,
-    availablePhotos
+    availablePhotos,
+    dragAttributes,
+    dragListeners,
+    readOnly
 }: SectionEditorProps) {
     const [isRefining, setIsRefining] = useState(false);
+    const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
 
     const handleRefine = async (currentContent: string, type: 'text' | 'title' | 'photoDescription', imageUrl?: string) => {
         // Allow empty content if we have an image (generation vs refinement)
@@ -76,11 +83,6 @@ export function SectionEditor({
         switch (section.type) {
             case 'h1':
             case 'h2':
-                // ... (omitting unchanged parts for brevity if possible, but replace_file_content needs contiguous block. 
-                // I will target the handleRefine function specifically first to be safe, then the button.
-                // ACTUALLY, I can do it in one go if I include the lines in between, but that's risky. 
-                // I will split into two edits.)
-
                 return (
                     <div>
                         <Label className="text-sm font-medium mb-2 block">
@@ -254,85 +256,79 @@ export function SectionEditor({
                                         fill
                                         className="object-cover"
                                     />
-                                    {/* Delete Button (Overlay) */}
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if (confirm("¿Quitar esta foto de la galería?")) {
+                                    {/* Delete Button (Overlay) - Only if not readOnly if we wanted to enforce it, but here we enforce via drag handles so clicks work */}
+                                    {!readOnly && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
                                                 const newPhotos = [...gallerySection.photos];
                                                 newPhotos.splice(i, 1);
                                                 onChange({ ...section, photos: newPhotos } as GallerySection);
-                                            }
-                                        }}
-                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm z-10 cursor-pointer"
-                                        title="Quitar foto"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
+                                            }}
+                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm z-10 cursor-pointer"
+                                            title="Quitar foto"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    )}
                                 </div>
                             ))}
 
                             {/* Add Photo Button */}
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <div
-                                        className="flex flex-col items-center justify-center aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
-                                        title="Agregar foto existente"
-                                        onClick={(e) => {
-                                            // Ensure this click doesn't bubble up weirdly if nested
-                                            e.stopPropagation();
-                                        }}
-                                    >
-                                        <Plus className="h-6 w-6 text-gray-400 mb-1" />
-                                        <span className="text-[10px] text-gray-500 font-medium">Agregar</span>
-                                    </div>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                                    <DialogHeader>
-                                        <DialogTitle>Seleccionar foto para agregar</DialogTitle>
-                                    </DialogHeader>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                                        {(availablePhotos || []).map((photo, i) => (
-                                            <div
-                                                key={i}
-                                                className="relative aspect-video group cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500"
-                                                onClick={() => {
-                                                    const newPhoto = {
-                                                        photoUrl: photo.url,
-                                                        description: photo.description || '',
-                                                        photoMeta: {
-                                                            originalId: (photo as any).id || crypto.randomUUID(), // Assuming ID exists or generate one
-                                                            area: photo.area,
-                                                            phase: photo.type
-                                                        }
-                                                    };
-                                                    onChange({
-                                                        ...section,
-                                                        photos: [...gallerySection.photos, newPhoto]
-                                                    } as GallerySection);
-                                                    // Close dialog roughly by just selecting. 
-                                                    // (Note: To close grammatically we need controlled dialog, 
-                                                    // but for speed relying on click-outside or close button is fallback, 
-                                                    // or we can make this component controlled if needed. 
-                                                    // For now, let's keep it simple or use a ref to close? 
-                                                    // Actually without controlled state 'open', it won't close automatically on click.
-                                                    // Let's make it better with state.)
-                                                }}
-                                            >
-                                                <Image
-                                                    src={photo.url}
-                                                    alt="Thumb"
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                                {/* Visual indicator if already in gallery? Strict check might be expensive here, skipping for perf */}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
+                            {!readOnly && (
+                                <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <div
+                                            className="flex flex-col items-center justify-center aspect-square bg-gray-50 border-2 border-dashed border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all"
+                                            title="Agregar foto existente"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                            }}
+                                        >
+                                            <Plus className="h-6 w-6 text-gray-400 mb-1" />
+                                            <span className="text-[10px] text-gray-500 font-medium">Agregar</span>
+                                        </div>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                                        <DialogHeader>
+                                            <DialogTitle>Seleccionar foto para agregar</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                            {(availablePhotos || []).map((photo, i) => (
+                                                <div
+                                                    key={i}
+                                                    className="relative aspect-video group cursor-pointer border rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500"
+                                                    onClick={() => {
+                                                        const newPhoto = {
+                                                            photoUrl: photo.url,
+                                                            description: photo.description || '',
+                                                            photoMeta: {
+                                                                originalId: (photo as any).id || crypto.randomUUID(),
+                                                                area: photo.area,
+                                                                phase: photo.type
+                                                            }
+                                                        };
+                                                        onChange({
+                                                            ...section,
+                                                            photos: [...gallerySection.photos, newPhoto]
+                                                        } as GallerySection);
+                                                        setIsGalleryDialogOpen(false);
+                                                    }}
+                                                >
+                                                    <Image
+                                                        src={photo.url}
+                                                        alt="Thumb"
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
                         </div>
                         <p className="text-xs text-gray-500">
                             Puedes reordenar o eliminar fotos individualmente.
@@ -348,34 +344,42 @@ export function SectionEditor({
     return (
         <div className="group relative border-2 border-gray-200 hover:border-blue-300 rounded-lg p-4 bg-white transition-all">
             {/* Drag Handle */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                <GripVertical className="h-5 w-5 text-gray-400" />
-            </div>
+            {!readOnly && (
+                <div
+                    className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab touch-none"
+                    {...dragAttributes}
+                    {...dragListeners}
+                >
+                    <GripVertical className="h-5 w-5 text-gray-400" />
+                </div>
+            )}
 
             {/* Controls */}
-            <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDuplicate}
-                    className="h-8 w-8 p-0"
-                    title="Duplicar"
-                >
-                    <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDelete}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    title="Eliminar"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
+            {!readOnly && (
+                <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onDuplicate}
+                        className="h-8 w-8 p-0"
+                        title="Duplicar"
+                    >
+                        <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onDelete}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Eliminar"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
 
             {/* Content */}
-            <div className="pl-6">
+            <div className={!readOnly ? "pl-6" : ""}>
                 {renderEditor()}
             </div>
         </div>

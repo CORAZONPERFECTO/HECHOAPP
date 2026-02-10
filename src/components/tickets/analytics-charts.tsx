@@ -81,11 +81,11 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                         <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
                                 <Pie
-                                    data={serviceTypes.slice(0, 8)}
+                                    data={serviceTypes.slice(0, 8) as any}
                                     cx="50%"
                                     cy="50%"
                                     labelLine={false}
-                                    label={({ serviceType, percentage }: any) => `${serviceType.substring(0, 12)}: ${percentage.toFixed(0)}%`}
+                                    label={(props: any) => `${props.serviceType.substring(0, 12)}: ${props.percentage.toFixed(0)}%`}
                                     outerRadius={80}
                                     fill="#8884d8"
                                     dataKey="count"
@@ -122,7 +122,7 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                     style={{ fontSize: 12 }}
                                 />
                                 <Tooltip
-                                    formatter={(value: any) => `$${Number(value).toFixed(2)}`}
+                                    formatter={(value: any) => `$${Number(value || 0).toFixed(2)}`}
                                     contentStyle={{
                                         backgroundColor: '#fff',
                                         border: '1px solid #e5e7eb',
@@ -162,7 +162,7 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                 label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
                             />
                             <Tooltip
-                                formatter={(value: any) => `${Number(value).toFixed(1)}h`}
+                                formatter={(value: any) => `${Number(value || 0).toFixed(1)}h`}
                                 contentStyle={{
                                     backgroundColor: '#fff',
                                     border: '1px solid #e5e7eb',

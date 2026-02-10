@@ -359,8 +359,8 @@ export function SLADashboard({ className }: SLADashboardProps) {
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {sla.remainingResolutionHours > 0
-                                                        ? `${sla.remainingResolutionHours.toFixed(1)}h`
+                                                    {sla.resolutionHoursRemaining > 0
+                                                        ? `${sla.resolutionHoursRemaining.toFixed(1)}h`
                                                         : 'Vencido'
                                                     }
                                                 </div>
@@ -413,8 +413,8 @@ export function SLADashboard({ className }: SLADashboardProps) {
                                         </div>
                                         <div className="text-center">
                                             <div className={`font-semibold ${tech.slaComplianceRate >= 90 ? 'text-green-600' :
-                                                    tech.slaComplianceRate >= 75 ? 'text-yellow-600' :
-                                                        'text-red-600'
+                                                tech.slaComplianceRate >= 75 ? 'text-yellow-600' :
+                                                    'text-red-600'
                                                 }`}>
                                                 {tech.slaComplianceRate.toFixed(0)}%
                                             </div>

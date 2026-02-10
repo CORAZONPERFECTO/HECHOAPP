@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.onPaymentCreated = exports.onApprovalUpdated = exports.onEvidenceCreated = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const notifications_1 = require("../notifications");
 const db = admin.firestore();
 // 1. Evidence Created -> Draft Quote
 exports.onEvidenceCreated = functions.firestore
@@ -112,14 +113,19 @@ exports.onApprovalUpdated = functions.firestore
             currentQuoteUrl: pdfUrl,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        // C. Send WhatsApp to Client
-        // await sendWhatsAppMessage(ticket.clientPhone, "Su cotización está lista: " + pdfUrl);
+        // C. Notify Admins/Staff
+        await notifications_1.notificationService.broadcastToRole("ADMIN", {
+            title: "Cotización Aprobada",
+            body: `El cliente ha aprobado la cotización ${newValue.code || change.after.id}`,
+            type: "SUCCESS",
+            link: `/hvac/asset/${ticketId}` // Deep link
+        });
         await db.collection(`orgs/${orgId}/agentRuns`).add({
             ticketId,
             trigger: 'APPROVAL_GRANTED',
             status: 'RUNNING',
             startedAt: admin.firestore.FieldValue.serverTimestamp(),
-            logs: [`Approval granted. Sending Quote PDF to client.`]
+            logs: [`Approval granted. Notification sent.`]
         });
         // Audit
         await db.collection(`orgs/${orgId}/auditLogs`).add({

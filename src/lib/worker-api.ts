@@ -13,7 +13,7 @@ export async function generatePdfWithWorker(report: TicketReportNew, orgId: stri
                 id: report.ticketId,
                 ticketNumber: report.header.ticketNumber,
                 clientName: report.header.clientName,
-                locationName: report.header.location,
+                locationName: report.header.address || "Dirección no especificada",
                 assignedToName: report.header.technicianName,
                 status: "GENERATED",
                 description: "Informe Técnico"
