@@ -28,6 +28,7 @@ class ERPNextService {
                 method,
                 headers: this.headers,
                 body: body ? JSON.stringify(body) : undefined,
+                redirect: 'manual'
             });
             if (!response.ok) {
                 const errorText = await response.text();
@@ -40,7 +41,14 @@ class ERPNextService {
                 catch (e) { }
                 throw new Error(`ERPNext Error (${response.status}) [${endpoint}]: ${errorDetails}`);
             }
-            const json = await response.json();
+            const text = await response.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            }
+            catch (e) {
+                throw new Error(`Failed to parse JSON response (${response.status}). Content: ${text.slice(0, 200)}...`);
+            }
             return json.data;
         }
         catch (error) {
@@ -55,18 +63,11 @@ class ERPNextService {
         // Safe URL encoding
         const filters = JSON.stringify([["name", "=", name]]);
         const endpoint = `Customer?filters=${encodeURIComponent(filters)}&fields=["name"]`;
-        try {
-            const results = await this.request(endpoint, "GET");
-            if (results && results.length > 0) {
-                return results[0].name;
-            }
-            return null;
+        const results = await this.request(endpoint, "GET");
+        if (results && results.length > 0) {
+            return results[0].name;
         }
-        catch (error) {
-            // If 404 or other fetch error, return null to prompt creation (or handle strictly)
-            console.warn("Error finding customer, assuming not found:", error);
-            return null;
-        }
+        return null;
     }
     async createCustomer(customer) {
         const result = await this.request("Customer", "POST", customer);
