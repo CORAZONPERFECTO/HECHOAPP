@@ -44,9 +44,9 @@ export default function HVACPortalPage() {
 
     const filteredAssets = assets.filter(asset =>
         asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        asset.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        asset.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        asset.serial?.toLowerCase().includes(searchQuery.toLowerCase())
+        asset.specs?.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        asset.specs?.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        asset.specs?.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     // Initial Load (Root Nodes)
