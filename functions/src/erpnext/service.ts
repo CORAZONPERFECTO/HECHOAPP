@@ -1,4 +1,5 @@
 // import * as functions from "firebase-functions";
+import { getCatalog } from "./cache";
 
 export interface ERPNextConfig {
     baseUrl: string;
@@ -64,7 +65,7 @@ export class ERPNextService {
         };
     }
 
-    private async request<T>(endpoint: string, method: string = "GET", body?: any): Promise<T> {
+    public async request<T>(endpoint: string, method: string = "GET", body?: any): Promise<T> {
         if (!this.config.baseUrl) throw new Error("ERPNext URL is not configured.");
 
         // Ensure no double slashes if baseUrl has trailing slash
@@ -146,15 +147,22 @@ export class ERPNextService {
 
     async getItemPrice(itemCode: string, priceList: string = "Standard Selling"): Promise<number> {
         try {
+            // 1. Try cache first (all Item Prices are fetched together once and cached)
+            const allPrices = await getCatalog<any>("item_prices", this);
+            const match = allPrices.find(
+                (p: any) => p.item_code === itemCode
+            );
+            if (match) return match.price_list_rate ?? 0;
+
+            // 2. Cache had no match — fall back to direct ERPNext lookup
+            console.warn(`Item price not in cache for "${itemCode}", fetching directly.`);
             const filters = JSON.stringify([["item_code", "=", itemCode], ["price_list", "=", priceList]]);
             const endpoint = `Item Price?filters=${encodeURIComponent(filters)}&fields=["price_list_rate"]&limit_page_length=1`;
             const results = await this.request<any[]>(endpoint, "GET");
 
-            if (results && results.length > 0) {
-                return results[0].price_list_rate;
-            }
+            if (results && results.length > 0) return results[0].price_list_rate;
 
-            // Fallback: Get standard rate from Item master
+            // 3. Final fallback: standard_rate from Item master
             const item = await this.request<any>(`Item/${encodeURIComponent(itemCode)}`, "GET");
             return item.standard_rate || 0;
 
