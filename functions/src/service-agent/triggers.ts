@@ -6,9 +6,10 @@ const db = admin.firestore();
 
 // 1. Evidence Created -> Draft Quote
 export const onEvidenceCreated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}')
-    .onCreate(async (snap, context) => {
-        const { orgId, ticketId } = context.params;
+    .onDocumentCreated('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}', async (event) => {
+        const snap = event.data;
+        if (!snap) return;
+        const { orgId, ticketId } = event.params;
         const evidenceData = snap.data();
 
         console.log(`Evidence created for Ticket ${ticketId}:`, evidenceData.type);
@@ -108,15 +109,16 @@ export const onEvidenceCreated = functions.firestore
 
 // 2. Approval Updated -> Send to Client (if Approved)
 export const onApprovalUpdated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}')
-    .onUpdate(async (change, context) => {
+    .onDocumentUpdated('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}', async (event) => {
+        const change = event.data;
+        if (!change) return;
         const newValue = change.after.data();
         const previousValue = change.before.data();
 
         // Check for transition to APPROVED
         if (newValue.status === 'APPROVED' && previousValue.status !== 'APPROVED') {
-            const { orgId, ticketId } = context.params;
-            console.log(`Approval ${context.params.approvalId} APPROVED. Generating PDF...`);
+            const { orgId, ticketId } = event.params;
+            console.log(`Approval ${event.params.approvalId} APPROVED. Generating PDF...`);
 
             // A. Generate PDF (Mock)
             // const pdfUrl = await generateQuotePDF(newValue.quoteId);
@@ -150,7 +152,7 @@ export const onApprovalUpdated = functions.firestore
                 ticketId,
                 action: 'QUOTE_APPROVED',
                 actorId: 'ADMIN', // Or context auth user if available
-                details: `Quote approved in ${context.params.approvalId}`,
+                details: `Quote approved in ${event.params.approvalId}`,
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             });
 
@@ -159,10 +161,11 @@ export const onApprovalUpdated = functions.firestore
 
 // 3. Payment Created -> PENDING_REVIEW
 export const onPaymentCreated = functions.firestore
-    .document('orgs/{orgId}/payments/{paymentId}')
-    .onCreate(async (snap, context) => {
+    .onDocumentCreated('orgs/{orgId}/payments/{paymentId}', async (event) => {
+        const snap = event.data;
+        if (!snap) return;
         const payment = snap.data();
-        const { orgId, paymentId } = context.params;
+        const { orgId, paymentId } = event.params;
 
         // Ensure we have a proof file to process
         // Assuming 'proofStoragePath' or 'proofUrl' exists. Based on user req, let's look for storage path.

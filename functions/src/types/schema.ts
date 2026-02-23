@@ -3,9 +3,22 @@ export type ClientType = 'HOTEL' | 'EMPRESA' | 'RESIDENCIAL';
 export type EquipmentType = 'MINISPLIT' | 'CASSETTE' | 'DUCTO' | 'VRF' | 'CHILLER' | 'OTRO';
 export type TicketPriority = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
 export type TicketStatus = 'ABIERTO' | 'EN_PROCESO' | 'PENDIENTE_CLIENTE' | 'PENDIENTE_MATERIAL' | 'CERRADO';
-export type ServiceType = 'MANTENIMIENTO' | 'INSTALACION' | 'EMERGENCIA' | 'INSPECCION';
+export type ServiceType = 'MANTENIMIENTO' | 'INSTALACION' | 'REPARACION' | 'EMERGENCIA' | 'PREVENTIVO' | 'DIAGNOSTICO' | 'INSPECCION';
 export type TicketOrigin = 'WHATSAPP' | 'LLAMADA' | 'EMAIL' | 'VISITA' | 'OTRO';
 export type EventType = 'CREACION' | 'CAMBIO_ESTADO' | 'COMENTARIO' | 'CAMBIO_TECNICO' | 'ADJUNTO' | 'OTRO';
+
+/**
+ * Represents a single billable line item within a Ticket.
+ * These map directly to ERPNext Sales Invoice items.
+ */
+export interface TicketItem {
+    id: string;
+    description: string; // e.g., "Mano de Obra Técnica", "Refrigerante R-22"
+    itemCode: string;    // ERPNext Item Code (must exist in ERPNext Item master)
+    qty: number;
+    rate: number;        // Unit price in RD$
+    uom?: string;        // Unit of Measure: "Hour", "Unit", "Kg", etc.
+}
 
 export interface Timestamp {
     seconds: number;
@@ -81,6 +94,16 @@ export interface Ticket {
     actualizadoPorId?: string;
     canalContactoDetalle?: string;
     externalConversationId?: string;
+    // --- Billing / Profitability ---
+    items?: TicketItem[];       // Line items added during service
+    laborHours?: number;        // Hours worked
+    laborRate?: number;         // Hourly rate (RD$/hr)
+    materialsCost?: number;     // Total cost of materials
+    otherCosts?: number;        // Other expenses
+    totalRevenue?: number;      // Amount charged to client
+    // --- ERPNext Sync ---
+    erpInvoiceId?: string;      // Sales Invoice name in ERPNext
+    erpSyncedAt?: Timestamp;    // Last successful sync timestamp
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

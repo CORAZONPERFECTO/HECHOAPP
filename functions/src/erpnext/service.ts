@@ -1,3 +1,4 @@
+// import * as functions from "firebase-functions";
 
 export interface ERPNextConfig {
     baseUrl: string;
@@ -40,10 +41,14 @@ export class ERPNextService {
     private config: ERPNextConfig;
 
     constructor(config?: Partial<ERPNextConfig>) {
+        // Try config arg, then process.env, then functions.config()
+        // const erpConfig = functions.config().erpnext || {};
+        const erpConfig = {} as any;
+
         this.config = {
-            baseUrl: config?.baseUrl || process.env.ERPNEXT_URL || "",
-            apiKey: config?.apiKey || process.env.ERPNEXT_API_KEY || "",
-            apiSecret: config?.apiSecret || process.env.ERPNEXT_API_SECRET || "",
+            baseUrl: config?.baseUrl || process.env.ERPNEXT_URL || erpConfig.url || "",
+            apiKey: config?.apiKey || process.env.ERPNEXT_API_KEY || erpConfig.api_key || "",
+            apiSecret: config?.apiSecret || process.env.ERPNEXT_API_SECRET || erpConfig.api_secret || "",
         };
 
         if (!this.config.baseUrl) {
@@ -62,22 +67,34 @@ export class ERPNextService {
     private async request<T>(endpoint: string, method: string = "GET", body?: any): Promise<T> {
         if (!this.config.baseUrl) throw new Error("ERPNext URL is not configured.");
 
-        const url = `${this.config.baseUrl}/api/resource/${endpoint}`;
+        // Ensure no double slashes if baseUrl has trailing slash
+        const baseUrl = this.config.baseUrl.endsWith('/') ? this.config.baseUrl.slice(0, -1) : this.config.baseUrl;
+        const url = `${baseUrl}/api/resource/${endpoint}`;
+
         try {
+            console.log(`ERPNext Request: ${method} ${url}`);
             const response = await fetch(url, {
                 method,
                 headers: this.headers,
                 body: body ? JSON.stringify(body) : undefined,
-                redirect: 'manual'
+                // Removed redirect: 'manual' to allow following redirects
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                // Try parsing JSON error
                 let errorDetails = errorText;
                 try {
                     const jsonError = JSON.parse(errorText);
-                    errorDetails = JSON.stringify(jsonError);
+                    // Extract helpful error message from Frappe response 
+                    // (often in _server_messages or exc)
+                    if (jsonError._server_messages) {
+                        const msgs = JSON.parse(jsonError._server_messages);
+                        errorDetails = msgs.map((m: any) => JSON.parse(m).message).join(" | ");
+                    } else if (jsonError.exception) {
+                        errorDetails = jsonError.exception;
+                    } else {
+                        errorDetails = JSON.stringify(jsonError);
+                    }
                 } catch (e) { }
 
                 throw new Error(`ERPNext Error (${response.status}) [${endpoint}]: ${errorDetails}`);
@@ -103,7 +120,8 @@ export class ERPNextService {
 
     async findCustomer(name: string): Promise<string | null> {
         // Safe URL encoding
-        const filters = JSON.stringify([["name", "=", name]]);
+        const filters = JSON.stringify([["customer_name", "=", name]]);
+        // Note: Searching by customer_name is safer than name (ID)
         const endpoint = `Customer?filters=${encodeURIComponent(filters)}&fields=["name"]`;
 
         const results = await this.request<any[]>(endpoint, "GET");
@@ -123,6 +141,26 @@ export class ERPNextService {
             return await this.request<ERPNextCustomer>(`Customer/${encodeURIComponent(name)}`, "GET");
         } catch (e) {
             return null;
+        }
+    }
+
+    async getItemPrice(itemCode: string, priceList: string = "Standard Selling"): Promise<number> {
+        try {
+            const filters = JSON.stringify([["item_code", "=", itemCode], ["price_list", "=", priceList]]);
+            const endpoint = `Item Price?filters=${encodeURIComponent(filters)}&fields=["price_list_rate"]&limit_page_length=1`;
+            const results = await this.request<any[]>(endpoint, "GET");
+
+            if (results && results.length > 0) {
+                return results[0].price_list_rate;
+            }
+
+            // Fallback: Get standard rate from Item master
+            const item = await this.request<any>(`Item/${encodeURIComponent(itemCode)}`, "GET");
+            return item.standard_rate || 0;
+
+        } catch (error) {
+            console.warn(`Failed to fetch price for ${itemCode}:`, error);
+            return 0;
         }
     }
 }

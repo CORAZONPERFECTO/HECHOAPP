@@ -32,4 +32,19 @@ if (typeof window !== "undefined") {
 const functions = getFunctions(app);
 const storage = getStorage(app);
 
+// Connect to Emulators if configured
+if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {
+  console.warn("⚠️ Using Local Firebase Emulators");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { connectAuthEmulator } = require("firebase/auth");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { connectFirestoreEmulator } = require("firebase/firestore");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { connectFunctionsEmulator } = require("firebase/functions");
+
+  connectAuthEmulator(auth, "http://127.0.0.1:9099");
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+}
+
 export { app, auth, db, functions, storage, firebaseConfig };

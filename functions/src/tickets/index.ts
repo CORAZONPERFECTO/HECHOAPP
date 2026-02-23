@@ -16,7 +16,9 @@ interface CreateTicketData {
  * Creates a ticket from an external channel (e.g., WhatsApp, Mobile App).
  * This function is designed to be called via HTTPS or directly from other internal functions.
  */
-export const createTicketFromChannel = functions.https.onCall(async (data: CreateTicketData, context) => {
+export const createTicketFromChannel = functions.https.onCall(async (request) => {
+    const data = request.data as CreateTicketData;
+    const context = { auth: request.auth };
     // 1. Validate Input
     if (!data.channel || !data.nombreCliente || !data.mensajeInicial) {
         throw new functions.https.HttpsError("invalid-argument", "Missing required fields: channel, nombreCliente, mensajeInicial");
@@ -97,8 +99,11 @@ interface CreateTicketInternalData {
     tecnicoAsignadoId?: string;
 }
 
-export const createTicket = functions.https.onCall(async (data: CreateTicketInternalData, context) => {
-    if (!context.auth) {
+export const createTicket = functions.https.onCall(async (request) => {
+    const data = request.data as CreateTicketInternalData;
+    const auth = request.auth;
+
+    if (!auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be logged in");
     }
 
@@ -118,7 +123,7 @@ export const createTicket = functions.https.onCall(async (data: CreateTicketInte
             locationId: data.locationId,
             equipmentId: data.equipmentId,
             tecnicoAsignadoId: data.tecnicoAsignadoId,
-            creadoPorId: context.auth.uid,
+            creadoPorId: auth.uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp() as any,
             updatedAt: admin.firestore.FieldValue.serverTimestamp() as any,
         };
@@ -127,7 +132,7 @@ export const createTicket = functions.https.onCall(async (data: CreateTicketInte
 
         await db.collection("ticketEvents").add({
             ticketId: ticketRef.id,
-            usuarioId: context.auth.uid,
+            usuarioId: auth.uid,
             tipoEvento: "CREACION",
             descripcion: "Ticket creado manualmente por usuario",
             fechaEvento: admin.firestore.FieldValue.serverTimestamp(),
