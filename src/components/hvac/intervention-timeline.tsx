@@ -161,8 +161,6 @@ export function InterventionTimeline({ interventions, currentUser, onAddComment 
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    variant="ghost"
-                                    size="sm"
                                     className="h-10 text-sm text-gray-500 w-full"
                                     onClick={() => setOpenReply(prev => ({ ...prev, [event.id]: true }))}
                                 >
