@@ -6,14 +6,14 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCFPClK5hsLLERlZmH1vH3WsSMGv1NyioQ",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hecho-nexus-v3.firebaseapp.com",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://hecho-nexus-v3-default-rtdb.firebaseio.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hecho-nexus-v3",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hecho-nexus-v3.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "811068710360",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:811068710360:web:fbc17fb7e11fa116f726ad",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-R2DG4QH73R"
+  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCFPClK5hsLLERlZmH1vH3WsSMGv1NyioQ").replace(/\"/g, "").trim(),
+  authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hecho-nexus-v3.firebaseapp.com").replace(/\"/g, "").trim(),
+  databaseURL: (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://hecho-nexus-v3-default-rtdb.firebaseio.com").replace(/\"/g, "").trim(),
+  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hecho-nexus-v3").replace(/\"/g, "").trim(),
+  storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hecho-nexus-v3.firebasestorage.app").replace(/\"/g, "").trim(),
+  messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "811068710360").replace(/\"/g, "").trim(),
+  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:811068710360:web:fbc17fb7e11fa116f726ad").replace(/\"/g, "").trim(),
+  measurementId: (process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-R2DG4QH73R").replace(/\"/g, "").trim()
 };
 
 // Initialize Firebase
