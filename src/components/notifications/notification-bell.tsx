@@ -97,7 +97,7 @@ export function NotificationBell() {
                 <div className="flex items-center justify-between p-4 border-b">
                     <h4 className="font-semibold text-sm">Notificaciones</h4>
                     {unreadCount > 0 && (
-                        <Button variant="ghost" size="xs" onClick={markAllRead} className="h-6 text-xs text-muted-foreground">
+                        <Button variant="ghost" size="sm" onClick={markAllRead} className="h-6 text-xs text-muted-foreground">
                             <Check className="mr-1 h-3 w-3" />
                             Marcar leídas
                         </Button>
