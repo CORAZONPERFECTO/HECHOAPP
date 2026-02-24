@@ -15,7 +15,7 @@ export interface InventoryLocation {
     type: InventoryLocationType;
     description?: string;
     responsibleUserId?: string; // If assigned to a technician (vehicle)
-    isActive: boolean;
+    isActive?: boolean;
     createdAt?: Date | Timestamp;
     updatedAt?: Date | Timestamp;
 }
