@@ -6,14 +6,13 @@ import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCFPClK5hsLLERlZmH1vH3WsSMGv1NyioQ").replace(/\"/g, "").trim(),
-  authDomain: (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hecho-nexus-v3.firebaseapp.com").replace(/\"/g, "").trim(),
-  databaseURL: (process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "https://hecho-nexus-v3-default-rtdb.firebaseio.com").replace(/\"/g, "").trim(),
-  projectId: (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hecho-nexus-v3").replace(/\"/g, "").trim(),
-  storageBucket: (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hecho-nexus-v3.firebasestorage.app").replace(/\"/g, "").trim(),
-  messagingSenderId: (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "811068710360").replace(/\"/g, "").trim(),
-  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:811068710360:web:fbc17fb7e11fa116f726ad").replace(/\"/g, "").trim(),
-  measurementId: (process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-R2DG4QH73R").replace(/\"/g, "").trim()
+  apiKey: "AIzaSyCZKE9ZRLhNJGxf-PNdbR6IjgMCl5xvkbA",
+  authDomain: "hecho-srl-free.firebaseapp.com",
+  projectId: "hecho-srl-free",
+  storageBucket: "hecho-srl-free.firebasestorage.app",
+  messagingSenderId: "216623683956",
+  appId: "1:216623683956:web:7b7de0220203978c6db421",
+  measurementId: "G-XHS77PK8HC"
 };
 
 // Initialize Firebase
