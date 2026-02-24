@@ -26,7 +26,7 @@ export default function LoginPage() {
             router.push("/");
         } catch (err: any) {
             console.error(err);
-            setError("Credenciales inválidas. Por favor intente de nuevo.");
+            setError(`Error: ${err.message} (${err.code})`);
         } finally {
             setLoading(false);
         }
