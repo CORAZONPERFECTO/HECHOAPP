@@ -17,7 +17,7 @@ const assetSchema = z.object({
     brand: z.string().min(2, "La marca es requerida"),
     model: z.string().min(2, "El modelo es requerido"),
     serialNumber: z.string().min(2, "El número de serie es requerido"),
-    btu: z.coerce.number().optional(),
+    btu: z.number().optional(),
     voltage: z.string().optional(),
     type: z.string().min(2, "El tipo de equipo es requerido"),
     refrigerant: z.string().optional(),
