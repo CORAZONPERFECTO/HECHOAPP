@@ -112,6 +112,13 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
             // Generate Number
             const generatedNumber = await generateNextNumber(isQuote ? 'COT' : 'FACT');
 
+            // Handle validUntilDate -> Timestamp (for quotes)
+            let validUntil = Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000));
+            if (isQuote && (formData as any).validUntilDate) {
+                const d = new Date((formData as any).validUntilDate + "T12:00:00");
+                if (!isNaN(d.getTime())) validUntil = Timestamp.fromDate(d);
+            }
+
             const finalData = {
                 ...formData,
                 number: generatedNumber,
@@ -121,7 +128,7 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
                 // Specific fields depending on mode
                 ...(isQuote ? {
                     status: 'DRAFT',
-                    validUntil: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)), // 15 days validity
+                    validUntil,
                     timeline: [{
                         status: 'DRAFT',
                         timestamp: Timestamp.now(),
@@ -157,10 +164,10 @@ export function InvoiceWizard({ mode = 'invoice' }: InvoiceWizardProps) {
     // Render step content
     const renderStep = () => {
         switch (currentStep) {
-            case 0: return <StepClient data={formData} updateData={updateData} clients={clients} />;
-            case 1: return <StepItems data={formData} updateData={updateData} clients={clients} />;
-            case 2: return <StepDetails data={formData} updateData={updateData} />;
-            case 3: return <StepReview data={formData} tots={totals} />;
+            case 0: return <StepClient data={formData} updateData={updateData} clients={clients} mode={mode} />;
+            case 1: return <StepItems data={formData} updateData={updateData} clients={clients} mode={mode} />;
+            case 2: return <StepDetails data={formData} updateData={updateData} mode={mode} />;
+            case 3: return <StepReview data={formData} tots={totals} mode={mode} />;
             default: return null;
         }
     };

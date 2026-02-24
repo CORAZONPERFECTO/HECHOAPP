@@ -1,20 +1,21 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.onPaymentCreated = exports.onApprovalUpdated = exports.onEvidenceCreated = void 0;
-const functions = require("firebase-functions");
+const firestore_1 = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const notifications_1 = require("../notifications");
-const db = admin.firestore();
+const getDb = () => admin.firestore();
 // 1. Evidence Created -> Draft Quote
-exports.onEvidenceCreated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}')
-    .onCreate(async (snap, context) => {
-    const { orgId, ticketId } = context.params;
+exports.onEvidenceCreated = (0, firestore_1.onDocumentCreated)('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}', async (event) => {
+    const snap = event.data;
+    if (!snap)
+        return;
+    const { orgId, ticketId } = event.params;
     const evidenceData = snap.data();
     console.log(`Evidence created for Ticket ${ticketId}:`, evidenceData.type);
     // A. Logic to determine if we should Auto-Draft
     // For now, if "DIAGNOSIS" evidence is uploaded, we trigger the "Draft Agent"
-    const ticketRef = db.doc(`orgs/${orgId}/tickets/${ticketId}`);
+    const ticketRef = getDb().doc(`orgs/${orgId}/tickets/${ticketId}`);
     const ticketSnap = await ticketRef.get();
     const ticket = ticketSnap.data();
     if (ticket && (ticket.serviceStatus === 'DIAGNOSIS_IN_PROGRESS' || ticket.serviceStatus === 'ON_SITE')) {
@@ -58,7 +59,7 @@ exports.onEvidenceCreated = functions.firestore
                 aiReasoning: aiResult.reasoning,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             };
-            const quoteRef = await db.collection(`orgs/${orgId}/quotes`).add(quoteData);
+            const quoteRef = await getDb().collection(`orgs/${orgId}/quotes`).add(quoteData);
             // Update Ticket with Draft Info
             await ticketRef.update({
                 draftQuoteId: quoteRef.id,
@@ -66,7 +67,7 @@ exports.onEvidenceCreated = functions.firestore
                 description: ticket.description ? ticket.description + "\n[AI Diagnosis]: " + aiResult.diagnosis : "[AI Diagnosis]: " + aiResult.diagnosis
             });
             // Audit Log
-            await db.collection(`orgs/${orgId}/auditLogs`).add({
+            await getDb().collection(`orgs/${orgId}/auditLogs`).add({
                 ticketId,
                 action: 'AI_QOUTE_GENERATED',
                 actorId: 'VERTEX_AI',
@@ -74,7 +75,7 @@ exports.onEvidenceCreated = functions.firestore
                 metadata: { quoteId: quoteRef.id, diagnosis: aiResult.diagnosis },
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             });
-            await db.collection(`orgs/${orgId}/agentRuns`).add({
+            await getDb().collection(`orgs/${orgId}/agentRuns`).add({
                 ticketId,
                 trigger: 'EVIDENCE_UPLOADED',
                 status: 'COMPLETED',
@@ -84,7 +85,7 @@ exports.onEvidenceCreated = functions.firestore
         }
         catch (err) {
             console.error("AI Generation Failed:", err);
-            await db.collection(`orgs/${orgId}/agentRuns`).add({
+            await getDb().collection(`orgs/${orgId}/agentRuns`).add({
                 ticketId,
                 trigger: 'EVIDENCE_UPLOADED',
                 status: 'FAILED',
@@ -95,20 +96,21 @@ exports.onEvidenceCreated = functions.firestore
     }
 });
 // 2. Approval Updated -> Send to Client (if Approved)
-exports.onApprovalUpdated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}')
-    .onUpdate(async (change, context) => {
+exports.onApprovalUpdated = (0, firestore_1.onDocumentUpdated)('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}', async (event) => {
+    const change = event.data;
+    if (!change)
+        return;
     const newValue = change.after.data();
     const previousValue = change.before.data();
     // Check for transition to APPROVED
     if (newValue.status === 'APPROVED' && previousValue.status !== 'APPROVED') {
-        const { orgId, ticketId } = context.params;
-        console.log(`Approval ${context.params.approvalId} APPROVED. Generating PDF...`);
+        const { orgId, ticketId } = event.params;
+        console.log(`Approval ${event.params.approvalId} APPROVED. Generating PDF...`);
         // A. Generate PDF (Mock)
         // const pdfUrl = await generateQuotePDF(newValue.quoteId);
         const pdfUrl = "https://mock.com/quote.pdf"; // Mock
         // B. Update Ticket Status
-        await db.doc(`orgs/${orgId}/tickets/${ticketId}`).update({
+        await getDb().doc(`orgs/${orgId}/tickets/${ticketId}`).update({
             serviceStatus: 'QUOTE_SENT',
             currentQuoteUrl: pdfUrl,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -120,7 +122,7 @@ exports.onApprovalUpdated = functions.firestore
             type: "SUCCESS",
             link: `/hvac/asset/${ticketId}` // Deep link
         });
-        await db.collection(`orgs/${orgId}/agentRuns`).add({
+        await getDb().collection(`orgs/${orgId}/agentRuns`).add({
             ticketId,
             trigger: 'APPROVAL_GRANTED',
             status: 'RUNNING',
@@ -128,21 +130,22 @@ exports.onApprovalUpdated = functions.firestore
             logs: [`Approval granted. Notification sent.`]
         });
         // Audit
-        await db.collection(`orgs/${orgId}/auditLogs`).add({
+        await getDb().collection(`orgs/${orgId}/auditLogs`).add({
             ticketId,
             action: 'QUOTE_APPROVED',
             actorId: 'ADMIN',
-            details: `Quote approved in ${context.params.approvalId}`,
+            details: `Quote approved in ${event.params.approvalId}`,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
     }
 });
 // 3. Payment Created -> PENDING_REVIEW
-exports.onPaymentCreated = functions.firestore
-    .document('orgs/{orgId}/payments/{paymentId}')
-    .onCreate(async (snap, context) => {
+exports.onPaymentCreated = (0, firestore_1.onDocumentCreated)('orgs/{orgId}/payments/{paymentId}', async (event) => {
+    const snap = event.data;
+    if (!snap)
+        return;
     const payment = snap.data();
-    const { orgId, paymentId } = context.params;
+    const { orgId, paymentId } = event.params;
     // Ensure we have a proof file to process
     // Assuming 'proofStoragePath' or 'proofUrl' exists. Based on user req, let's look for storage path.
     // If the client uploads via client SDK to 'payments/{id}/proof.jpg', we might need that path.
@@ -177,12 +180,12 @@ exports.onPaymentCreated = functions.firestore
     }
     // Standard Ticket Status Update logic if ticketId present
     if (payment.ticketId) {
-        await db.doc(`orgs/${orgId}/tickets/${payment.ticketId}`).update({
+        await getDb().doc(`orgs/${orgId}/tickets/${payment.ticketId}`).update({
             serviceStatus: 'PROOF_RECEIVED',
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
         // Audit Log
-        await db.collection(`orgs/${orgId}/auditLogs`).add({
+        await getDb().collection(`orgs/${orgId}/auditLogs`).add({
             ticketId: payment.ticketId,
             action: 'PAYMENT_RECEIVED',
             actorId: 'CLIENT',

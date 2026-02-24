@@ -41,6 +41,7 @@ export interface InvoiceItem {
     taxRate: number; // e.g., 0.18 for 18%
     taxAmount: number;
     total: number;
+    itemCode?: string; // ERPNext item code if selected from catalog
 }
 
 export interface Invoice {

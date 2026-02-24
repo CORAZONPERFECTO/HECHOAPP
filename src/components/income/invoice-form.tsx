@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, Save, Mic } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Mic, Send } from "lucide-react";
 import { VoiceCommandCenter } from "./voice-command-center";
 import { ClientSelector } from "@/components/shared/client-selector";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { useToast } from "@/components/ui/use-toast";
 
 interface InvoiceFormProps {
     initialData?: Invoice;
@@ -18,9 +20,12 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps) {
     const router = useRouter();
+    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [showVoiceAgent, setShowVoiceAgent] = useState(false);
+    const [savedId, setSavedId] = useState<string | null>(initialData?.id || null);
 
     const [formData, setFormData] = useState<Partial<Invoice>>({
         number: initialData?.number || "",
@@ -121,10 +126,11 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
             if (isEditing && initialData?.id) {
                 await updateDoc(doc(db, "invoices", initialData.id), invoiceData);
             } else {
-                await addDoc(collection(db, "invoices"), {
+                const ref = await addDoc(collection(db, "invoices"), {
                     ...invoiceData,
                     createdAt: serverTimestamp(),
                 });
+                setSavedId(ref.id);
             }
             router.push("/income/invoices");
             router.refresh();
@@ -132,6 +138,28 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
             console.error("Error saving invoice:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSyncToErp = async () => {
+        const id = savedId || initialData?.id;
+        if (!id) {
+            toast({ variant: "destructive", title: "Guarda primero", description: "Guarda la factura antes de sincronizar a ERP." });
+            return;
+        }
+        setSyncing(true);
+        try {
+            const fn = httpsCallable(getFunctions(), "syncInvoiceToErp");
+            const result: any = await fn({ invoiceId: id });
+            if (result.data.alreadySynced) {
+                toast({ title: "Ya sincronizada", description: `ERP: ${result.data.erpInvoiceId}` });
+            } else {
+                toast({ title: "✅ Factura en ERPNext", description: `ERP: ${result.data.erpInvoiceId}` });
+            }
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "❌ Error ERPNext", description: error.message });
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -263,6 +291,16 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
                 <div className="flex justify-end gap-4 pt-4 border-t">
                     <Button type="button" variant="outline" onClick={() => router.back()} disabled={loading}>
                         Cancelar
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSyncToErp}
+                        disabled={syncing || loading}
+                        className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                        {syncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                        Sincronizar a ERP
                     </Button>
                     <Button type="submit" disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

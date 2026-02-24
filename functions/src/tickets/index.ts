@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { Ticket, TicketStatus, TicketOrigin, EventType, TicketPriority, ServiceType } from "../types/schema";
 
@@ -16,12 +16,12 @@ interface CreateTicketData {
  * Creates a ticket from an external channel (e.g., WhatsApp, Mobile App).
  * This function is designed to be called via HTTPS or directly from other internal functions.
  */
-export const createTicketFromChannel = functions.https.onCall(async (request) => {
+export const createTicketFromChannel = onCall(async (request) => {
     const data = request.data as CreateTicketData;
     const context = { auth: request.auth };
     // 1. Validate Input
     if (!data.channel || !data.nombreCliente || !data.mensajeInicial) {
-        throw new functions.https.HttpsError("invalid-argument", "Missing required fields: channel, nombreCliente, mensajeInicial");
+        throw new HttpsError("invalid-argument", "Missing required fields: channel, nombreCliente, mensajeInicial");
     }
 
     try {
@@ -84,7 +84,7 @@ export const createTicketFromChannel = functions.https.onCall(async (request) =>
         return { success: true, ticketId: ticketRef.id, code };
     } catch (error) {
         console.error("Error creating ticket:", error);
-        throw new functions.https.HttpsError("internal", "Failed to create ticket");
+        throw new HttpsError("internal", "Failed to create ticket");
     }
 });
 
@@ -99,12 +99,12 @@ interface CreateTicketInternalData {
     tecnicoAsignadoId?: string;
 }
 
-export const createTicket = functions.https.onCall(async (request) => {
+export const createTicket = onCall(async (request) => {
     const data = request.data as CreateTicketInternalData;
     const auth = request.auth;
 
     if (!auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be logged in");
+        throw new HttpsError("unauthenticated", "User must be logged in");
     }
 
     try {
@@ -141,6 +141,6 @@ export const createTicket = functions.https.onCall(async (request) => {
         return { success: true, ticketId: ticketRef.id, code };
     } catch (error) {
         console.error("Error creating ticket:", error);
-        throw new functions.https.HttpsError("internal", "Failed to create ticket");
+        throw new HttpsError("internal", "Failed to create ticket");
     }
 });

@@ -1,18 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTicket = exports.createTicketFromChannel = void 0;
-const functions = require("firebase-functions");
+const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const db = admin.firestore();
 /**
  * Creates a ticket from an external channel (e.g., WhatsApp, Mobile App).
  * This function is designed to be called via HTTPS or directly from other internal functions.
  */
-exports.createTicketFromChannel = functions.https.onCall(async (data, context) => {
+exports.createTicketFromChannel = (0, https_1.onCall)(async (request) => {
     var _a, _b;
+    const data = request.data;
+    const context = { auth: request.auth };
     // 1. Validate Input
     if (!data.channel || !data.nombreCliente || !data.mensajeInicial) {
-        throw new functions.https.HttpsError("invalid-argument", "Missing required fields: channel, nombreCliente, mensajeInicial");
+        throw new https_1.HttpsError("invalid-argument", "Missing required fields: channel, nombreCliente, mensajeInicial");
     }
     try {
         // 2. Find or Create Client (Simplified logic: match by phone)
@@ -70,12 +72,14 @@ exports.createTicketFromChannel = functions.https.onCall(async (data, context) =
     }
     catch (error) {
         console.error("Error creating ticket:", error);
-        throw new functions.https.HttpsError("internal", "Failed to create ticket");
+        throw new https_1.HttpsError("internal", "Failed to create ticket");
     }
 });
-exports.createTicket = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be logged in");
+exports.createTicket = (0, https_1.onCall)(async (request) => {
+    const data = request.data;
+    const auth = request.auth;
+    if (!auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be logged in");
     }
     try {
         const ticketCount = (await db.collection("tickets").count().get()).data().count;
@@ -92,14 +96,14 @@ exports.createTicket = functions.https.onCall(async (data, context) => {
             locationId: data.locationId,
             equipmentId: data.equipmentId,
             tecnicoAsignadoId: data.tecnicoAsignadoId,
-            creadoPorId: context.auth.uid,
+            creadoPorId: auth.uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
         const ticketRef = await db.collection("tickets").add(newTicket);
         await db.collection("ticketEvents").add({
             ticketId: ticketRef.id,
-            usuarioId: context.auth.uid,
+            usuarioId: auth.uid,
             tipoEvento: "CREACION",
             descripcion: "Ticket creado manualmente por usuario",
             fechaEvento: admin.firestore.FieldValue.serverTimestamp(),
@@ -108,7 +112,7 @@ exports.createTicket = functions.https.onCall(async (data, context) => {
     }
     catch (error) {
         console.error("Error creating ticket:", error);
-        throw new functions.https.HttpsError("internal", "Failed to create ticket");
+        throw new https_1.HttpsError("internal", "Failed to create ticket");
     }
 });
 //# sourceMappingURL=index.js.map

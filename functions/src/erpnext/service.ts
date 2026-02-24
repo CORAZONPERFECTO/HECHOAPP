@@ -38,6 +38,16 @@ export interface SalesInvoicePayload {
     po_no?: string; // Reference (e.g. Ticket Number)
 }
 
+export interface QuotationPayload {
+    party_name: string;       // Customer name
+    transaction_date: string; // Date
+    valid_till: string;       // Valid until date
+    items: SalesInvoiceItem[];
+    currency?: string;
+    remarks?: string;
+    quotation_to?: string;    // "Customer" (default)
+}
+
 export class ERPNextService {
     private config: ERPNextConfig;
 
@@ -170,6 +180,36 @@ export class ERPNextService {
             console.warn(`Failed to fetch price for ${itemCode}:`, error);
             return 0;
         }
+    }
+
+    /** Creates a Quotation draft in ERPNext. Returns the Quotation name (e.g. "SAL-QTN-2026-00001"). */
+    async createQuotation(payload: QuotationPayload): Promise<{ name: string }> {
+        const body = {
+            ...payload,
+            quotation_to: payload.quotation_to ?? "Customer",
+            docstatus: 0, // always Draft
+        };
+        return this.request<{ name: string }>("Quotation", "POST", body);
+    }
+
+    /** Ensures a customer exists in ERPNext. Creates it if not found. Returns the ERP customer name. */
+    async ensureCustomer(params: {
+        name: string;
+        rnc?: string;
+        email?: string;
+    }): Promise<string> {
+        const existing = await this.findCustomer(params.name);
+        if (existing) return existing;
+
+        return this.createCustomer({
+            name: params.name,
+            customer_name: params.name,
+            customer_type: "Company",
+            customer_group: "Commercial",
+            territory: "All Territories",
+            tax_id: params.rnc,
+            email_id: params.email,
+        });
     }
 }
 

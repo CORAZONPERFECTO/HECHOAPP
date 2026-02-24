@@ -1,5 +1,7 @@
-import * as admin from "firebase-admin";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getCacheStatus = exports.invalidateCache = exports.getCatalog = void 0;
+const admin = require("firebase-admin");
 // ---------------------------------------------------------------------------
 // ERPNext Catalog Cache
 //
@@ -12,56 +14,43 @@ import * as admin from "firebase-admin";
 //   - expiresAt:   millisecond epoch when the entry is stale
 //   - source:      which ERPNext endpoint it came from
 // ---------------------------------------------------------------------------
-
 // Lazy getter — called only inside function invocations, after initializeApp()
 const getDb = () => admin.firestore();
-
-export type CacheKey =
-    | "items"            // All active Items (products/services)
-    | "item_prices"      // Standard Selling price list
-    | "territories"      // Territory list
-    | "customer_groups"  // Customer group list
-    | "payment_terms";   // Payment terms
-
 // TTL per key type (in milliseconds)
-const TTL_MS: Record<CacheKey, number> = {
-    items: 6 * 60 * 60 * 1000, // 6 hours
-    item_prices: 6 * 60 * 60 * 1000, // 6 hours
-    territories: 24 * 60 * 60 * 1000, // 24 hours
-    customer_groups: 24 * 60 * 60 * 1000, // 24 hours
+const TTL_MS = {
+    items: 6 * 60 * 60 * 1000,
+    item_prices: 6 * 60 * 60 * 1000,
+    territories: 24 * 60 * 60 * 1000,
+    customer_groups: 24 * 60 * 60 * 1000,
     payment_terms: 24 * 60 * 60 * 1000, // 24 hours
 };
-
 // ERPNext endpoints for each cache key
-const ERP_ENDPOINTS: Record<CacheKey, string> = {
+const ERP_ENDPOINTS = {
     items: `Item?fields=["name","item_name","item_group","description","standard_rate","stock_uom"]&filters=[["disabled","=",0]]&limit_page_length=200`,
     item_prices: `Item Price?fields=["item_code","price_list_rate","uom"]&filters=[["price_list","=","Standard Selling"]]&limit_page_length=200`,
     territories: `Territory?fields=["name","parent_territory"]&limit_page_length=100`,
     customer_groups: `Customer Group?fields=["name","parent_customer_group"]&limit_page_length=100`,
     payment_terms: `Payment Terms?fields=["name","due_date_based_on","credit_days"]&limit_page_length=50`,
 };
-
 /**
  * Reads a catalog from Firestore cache. Returns null if missing or expired.
  */
-async function readCache<T>(key: CacheKey): Promise<T[] | null> {
+async function readCache(key) {
     const doc = await getDb().collection("erpCache").doc(key).get();
-    if (!doc.exists) return null;
-
-    const entry = doc.data()!;
+    if (!doc.exists)
+        return null;
+    const entry = doc.data();
     if (Date.now() > entry.expiresAt) {
         console.log(`Cache EXPIRED for "${key}"`);
         return null;
     }
-
-    console.log(`Cache HIT for "${key}" (${(entry.data as T[]).length} items)`);
-    return entry.data as T[];
+    console.log(`Cache HIT for "${key}" (${entry.data.length} items)`);
+    return entry.data;
 }
-
 /**
  * Writes catalog data to Firestore cache with a TTL.
  */
-async function writeCache<T>(key: CacheKey, data: T[]): Promise<void> {
+async function writeCache(key, data) {
     const ttl = TTL_MS[key];
     await getDb().collection("erpCache").doc(key).set({
         data,
@@ -72,41 +61,34 @@ async function writeCache<T>(key: CacheKey, data: T[]): Promise<void> {
     });
     console.log(`Cache WRITTEN for "${key}" — ${data.length} items, TTL: ${ttl / 3600000}h`);
 }
-
 /**
  * Main: returns data from cache if fresh, otherwise fetches from ERPNext
  * and populates the cache before returning.
  */
-export async function getCatalog<T = any>(
-    key: CacheKey,
-    erpService: { request: (endpoint: string, method?: string) => Promise<T[]> }
-): Promise<T[]> {
+async function getCatalog(key, erpService) {
     // 1. Try cache first
-    const cached = await readCache<T>(key);
-    if (cached !== null) return cached;
-
+    const cached = await readCache(key);
+    if (cached !== null)
+        return cached;
     // 2. Cache miss — fetch from ERPNext
     console.log(`Cache MISS for "${key}" — fetching from ERPNext...`);
     const endpoint = ERP_ENDPOINTS[key];
     const freshData = await erpService.request(endpoint, "GET");
-
     // 3. Store in Firestore (fire-and-forget, don't block response)
-    writeCache(key, freshData).catch((err) =>
-        console.error(`Failed to write cache for "${key}":`, err)
-    );
-
+    writeCache(key, freshData).catch((err) => console.error(`Failed to write cache for "${key}":`, err));
     return freshData;
 }
-
+exports.getCatalog = getCatalog;
 /**
  * Force-refreshes a specific cache key (or all keys if omitted).
  * Useful to call from an admin endpoint or after updating ERP catalog data.
  */
-export async function invalidateCache(key?: CacheKey): Promise<void> {
+async function invalidateCache(key) {
     if (key) {
         await getDb().collection("erpCache").doc(key).delete();
         console.log(`Cache INVALIDATED: "${key}"`);
-    } else {
+    }
+    else {
         const db = getDb();
         const snapshot = await db.collection("erpCache").get();
         const batch = db.batch();
@@ -115,26 +97,20 @@ export async function invalidateCache(key?: CacheKey): Promise<void> {
         console.log(`Cache INVALIDATED: all ${snapshot.size} keys`);
     }
 }
-
+exports.invalidateCache = invalidateCache;
 /**
  * Returns cache status for all known keys — useful for an admin dashboard.
  */
-export async function getCacheStatus(): Promise<Record<string, {
-    exists: boolean;
-    count?: number;
-    cachedAt?: FirebaseFirestore.Timestamp;
-    expiresAt?: number;
-    isExpired?: boolean;
-}>> {
-    const result: Record<string, any> = {};
-    const keys: CacheKey[] = ["items", "item_prices", "territories", "customer_groups", "payment_terms"];
-
+async function getCacheStatus() {
+    const result = {};
+    const keys = ["items", "item_prices", "territories", "customer_groups", "payment_terms"];
     for (const key of keys) {
         const doc = await getDb().collection("erpCache").doc(key).get();
         if (!doc.exists) {
             result[key] = { exists: false };
-        } else {
-            const e = doc.data()!;
+        }
+        else {
+            const e = doc.data();
             result[key] = {
                 exists: true,
                 count: e.count,
@@ -146,3 +122,5 @@ export async function getCacheStatus(): Promise<Record<string, {
     }
     return result;
 }
+exports.getCacheStatus = getCacheStatus;
+//# sourceMappingURL=cache.js.map
