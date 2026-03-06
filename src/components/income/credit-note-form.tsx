@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, Timestamp, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CreditNote, InvoiceItem, Client, Invoice } from "@/types/schema";
+import { CreditNote, InvoiceLineItem, Client, Invoice } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,12 +91,12 @@ export function CreditNoteForm({ initialData, isEditing = false }: CreditNoteFor
             ...prev,
             items: [
                 ...(prev.items || []),
-                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 }
+                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 } as InvoiceLineItem
             ]
         }));
     };
 
-    const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const updateItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
         const newItems = [...(formData.items || [])];
         newItems[index] = { ...newItems[index], [field]: value };
 

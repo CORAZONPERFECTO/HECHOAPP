@@ -110,6 +110,35 @@ export default function LoginPage() {
                                 ¿Olvidaste tu contraseña?
                             </button>
                         </div>
+                        <div className="text-center mt-3">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!email || !password) {
+                                        setError("Escribe un correo y contraseña para crear la cuenta.");
+                                        return;
+                                    }
+                                    setLoading(true);
+                                    try {
+                                        const { createUserWithEmailAndPassword } = await import("firebase/auth");
+                                        await createUserWithEmailAndPassword(auth, email, password);
+                                        router.push("/");
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        if (err.code === 'auth/email-already-in-use') {
+                                            setError("Este correo ya existe. Intenta con un número distinto (e.g. lcaa28@gmail.com)");
+                                        } else {
+                                            setError(`Error al crear cuenta: ${err.message}`);
+                                        }
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="text-sm font-semibold text-green-600 hover:underline"
+                            >
+                                Crear una nueva cuenta
+                            </button>
+                        </div>
                     </form>
                 </CardContent>
                 <CardFooter className="flex justify-center text-xs text-gray-400">

@@ -603,9 +603,10 @@ export async function generateQuotePDF(quote: Quote) {
     }
 
     // Content placeholder
-    pdf.text("Presupuesto: " + quote.number, margin, 50);
+    const quoteNum = (quote as any).number || quote.name || 'N/A';
+    pdf.text("Presupuesto: " + quoteNum, margin, 50);
     // ... complete legacy implementation if needed, mostly kept for compatibility
-    pdf.save(`presupuesto-${quote.number}.pdf`);
+    pdf.save(`presupuesto-${quoteNum}.pdf`);
 }
 
 // === EXPORT 2 PHOTOS (Legacy/Alternative) ===

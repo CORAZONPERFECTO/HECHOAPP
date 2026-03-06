@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { DeliveryNote, InvoiceItem, Client } from "@/types/schema";
+import { DeliveryNote, InvoiceLineItem, Client } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,12 +60,12 @@ export function DeliveryNoteForm({ initialData, isEditing = false }: DeliveryNot
             ...prev,
             items: [
                 ...(prev.items || []),
-                { description: "", quantity: 1, unitPrice: 0, taxRate: 0, taxAmount: 0, total: 0 }
+                { description: "", quantity: 1, unitPrice: 0, taxRate: 0, taxAmount: 0, total: 0 } as InvoiceLineItem
             ]
         }));
     };
 
-    const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const updateItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
         const newItems = [...(formData.items || [])];
         newItems[index] = { ...newItems[index], [field]: value };
         setFormData(prev => ({ ...prev, items: newItems }));

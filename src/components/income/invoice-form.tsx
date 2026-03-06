@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Invoice, InvoiceItem, Client } from "@/types/schema";
+import { Invoice, InvoiceLineItem, Client } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,13 +76,13 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
             ...prev,
             items: [
                 ...(prev.items || []),
-                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 }
+                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 } as InvoiceLineItem
             ]
         }));
     };
 
-    const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
-        const newItems = [...(formData.items || [])];
+    const updateItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
+        const newItems = [...(formData.items || [])] as InvoiceLineItem[];
         newItems[index] = { ...newItems[index], [field]: value };
 
         // Recalculate item total
@@ -100,7 +100,7 @@ export function InvoiceForm({ initialData, isEditing = false }: InvoiceFormProps
         }));
     };
 
-    const handleVoiceData = (data: { clientName?: string; clientId?: string; items: InvoiceItem[] }) => {
+    const handleVoiceData = (data: { clientName?: string; clientId?: string; items: InvoiceLineItem[] }) => {
         setFormData(prev => ({
             ...prev,
             clientId: data.clientId || prev.clientId,

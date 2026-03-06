@@ -72,7 +72,7 @@ export default function QuotesPage() {
         },
         {
             header: "Total",
-            cell: (item: Quote) => `${item.currency === 'USD' ? 'US$' : 'RD$'} ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+            cell: (item: Quote) => `${item.currency === 'USD' ? 'US$' : 'RD$'} ${(item.grand_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         },
         {
             header: "Estado",
@@ -80,7 +80,7 @@ export default function QuotesPage() {
         },
         {
             header: "Vence",
-            cell: (item: Quote) => item.validUntil ? new Date(item.validUntil.seconds * 1000).toLocaleDateString() : 'N/A',
+            cell: (item: Quote) => item.valid_till ? new Date(item.valid_till).toLocaleDateString() : 'N/A',
         },
     ];
 
@@ -141,7 +141,7 @@ export default function QuotesPage() {
                         <DataTable
                             data={filteredQuotes}
                             columns={columns}
-                            searchKey="clientName"
+                            searchKey="party_name"
                             searchPlaceholder="Buscar por cliente..."
                             onRowClick={(item) => router.push(`/income/quotes/${item.id}`)}
                         />

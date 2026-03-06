@@ -45,5 +45,19 @@ export const themes = {
             body: 11, // Slightly larger for readability
             small: 9
         }
+    },
+    executive: {
+        fontMain: 'Helvetica',
+        fontBold: 'Helvetica-Bold',
+        primaryColor: '#556B2F', // Olive Green
+        secondaryColor: '#808080',
+        accentColor: '#556B2F',
+        fontSize: {
+            result: 12,
+            header: 16,
+            title: 11,
+            body: 9,
+            small: 8
+        }
     }
 };

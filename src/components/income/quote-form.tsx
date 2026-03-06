@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, updateDoc, doc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { Quote, InvoiceItem, Client } from "@/types/schema";
+import { Quote, Client } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,9 @@ interface QuoteFormProps {
     isEditing?: boolean;
 }
 
+const today = () => new Date().toISOString().split("T")[0];
+const in15days = () => { const d = new Date(); d.setDate(d.getDate() + 15); return d.toISOString().split("T")[0]; };
+
 export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
     const router = useRouter();
     const { toast } = useToast();
@@ -37,33 +40,27 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
     const { items: erpItems, getPriceForItem, loading: catalogLoading } = useErpCatalog();
 
     const [formData, setFormData] = useState<Partial<Quote>>({
-        number: initialData?.number || "",
+        party_name: initialData?.party_name || (initialData as any)?.clientName || "",
         clientId: initialData?.clientId || "",
-        clientName: initialData?.clientName || "",
-        status: initialData?.status || "DRAFT",
+        status: initialData?.status || "Draft",
         items: initialData?.items || [],
-        notes: initialData?.notes || "",
-        validUntil: initialData?.validUntil || Timestamp.now(),
+        note: initialData?.note || "",
+        valid_till: initialData?.valid_till || in15days(),
+        transaction_date: initialData?.transaction_date || today(),
         currency: initialData?.currency || "DOP",
-        exchangeRate: initialData?.exchangeRate || 1,
-        discountTotal: initialData?.discountTotal || 0,
+        selling_price_list: initialData?.selling_price_list || "Standard Selling",
         timeline: initialData?.timeline || [],
     });
 
-    const totals = (formData.items || []).reduce(
-        (acc, item) => {
-            const sub = item.quantity * item.unitPrice;
-            const tax = sub * item.taxRate;
-            return { subtotal: acc.subtotal + sub, taxTotal: acc.taxTotal + tax, total: acc.total + sub + tax };
-        },
-        { subtotal: 0, taxTotal: 0, total: 0 }
-    );
+    // Local subtotal (before ERP tax calculation)
+    const localSubtotal = (formData.items || []).reduce((s, i) => s + (i.amount ?? 0), 0);
+    const totals = { subtotal: localSubtotal, taxTotal: localSubtotal * 0.18, total: localSubtotal * 1.18 };
 
     const handleClientSelect = (client: Client) => {
         setFormData(prev => ({
             ...prev,
             clientId: client.id,
-            clientName: client.nombreComercial,
+            party_name: client.nombreComercial || client.id,
             clientRnc: client.rnc,
         }));
     };
@@ -71,7 +68,15 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
     const addItem = () => {
         setFormData(prev => ({
             ...prev,
-            items: [...(prev.items || []), { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 }]
+            items: [...(prev.items || []), {
+                item_code: "",
+                item_name: "",
+                description: "",
+                qty: 1,
+                uom: "Unit",
+                rate: 0,
+                amount: 0,
+            }]
         }));
     };
 
@@ -80,25 +85,26 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         if (!erpItem) return;
         const price = getPriceForItem(itemCode);
         const newItems = [...(formData.items || [])];
-        const qty = newItems[index].quantity || 1;
-        const sub = qty * price;
+        const qty = newItems[index].qty || 1;
         newItems[index] = {
             ...newItems[index],
-            description: erpItem.item_name || erpItem.name,
-            itemCode,
-            unitPrice: price,
-            taxAmount: sub * newItems[index].taxRate,
-            total: sub + sub * newItems[index].taxRate,
+            item_code: itemCode,
+            item_name: erpItem.item_name || erpItem.name,
+            description: erpItem.description || erpItem.item_name || erpItem.name,
+            uom: erpItem.stock_uom || "Unit",
+            rate: price,
+            amount: qty * price,
         };
         setFormData(prev => ({ ...prev, items: newItems }));
     };
 
-    const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const updateItem = (index: number, field: string, value: any) => {
         const newItems = [...(formData.items || [])];
-        newItems[index] = { ...newItems[index], [field]: value };
-        const sub = newItems[index].quantity * newItems[index].unitPrice;
-        newItems[index].taxAmount = sub * newItems[index].taxRate;
-        newItems[index].total = sub + newItems[index].taxAmount;
+        (newItems[index] as any)[field] = value;
+        // Recalculate amount when qty or rate changes
+        if (field === "qty" || field === "rate") {
+            newItems[index].amount = newItems[index].qty * newItems[index].rate;
+        }
         setFormData(prev => ({ ...prev, items: newItems }));
     };
 
@@ -118,9 +124,10 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
 
             const quoteData = {
                 ...formData,
-                subtotal: totals.subtotal,
-                taxTotal: totals.taxTotal,
-                total: totals.total,
+                // ERP-aligned totals (approximate until ERP calculates)
+                net_total: totals.subtotal,
+                total_taxes_and_charges: totals.taxTotal,
+                grand_total: totals.total,
                 updatedAt: serverTimestamp(),
                 updatedBy: currentUser.uid,
             };
@@ -132,13 +139,14 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                 const newQuoteData = {
                     ...quoteData,
                     number: await generateNextNumber("COT"),
+                    status: "Draft",
+                    docstatus: 0,
                     createdBy: currentUser.uid,
                     createdAt: serverTimestamp(),
                     sellerId: currentUser.uid,
-                    issueDate: serverTimestamp(),
                     timeline: [{
-                        status: "DRAFT",
-                        timestamp: Timestamp.now(),
+                        status: "Draft",
+                        timestamp: new Date().toISOString(),
                         userId: currentUser.uid,
                         userName: currentUser.displayName || "Usuario",
                         note: "Cotización creada"
@@ -192,7 +200,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                 <div className="space-y-2">
                     <Label>Número de Cotización</Label>
                     <Input
-                        value={formData.number}
+                        value={(formData as any).number || ""}
                         onChange={e => setFormData(prev => ({ ...prev, number: e.target.value }))}
                         placeholder={isEditing ? "COT-000000" : "(Auto-generado al guardar)"}
                         required={isEditing}
@@ -250,7 +258,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                                                 <DropdownMenuTrigger asChild>
                                                     <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-blue-600 px-1">
                                                         <ChevronDown className="h-3 w-3 mr-1" />
-                                                        {(item as any).itemCode ? `ERP: ${(item as any).itemCode}` : "Elegir del catálogo ERP"}
+                                                        {item.item_code ? `ERP: ${item.item_code}` : "Elegir del catálogo ERP"}
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent className="max-h-52 overflow-y-auto w-72">
@@ -275,21 +283,21 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                                     <td className="p-3">
                                         <Input
                                             type="number" min="1"
-                                            value={item.quantity}
-                                            onChange={e => updateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                                            value={item.qty}
+                                            onChange={e => updateItem(index, "qty", parseFloat(e.target.value) || 0)}
                                             className="text-right"
                                         />
                                     </td>
                                     <td className="p-3">
                                         <Input
                                             type="number" min="0" step="0.01"
-                                            value={item.unitPrice}
-                                            onChange={e => updateItem(index, "unitPrice", parseFloat(e.target.value) || 0)}
+                                            value={item.rate}
+                                            onChange={e => updateItem(index, "rate", parseFloat(e.target.value) || 0)}
                                             className="text-right"
                                         />
                                     </td>
                                     <td className="p-3 text-right font-medium">
-                                        {currencySymbol} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        {currencySymbol} {(item.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </td>
                                     <td className="p-3 text-center">
                                         <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>

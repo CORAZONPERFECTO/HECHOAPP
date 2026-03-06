@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/income/status-badge";
 import {
     ArrowLeft, FileCheck, Mail, XCircle, CheckCircle,
-    ExternalLink, RefreshCw, Loader2, Send
+    ExternalLink, RefreshCw, Loader2, Send, Edit
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
@@ -20,6 +20,7 @@ import { DocumentExportButton } from "@/components/documents/document-export-but
 import { mapQuoteToDocument } from "@/lib/document-generator";
 import { CompanySettings } from "@/types/schema";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { SupplierQuotesWidget } from "@/components/income/quotes/supplier-quotes-widget";
 
 
 export default function QuoteDetailPage() {
@@ -127,7 +128,7 @@ export default function QuoteDetailPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-3xl font-bold text-gray-900">Cotización {quote.number}</h1>
+                            <h1 className="text-3xl font-bold text-gray-900">Cotización {quote.name || (quote as any).number}</h1>
                             <StatusBadge status={quote.status} type="quote" />
                             {(quote as any).erpQuotationId && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
@@ -135,7 +136,7 @@ export default function QuoteDetailPage() {
                                 </span>
                             )}
                         </div>
-                        <p className="text-gray-500">Cliente: <span className="font-semibold text-gray-700">{quote.clientName}</span></p>
+                        <p className="text-gray-500">Cliente: <span className="font-semibold text-gray-700">{quote.party_name || (quote as any).clientName}</span></p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -148,6 +149,13 @@ export default function QuoteDetailPage() {
                         <Button variant="outline" className="gap-2">
                             <Mail className="h-4 w-4" /> Enviar
                         </Button>
+
+                        {/* Edit Button */}
+                        {quote.status !== "CONVERTED" && quote.status !== "Cancelled" && (
+                            <Button variant="outline" onClick={() => router.push(`/income/quotes/${id}/edit`)} className="gap-2 hover:bg-gray-100">
+                                <Edit className="h-4 w-4" /> Editar
+                            </Button>
+                        )}
 
                         {/* Send to ERPNext as Quotation */}
                         {quote.status !== "CONVERTED" && !(quote as any).erpQuotationId && (
@@ -175,7 +183,7 @@ export default function QuoteDetailPage() {
                         {quote.status !== "CONVERTED" && (
                             <Button
                                 onClick={handleConvertWithErp}
-                                disabled={converting || quote.status === "REJECTED"}
+                                disabled={converting || quote.status === "Cancelled"}
                                 className="bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md gap-2"
                             >
                                 {converting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck className="h-4 w-4" />}
@@ -209,12 +217,12 @@ export default function QuoteDetailPage() {
                                                         <div className="text-xs text-blue-500">ERP: {(item as any).itemCode}</div>
                                                     )}
                                                 </td>
-                                                <td className="text-right py-3 px-4">{item.quantity}</td>
+                                                <td className="text-right py-3 px-4">{item.qty}</td>
                                                 <td className="text-right py-3 px-4">
-                                                    {quote.currency === "USD" ? "US$" : "RD$"} {item.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {quote.currency === "USD" ? "US$" : "RD$"} {(item.rate ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                                 <td className="text-right py-3 px-4 font-medium">
-                                                    {quote.currency === "USD" ? "US$" : "RD$"} {item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {quote.currency === "USD" ? "US$" : "RD$"} {(item.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
                                             </tr>
                                         ))}
@@ -223,16 +231,25 @@ export default function QuoteDetailPage() {
                             </div>
                         </Card>
 
-                        {quote.notes && (
+                        {quote.note && (
                             <Card className="p-6 glass-card">
                                 <h3 className="font-semibold mb-2 text-gray-900">Notas</h3>
-                                <p className="text-gray-600 whitespace-pre-wrap">{quote.notes}</p>
+                                <p className="text-gray-600 whitespace-pre-wrap">{quote.note}</p>
                             </Card>
                         )}
 
                         {quote.timeline && quote.timeline.length > 0 && (
                             <QuoteTimeline timeline={quote.timeline} />
                         )}
+
+                        <SupplierQuotesWidget
+                            quoteId={quote.id}
+                            files={quote.supplierFiles || []}
+                            onUpdate={async () => {
+                                const snap = await getDoc(doc(db, "quotes", id));
+                                if (snap.exists()) setQuote({ id: snap.id, ...snap.data() } as Quote);
+                            }}
+                        />
                     </div>
 
                     {/* Sidebar */}
@@ -242,15 +259,15 @@ export default function QuoteDetailPage() {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between text-gray-600">
                                     <span>Subtotal</span>
-                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {quote.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {(quote.net_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between text-gray-600">
                                     <span>ITBIS</span>
-                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {quote.taxTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {(quote.total_taxes_and_charges ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg text-gray-900">
                                     <span>Total</span>
-                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {quote.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span>{quote.currency === "USD" ? "US$" : "RD$"} {(quote.grand_total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                         </Card>
@@ -264,7 +281,7 @@ export default function QuoteDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <XCircle className="h-4 w-4 text-gray-400" />
-                                    <span>Válido hasta: {quote.validUntil ? new Date(quote.validUntil.seconds * 1000).toLocaleDateString() : "N/A"}</span>
+                                    <span>Válido hasta: {quote.valid_till ? new Date(quote.valid_till).toLocaleDateString() : "N/A"}</span>
                                 </div>
                             </div>
                         </Card>

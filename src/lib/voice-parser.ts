@@ -1,10 +1,10 @@
 
-import { Client, InvoiceItem } from "@/types/schema";
+import { Client, InvoiceLineItem } from "@/types/schema";
 
 interface ParsedInvoiceData {
     clientName?: string;
     clientId?: string;
-    items: InvoiceItem[];
+    items: InvoiceLineItem[];
     confidence: number;
 }
 

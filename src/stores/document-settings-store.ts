@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type DocumentType = 'invoice' | 'quote' | 'order' | 'delivery' | 'receipt' | 'proforma';
-export type DocumentFormat = 'classic' | 'modern' | 'simple';
+export type DocumentFormat = 'classic' | 'modern' | 'simple' | 'executive';
 
 interface DocumentSettingsState {
     formats: Record<DocumentType, DocumentFormat>;
@@ -14,12 +14,12 @@ export const useDocumentSettings = create<DocumentSettingsState>()(
     persist(
         (set, get) => ({
             formats: {
-                invoice: 'classic',
-                quote: 'modern',
-                order: 'classic',
-                delivery: 'simple',
-                receipt: 'simple',
-                proforma: 'classic',
+                invoice: 'executive',
+                quote: 'executive',
+                order: 'executive',
+                delivery: 'executive',
+                receipt: 'executive',
+                proforma: 'executive'
             },
             setFormat: (type, format) =>
                 set((state) => ({
