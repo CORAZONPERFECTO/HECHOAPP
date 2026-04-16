@@ -12,8 +12,8 @@ function Write-Step($num, $msg) {
     Write-Host ("-" * 50) -ForegroundColor DarkGray
 }
 
-function Write-OK($msg)   { Write-Host "  OK  $msg" -ForegroundColor Green }
-function Write-ERR($msg)  { Write-Host "  ERR $msg" -ForegroundColor Red }
+function Write-OK($msg) { Write-Host "  OK  $msg" -ForegroundColor Green }
+function Write-ERR($msg) { Write-Host "  ERR $msg" -ForegroundColor Red }
 function Write-WARN($msg) { Write-Host "  !   $msg" -ForegroundColor Yellow }
 
 Write-Host ""
@@ -32,7 +32,8 @@ foreach ($f in $dangerFiles) {
         git rm --cached $f 2>$null
         if ($LASTEXITCODE -eq 0) {
             Write-OK "$f removido del tracking de git correctamente."
-        } else {
+        }
+        else {
             Write-ERR "No se pudo remover $f del indice. Ejecuta manualmente: git rm --cached $f"
             exit 1
         }
@@ -100,11 +101,12 @@ Write-OK "Push exitoso! Vercel iniciara el auto-deploy automaticamente."
 # ── PASO 4: Firebase Rules ────────────────────────────────────────────────────
 Write-Step "4/5" "firebase deploy --only firestore:rules,storage"
 
-firebase deploy --only firestore:rules,storage
+firebase deploy --only firestore:rules, storage
 if ($LASTEXITCODE -ne 0) {
     Write-WARN "Firebase rules deploy fallo. Puedes reintentarlo manualmente con:"
     Write-Host "  firebase deploy --only firestore:rules" -ForegroundColor Gray
-} else {
+}
+else {
     Write-OK "Reglas Firestore + Storage desplegadas!"
 }
 
@@ -127,7 +129,8 @@ if ($LASTEXITCODE -ne 0) {
 firebase deploy --only functions
 if ($LASTEXITCODE -ne 0) {
     Write-WARN "Deploy de functions fallo. Reintenta con: firebase deploy --only functions"
-} else {
+}
+else {
     Write-OK "Cloud Functions desplegadas!"
 }
 

@@ -188,9 +188,10 @@ export default function Dashboard() {
     }
   };
 
+  const [isTechnician, setIsTechnician] = useState<boolean>(false);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      // ... same auth logic as before ...
       if (!currentUser) {
         router.push("/login");
       } else {
@@ -199,7 +200,15 @@ export default function Dashboard() {
           const docRef = doc(db, "users", currentUser.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserSchema);
+            const profile = docSnap.data() as UserSchema;
+            setUserProfile(profile);
+            
+            // SECURITY / ANTI-HACKER: Bounce technicians out of the dashboard
+            if (profile.rol === "TECNICO") {
+               setIsTechnician(true);
+               router.push("/technician/my-day");
+               return; // Detener ejecución aquí para técnicos
+            }
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -210,8 +219,6 @@ export default function Dashboard() {
 
     return () => unsubscribe();
   }, [router]);
-
-  const isTechnician = userProfile?.rol === 'TECNICO';
 
   // Load tickets for SLA metrics
   useEffect(() => {
@@ -234,10 +241,14 @@ export default function Dashboard() {
 
   // Filter modules based on role
   const visibleModules = modules.filter(m => {
+    // Modify URL for technicians before evaluating returns
+    if (isTechnician && m.id === 'tickets') {
+        m.href = "/technician/my-day"; // Corrección para que apunte a My Day View directamente
+    }
+
     if (m.role === 'ALL') return true;
     if (m.role === 'ADMIN' && !isTechnician) return true;
-    // Adjust tech specific routing if needed
-    if (isTechnician && m.id === 'tickets') m.href = "/technician/tickets";
+    
     return false;
   });
 

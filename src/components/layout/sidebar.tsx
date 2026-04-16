@@ -34,7 +34,7 @@ const adminMenuItems = [
     { label: "Recibos", icon: Receipt, href: "/income/receipts", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
@@ -74,7 +74,8 @@ export function Sidebar() {
         <aside
             className={cn(
                 "h-screen sticky top-0 left-0 z-40 bg-white/80 dark:bg-[#0f172a]/90 backdrop-blur-xl border-r border-white/20 dark:border-white/5 transition-all duration-300 flex flex-col shadow-2xl",
-                collapsed ? "w-20" : "w-64"
+                collapsed ? "w-20" : "w-64",
+                isTechnician ? "hidden md:flex" : "" // Anti-hacker / Cleaner view: Técnicos no ven el sidebar en móvil, solo el main view.
             )}
         >
             {/* Header / Logo */}
