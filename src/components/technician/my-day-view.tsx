@@ -159,6 +159,9 @@ export function MyDayView() {
                     <p className="text-gray-600">Cargando tu agenda...</p>
                 </div>
             </div>
+        );
+    }
+
     // Si la lista está vacía, no mostramos pantalla vacía de éxito, sino que preparamos el ticket de bienvenida
     // para renderizarlo directamente y evitar el "Too many re-renders" de React.
     const displayTickets = tickets.length > 0 ? tickets : [{
