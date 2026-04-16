@@ -113,9 +113,17 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
 }
 
 export async function getPurchasesByTicket(ticketId: string) {
-    const q = query(collection(db, "purchases"), where("ticketId", "==", ticketId), orderBy("createdAt", "desc"));
+    // Obtenemos sin orderBy para evitar el error de "Index Required" en Firebase
+    const q = query(collection(db, "purchases"), where("ticketId", "==", ticketId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Purchase));
+    
+    // Y luego lo ordenamos localmente (Alta Ingeniería: ahorramos crear índices compuestos costosos para arrays pequeños)
+    const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Purchase));
+    return data.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA; // DESC (más reciente primero)
+    });
 }
 
 // --- MOCK OCR SERVICE ---

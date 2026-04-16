@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Fix: EISDIR readlink error on Windows/exFAT drives
+  // Prevents webpack from calling readlink() on route files
+  webpack: (config) => {
+    config.resolve.symlinks = false;
+    return config;
+  },
   async headers() {
     return [
       {
@@ -62,3 +68,4 @@ const nextConfig: NextConfig = {
 };
 
 export default withPWA(nextConfig);
+
