@@ -19,6 +19,8 @@ import { PermissionRequest } from "@/components/technician/permission-request";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { InterventionForm } from "@/components/hvac/intervention-form";
 
 export default function TechnicianTicketPage() {
     const params = useParams();
@@ -26,6 +28,7 @@ export default function TechnicianTicketPage() {
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isInterventionOpen, setIsInterventionOpen] = useState(false);
 
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState("");
@@ -307,15 +310,49 @@ export default function TechnicianTicketPage() {
                     <Button
                         className="w-full h-12 text-lg"
                         onClick={() => {
-                            setTicket({ ...ticket, status: 'COMPLETED' });
-                            setTimeout(handleSave, 100);
+                            if (!ticket.equipmentId) {
+                                alert("Este ticket no tiene un equipo asignado. Por favor contacte a soporte o registre el equipo primero.");
+                                return;
+                            }
+                            setIsInterventionOpen(true);
                         }}
+                        disabled={saving || ticket.status === 'COMPLETED'}
                     >
                         <CheckCircle className="mr-2 h-5 w-5" />
-                        Finalizar Servicio
+                        Finalizar y Crear Reporte RIT
                     </Button>
                 </div>
             </div>
+
+            <Dialog open={isInterventionOpen} onOpenChange={setIsInterventionOpen}>
+                <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Registrar Intervención (RIT)</DialogTitle>
+                    </DialogHeader>
+                    {user && ticket && ticket.equipmentId && (
+                        <InterventionForm
+                            assetId={ticket.equipmentId}
+                            clientId={ticket.clientId || ""} // Ensure clientId is present in ticket or user context
+                            locationId={ticket.id} // Using Ticket ID as location context temporarily or need real locationId
+                            technicianId={user.uid}
+                            technicianName={user.displayName || user.email || "Técnico"}
+                            onSuccess={async () => {
+                                setIsInterventionOpen(false);
+                                // Complete Ticket
+                                await updateDoc(doc(db, "tickets", ticket.id!), {
+                                    status: 'COMPLETED',
+                                    closedAt: serverTimestamp(),
+                                    interventionId: "PENDING_LINK" // Ideally passed back from form
+                                });
+                                // Refresh
+                                fetchTicket();
+                                alert("Servicio finalizado y guardado en RIT.");
+                            }}
+                            onCancel={() => setIsInterventionOpen(false)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

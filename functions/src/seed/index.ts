@@ -1,10 +1,10 @@
-import * as functions from "firebase-functions";
+import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { UserRole, ClientType, EquipmentType } from "../types/schema";
 
 const db = admin.firestore();
 
-export const seedDatabase = functions.https.onRequest(async (req, res) => {
+export const seedDatabase = onRequest(async (req, res) => {
     try {
         const batch = db.batch();
 

@@ -86,15 +86,13 @@ export function PaymentForm({ initialData, isEditing = false }: PaymentFormProps
             };
 
             if (isEditing && initialData?.id) {
+                // For edits, we currently only update the payment record
+                // TODO: Handle balance adjustments if amount changes during edit
                 await updateDoc(doc(db, "payments", initialData.id), paymentData);
             } else {
-                await addDoc(collection(db, "payments"), {
-                    ...paymentData,
-                    createdAt: serverTimestamp(),
-                });
-
-                // TODO: Update invoice balance if invoiceId is present
-                // This would be a good place for a Cloud Function or a transaction
+                // Use the utility to handle transaction and invoice updates
+                const { registerPayment } = await import("@/lib/income-utils");
+                await registerPayment(paymentData as any);
             }
             router.push("/income/payments");
             router.refresh();

@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.whatsappWebhook = void 0;
-const functions = require("firebase-functions");
+const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const db = admin.firestore();
-exports.whatsappWebhook = functions.https.onRequest(async (req, res) => {
+exports.whatsappWebhook = (0, https_1.onRequest)(async (req, res) => {
     // 1. Verification Request (GET)
     if (req.method === 'GET') {
         const mode = req.query['hub.mode'];

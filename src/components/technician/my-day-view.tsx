@@ -10,10 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
-    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon
+    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
+import { TicketCardRefactored } from "@/components/tickets/ticket-card-refactored";
 
 export function MyDayView() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -161,29 +162,46 @@ export function MyDayView() {
         );
     }
 
-    if (tickets.length === 0) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
-                <Card className="max-w-md w-full">
-                    <CardContent className="pt-12 pb-12 text-center">
-                        <CheckCircle className="h-24 w-24 text-green-600 mx-auto mb-6" />
-                        <h2 className="text-3xl font-bold text-gray-900 mb-2">¡Excelente Trabajo!</h2>
-                        <p className="text-lg text-gray-600 mb-4">No tienes trabajos pendientes por ahora.</p>
-                        <p className="text-sm text-gray-500">Disfruta tu descanso 😎</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    // Si la lista está vacía, no mostramos pantalla vacía de éxito, sino que preparamos el ticket de bienvenida
+    // para renderizarlo directamente y evitar el "Too many re-renders" de React.
+    const displayTickets = tickets.length > 0 ? tickets : [{
+        id: "DEFAULT-WELCOME-TICKET",
+        ticketNumber: "TIC-BIENVENIDA",
+        priority: "LOW",
+        clientName: "Sistema HECHOAPP",
+        locationName: "Ubicación de Prueba",
+        technicianId: currentUserId,
+        technicianName: "Tú (Modo Pruebas)",
+        description: "Este es un ticket automático generado por el sistema porque no tienes trabajos asignados. Úsalo para probar la interfaz y familiarizarte con las herramientas.",
+        status: "OPEN",
+        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
+        updatedAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as any,
+        equipmentId: "NONE",
+        locationId: "NONE",
+        clientId: "NONE"
+    } as Ticket];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 relative">
+            {/* Header / Botón Salir (Mobile First) */}
+            <div className="absolute top-4 right-4 z-10 md:hidden">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-red-600 bg-white/80 backdrop-blur rounded-full shadow-sm"
+                    onClick={() => auth.signOut()}
+                >
+                    <LogOut className="h-4 w-4 mr-1" />
+                    Salir
+                </Button>
+            </div>
+
             <div className="max-w-7xl mx-auto py-8 space-y-6">
-                {/* Header */}
+                {/* Titles */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Día</h1>
                     <p className="text-lg text-gray-600">
-                        {tickets.length} {tickets.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
+                        {displayTickets.length} {displayTickets.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
                     </p>
                 </div>
 
@@ -201,86 +219,14 @@ export function MyDayView() {
                     </TabsList>
 
                     <TabsContent value="list" className="space-y-4">
-                        {tickets.map((ticket, index) => (
-                            <Card key={ticket.id} className="shadow-lg hover:shadow-xl transition-shadow">
-                                <CardHeader className={`${getPriorityColor(ticket.priority)} py-3`}>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg flex items-center gap-2">
-                                            <span className="bg-white/20 px-3 py-1 rounded-full">#{index + 1}</span>
-                                            {ticket.priority}
-                                        </CardTitle>
-                                        <Badge variant="secondary" className="bg-white/20">
-                                            {ticket.ticketNumber || ticket.id.slice(0, 8)}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-6 space-y-4">
-                                    {/* Status Badge */}
-                                    <div className="flex items-center gap-2">
-                                        {getStatusIcon(ticket.status)}
-                                        <span className="font-medium text-gray-700">{getStatusLabel(ticket.status)}</span>
-                                    </div>
-
-                                    {/* Client & Location */}
-                                    <div className="bg-blue-50 rounded-lg p-4">
-                                        <p className="text-2xl font-bold text-gray-900 mb-2">{ticket.clientName}</p>
-                                        <div className="flex items-start gap-2 text-gray-700">
-                                            <MapPin className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                                <p className="font-semibold">{ticket.locationName}</p>
-                                                {ticket.specificLocation && (
-                                                    <p className="text-sm text-gray-600">{ticket.specificLocation}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Description */}
-                                    <div className="bg-orange-50 rounded-lg p-4">
-                                        <p className="text-sm text-gray-600 mb-1">Problema:</p>
-                                        <p className="text-gray-900">{ticket.description}</p>
-                                    </div>
-
-                                    {/* Quick Actions */}
-                                    <div className="grid grid-cols-2 gap-3 pt-4">
-                                        {ticket.status === "OPEN" && (
-                                            <Button
-                                                onClick={() => handleQuickAction(ticket.id, "start")}
-                                                className="bg-green-600 hover:bg-green-700"
-                                            >
-                                                <Play className="mr-2 h-4 w-4" />
-                                                Iniciar
-                                            </Button>
-                                        )}
-                                        {ticket.status === "IN_PROGRESS" && (
-                                            <>
-                                                <Button
-                                                    onClick={() => handleQuickAction(ticket.id, "pause")}
-                                                    variant="outline"
-                                                >
-                                                    <Pause className="mr-2 h-4 w-4" />
-                                                    Pausar
-                                                </Button>
-                                                <Button
-                                                    onClick={() => handleQuickAction(ticket.id, "complete")}
-                                                    className="bg-emerald-600 hover:bg-emerald-700"
-                                                >
-                                                    <CheckCheck className="mr-2 h-4 w-4" />
-                                                    Completar
-                                                </Button>
-                                            </>
-                                        )}
-                                        <Button
-                                            onClick={() => router.push(`/tickets/${ticket.id}`)}
-                                            variant="default"
-                                            className={ticket.status === "OPEN" ? "col-span-1" : "col-span-2"}
-                                        >
-                                            Ver Detalles
-                                            <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                        {displayTickets.map((ticket, index) => (
+                            <div key={ticket.id} className="w-full">
+                                <TicketCardRefactored 
+                                    ticketId={ticket.id} 
+                                    initialData={ticket}
+                                    onClick={() => router.push(`/tickets/${ticket.id}`)}
+                                />
+                            </div>
                         ))}
                     </TabsContent>
 
@@ -290,10 +236,10 @@ export function MyDayView() {
                                 <Navigation className="h-16 w-16 text-blue-600 mx-auto mb-4" />
                                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Ruta Optimizada</h3>
                                 <p className="text-gray-600 mb-6">
-                                    Secuencia sugerida para tus {tickets.length} trabajos
+                                    Secuencia sugerida para tus {displayTickets.length} trabajos
                                 </p>
                                 <div className="space-y-3 max-w-md mx-auto">
-                                    {tickets.map((ticket, index) => (
+                                    {displayTickets.map((ticket, index) => (
                                         <div key={ticket.id} className="flex items-center gap-3 bg-white p-4 rounded-lg shadow">
                                             <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">
                                                 {index + 1}

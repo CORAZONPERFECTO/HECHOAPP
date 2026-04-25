@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 // import mapboxgl from "mapbox-gl"; // Removed static import
 import "mapbox-gl/dist/mapbox-gl.css";
+import type { Map, Marker, MapboxOptions } from "mapbox-gl";
 import { Ticket } from "@/types/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,8 @@ import { MapPin, Navigation, ExternalLink, Copy, AlertCircle } from "lucide-reac
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { isWebGLSupported, logMapError } from "@/lib/webgl-check";
 
-// Set your Mapbox access token here
-const MAPBOX_TOKEN = "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
+// Set your Mapbox access token in .env.local
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
 
 interface TicketMapProps {
     tickets: Ticket[];
@@ -77,10 +78,10 @@ function MapFallback({ reason, tickets }: { reason?: string, tickets: Ticket[] }
 
 function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
     const mapContainer = useRef<HTMLDivElement>(null);
-    const map = useRef<any>(null); // Type any because we load dynamically
+    const map = useRef<Map | null>(null);
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
     const [mapError, setMapError] = useState<string | null>(null);
-    const mapboxLib = useRef<any>(null);
+    const mapboxLib = useRef<any>(null); // Keep any for dynamic import lib root
 
 
 
@@ -120,7 +121,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
 
                 map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
-                map.current.on('error', (e: any) => {
+                map.current.on('error', (e: { error?: Error }) => {
                     const msg = e.error?.message || "Unknown Mapbox runtime error";
                     logMapError(e.error);
                     if (msg.includes("WebGL") || msg.includes("context")) {
@@ -133,9 +134,10 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
                     map.current?.resize();
                 }, 200);
 
-            } catch (error: any) {
-                logMapError(error);
-                setMapError(error?.message || "Error init map (Dynamic)");
+            } catch (error: unknown) {
+                const err = error as Error;
+                logMapError(err);
+                setMapError(err?.message || "Error init map (Dynamic)");
             }
         };
 
@@ -169,7 +171,7 @@ function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
     }, [tickets, onTicketClick, mapError]);
 
     // We need a ref for markers to clear them properly
-    const markersRef = useRef<any[]>([]);
+    const markersRef = useRef<Marker[]>([]);
 
     useEffect(() => {
         if (!map.current || mapError || !mapboxLib.current) return;

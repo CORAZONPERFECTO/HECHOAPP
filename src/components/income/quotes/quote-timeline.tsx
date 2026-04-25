@@ -10,7 +10,14 @@ interface QuoteTimelineProps {
     timeline: QuoteTimelineEvent[];
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { icon: any; color: string; bg: string; label: string }> = {
+    // ERPNext v16 official states (Title Case)
+    'Draft': { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Borrador' },
+    'Open': { icon: Eye, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Abierta' },
+    'Expired': { icon: Clock, color: 'text-orange-500', bg: 'bg-orange-100', label: 'Vencida' },
+    'Ordered': { icon: FileCheck, color: 'text-emerald-500', bg: 'bg-emerald-100', label: 'Convertida' },
+    'Cancelled': { icon: XCircle, color: 'text-red-500', bg: 'bg-red-100', label: 'Cancelada' },
+    // Legacy HECHOAPP states (uppercase – kept for backward compat)
     'DRAFT': { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: 'Borrador' },
     'SENT': { icon: Send, color: 'text-blue-500', bg: 'bg-blue-100', label: 'Enviada' },
     'OPENED': { icon: Eye, color: 'text-purple-500', bg: 'bg-purple-100', label: 'Vista' },

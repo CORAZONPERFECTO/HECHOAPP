@@ -42,3 +42,15 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# credentials
+vercel-setup.txt
+
+# local secrets
+temp-service-key.json
+vertex-error.log
+
+functions/node_modules/
+functions/test-erp.js
+functions/src/test-erp-flow.ts
+.next_locked*

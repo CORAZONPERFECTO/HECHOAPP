@@ -8,24 +8,23 @@ interface QuoteStatsProps {
 
 export function QuoteStats({ quotes }: QuoteStatsProps) {
     const totalQuotes = quotes.length;
-    const acceptedQuotes = quotes.filter(q => q.status === 'ACCEPTED' || q.status === 'CONVERTED');
-    const rejectedQuotes = quotes.filter(q => q.status === 'REJECTED');
+    // ERPNext states: Draft | Open | Expired | Ordered | Cancelled
+    const orderedQuotes = quotes.filter(q => q.status === 'Ordered' || q.status === ('CONVERTED' as any));
+    const expiredQuotes = quotes.filter(q => q.status === 'Expired');
 
     // Calculate Conversion Rate
     const conversionRate = totalQuotes > 0
-        ? Math.round((acceptedQuotes.length / totalQuotes) * 100)
+        ? Math.round((orderedQuotes.length / totalQuotes) * 100)
         : 0;
 
-    // Calculate Amounts (simplified for demo, assuming mixed currencies needs normalization in future)
-    // For now, let's just sum everything as nominal value to avoid complex currency rate logic issues without a service
-    // Or better, filter to RD only or separate. Let's separate DOP total for now.
+    // Use grand_total (ERP fieldname) with fallback to 0
     const totalAmountDOP = quotes
         .filter(q => q.currency === 'DOP' || !q.currency)
-        .reduce((sum, q) => sum + (q.total || 0), 0);
+        .reduce((sum, q) => sum + (q.grand_total ?? 0), 0);
 
-    const acceptedAmountDOP = acceptedQuotes
+    const orderedAmountDOP = orderedQuotes
         .filter(q => q.currency === 'DOP' || !q.currency)
-        .reduce((sum, q) => sum + (q.total || 0), 0);
+        .reduce((sum, q) => sum + (q.grand_total ?? 0), 0);
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -38,7 +37,7 @@ export function QuoteStats({ quotes }: QuoteStatsProps) {
                         <p className="text-sm text-gray-500 font-medium">Tasa de Conversión</p>
                         <h3 className="text-2xl font-bold text-gray-900">{conversionRate}%</h3>
                         <p className="text-xs text-green-600">
-                            {acceptedQuotes.length} de {totalQuotes} aceptadas
+                            {orderedQuotes.length} de {totalQuotes} convertidas
                         </p>
                     </div>
                 </div>
@@ -52,7 +51,7 @@ export function QuoteStats({ quotes }: QuoteStatsProps) {
                     <div>
                         <p className="text-sm text-gray-500 font-medium">Monto Ganado (DOP)</p>
                         <h3 className="text-2xl font-bold text-gray-900">
-                            RD$ {(acceptedAmountDOP / 1000).toFixed(1)}k
+                            RD$ {(orderedAmountDOP / 1000).toFixed(1)}k
                         </h3>
                         <p className="text-xs text-gray-400">
                             En cotizaciones aceptadas
@@ -84,12 +83,12 @@ export function QuoteStats({ quotes }: QuoteStatsProps) {
                         <FileX className="h-6 w-6" />
                     </div>
                     <div>
-                        <p className="text-sm text-gray-500 font-medium">Rechazadas</p>
+                        <p className="text-sm text-gray-500 font-medium">Vencidas / Expiradas</p>
                         <h3 className="text-2xl font-bold text-gray-900">
-                            {rejectedQuotes.length}
+                            {expiredQuotes.length}
                         </h3>
                         <p className="text-xs text-red-400">
-                            {rejectedQuotes.length > 0 ? 'Requieren atención' : 'Sin rechazos'}
+                            {expiredQuotes.length > 0 ? 'Requieren atención' : 'Sin vencidas'}
                         </p>
                     </div>
                 </div>

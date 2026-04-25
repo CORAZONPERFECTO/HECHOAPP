@@ -12,7 +12,7 @@ const RULES: PolicyRule[] = [
         name: 'High Value Quote',
         priority: 100,
         reason: 'HIGH_VALUE',
-        condition: (_, quote) => quote.total > MAX_AUTO_APPROVE_AMOUNT
+        condition: (_, quote) => (quote.grand_total ?? (quote as any).total ?? 0) > MAX_AUTO_APPROVE_AMOUNT
     },
     {
         id: 'RULE_HIGH_DISCOUNT',
@@ -20,8 +20,10 @@ const RULES: PolicyRule[] = [
         priority: 90,
         reason: 'DISCOUNT_EXCEEDS_LIMIT',
         condition: (_, quote) => {
-            if (quote.subtotal === 0) return false;
-            const discountPercent = (quote.discountTotal / quote.subtotal) * 100;
+            const netTotal = quote.net_total ?? (quote as any).subtotal ?? 0;
+            const discount = (quote as any).discountTotal ?? 0;
+            if (netTotal === 0) return false;
+            const discountPercent = (discount / netTotal) * 100;
             return discountPercent > MAX_DISCOUNT_PERCENT;
         }
     },
@@ -32,10 +34,10 @@ const RULES: PolicyRule[] = [
         reason: 'CRITICAL_ITEM',
         condition: (_, quote) => {
             // Check if any item description implies a Compressor replacement
-            return quote.items.some(item =>
-                item.description.toLowerCase().includes('compresor') ||
-                item.description.toLowerCase().includes('motor')
-            );
+            return quote.items.some(item => {
+                const desc = (item.item_name || item.description || '').toLowerCase();
+                return desc.includes('compresor') || desc.includes('motor');
+            });
         }
     }
 ];

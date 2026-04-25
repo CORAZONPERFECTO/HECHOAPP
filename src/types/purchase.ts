@@ -1,4 +1,6 @@
 
+import { Timestamp } from "firebase/firestore";
+
 export interface PurchaseItem {
     description: string;
     quantity: number;
@@ -17,7 +19,7 @@ export interface Purchase {
     rnc?: string;
     ncf?: string; // Comprobante
 
-    date: any; // Firestore Timestamp
+    date: Timestamp; // Firestore Timestamp
 
     subtotal: number;
     tax: number;
@@ -31,5 +33,5 @@ export interface Purchase {
     evidenceUrls: string[]; // Receipt photos
 
     createdByUserId: string;
-    createdAt: any;
+    createdAt: Timestamp | Date;
 }

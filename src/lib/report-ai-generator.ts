@@ -86,41 +86,41 @@ export async function generateReportWithAI(params: GenerateReportParams): Promis
 
         return { success: true, report };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error generating report with AI:", error);
+        const err = error as Error;
         return {
             success: false,
-            error: error.message || "Error desconocido al generar reporte"
+            error: err.message || "Error desconocido al generar reporte"
         };
     }
 }
 
 function buildReportPrompt(ticket: Ticket): string {
-    return `Genera un reporte técnico profesional en español para un ticket de servicio.
+    return `Genera un reporte técnico experto en español para un ticket de servicio de mantenimiento HVAC/Refrigeración.
 
 CONTEXTO DEL TICKET:
 - Tipo de Servicio: ${ticket.serviceType.replace(/_/g, ' ')}
 - Cliente: ${ticket.clientName}
 - Ubicación: ${ticket.locationName}
 - Descripción Inicial: ${ticket.description}
-- Diagnóstico: ${ticket.diagnosis || 'No especificado'}
-- Solución: ${ticket.solution || 'No especificada'}
+- Diagnóstico Técnico: ${ticket.diagnosis || 'No especificado'}
+- Solución Implementada: ${ticket.solution || 'No especificada'}
 - Recomendaciones: ${ticket.recommendations || 'Ninguna'}
 
-INSTRUCCIONES:
-1. Crea un reporte estructurado y profesional
-2. Usa títulos (h1, h2) para organizar secciones
-3. Incluye:
-   - Resumen ejecutivo
-   - Diagnóstico técnico
-   - Trabajo realizado
-   - Recomendaciones
-   - Conclusión
-4. Usa lenguaje técnico pero comprensible
-5. Si hay fotos, menciona que se incluyen evidencias fotográficas
-6. Sé conciso pero completo
+INSTRUCCIONES PARA EL AI:
+1. Adopta el rol de un Ingeniero Senior de Mantenimiento.
+2. Estructura el reporte para ser entregado al cliente final (profesional, claro, autoritario).
+3. SECCIONES REQUERIDAS (Usa Markdown H2):
+   - 📋 Resumen Ejecutivo (Breve descripción del problema y resultado)
+   - 🔍 Diagnóstico Técnico (Detalla fallas encontradas, lecturas, códigos de error)
+   - 🛠️ Trabajo Realizado (Paso a paso de la intervención)
+   - 💡 Recomendaciones (Sugerencias preventivas o correctivas futuras)
+   - ✅ Conclusión
+4. LENGUAJE: Técnico pero accesible. Evita redundancias.
+5. FOTOS: Si se proporcionan descripciones de fotos, intégralas en el análisis como evidencia visual confirmada.
 
-Devuelve el reporte en formato markdown estructurado.`;
+Devuelve SOLO el contenido Markdown.`;
 }
 
 async function analyzePhoto(photoUrl: string, photoType: string): Promise<string> {
@@ -133,7 +133,7 @@ async function analyzePhoto(photoUrl: string, photoType: string): Promise<string
             body: JSON.stringify({
                 task: "analyze-photo",
                 image: photoUrl,
-                context: `Imagen tipo: ${photoType}`
+                context: `Analiza esta imagen de mantenimiento técnico (${photoType}). Identifica: Equipos, marcas, daños visibles, corrosión, lecturas de instrumentos o estado de conexiones. Sé técico y directo.`
             })
         });
 
@@ -157,73 +157,113 @@ function parseAIResponseToSections(aiOutput: string, ticket: Ticket): TicketRepo
     let currentSection: TicketReportSection | null = null;
     let currentContent: string[] = [];
 
+    const flushSection = () => {
+        if (!currentSection) return;
+
+        if (currentSection.type === 'text' || currentSection.type === 'h1' || currentSection.type === 'h2') {
+            // Manually set content field since TS union access is tricky inside generic function logic
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (currentSection as any).content = (currentSection as any).content || currentContent.join('\n').trim();
+
+            // Append explicit currentContent to text sections if accumulating
+            if (currentSection.type === 'text' && currentContent.length > 0) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (currentSection as any).content = currentContent.join('\n').trim();
+            }
+        }
+
+        // Push section logic
+        if (currentSection.type === 'list') {
+            if (currentSection.items && currentSection.items.length > 0) {
+                sections.push(currentSection);
+            }
+        } else {
+            // For text/headers
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if ((currentSection as any).content) {
+                sections.push(currentSection);
+            }
+        }
+
+        currentSection = null;
+        currentContent = [];
+    };
+
     for (const line of lines) {
         // Check for H1
         if (line.startsWith('# ')) {
-            if (currentSection) {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-            }
+            flushSection();
             currentSection = {
                 id: crypto.randomUUID(),
                 type: 'h1',
                 content: line.substring(2).trim()
             };
-            currentContent = [];
         }
         // Check for H2
         else if (line.startsWith('## ')) {
-            if (currentSection) {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-            }
+            flushSection();
             currentSection = {
                 id: crypto.randomUUID(),
                 type: 'h2',
                 content: line.substring(3).trim()
             };
-            currentContent = [];
         }
         // Check for list items
         else if (line.startsWith('- ') || line.startsWith('* ')) {
+            // If we were in a non-list section, flush it
             if (currentSection && currentSection.type !== 'list') {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
+                flushSection();
+            }
+
+            // Start new list if needed
+            if (!currentSection || currentSection.type !== 'list') {
                 currentSection = {
                     id: crypto.randomUUID(),
                     type: 'list',
-                    items: [line.substring(2).trim()]
+                    items: []
                 };
-                currentContent = [];
-            } else if (currentSection && currentSection.type === 'list') {
-                currentSection.items = currentSection.items || [];
+            }
+
+            // Append item
+            if (currentSection.type === 'list') {
                 currentSection.items.push(line.substring(2).trim());
             }
         }
         // Regular text
         else if (line.trim()) {
+            if (currentSection && currentSection.type !== 'text') {
+                // We were in a header or list, and found text. Flush previous and start text.
+                flushSection();
+            }
+
+            if (!currentSection) {
+                currentSection = {
+                    id: crypto.randomUUID(),
+                    type: 'text',
+                    content: ''
+                };
+            }
+
             currentContent.push(line);
         }
-        // Empty line
-        else if (currentSection && currentContent.length > 0) {
-            if (currentSection.type === 'text') {
-                currentSection.content = (currentSection.content || '') + '\n' + currentContent.join('\n');
+        // Empty line (Paragraph break)
+        else if (currentContent.length > 0) {
+            if (currentSection && currentSection.type === 'text') {
+                // Append paragraph
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const prev = (currentSection as any).content;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (currentSection as any).content = (prev ? prev + '\n\n' : '') + currentContent.join('\n');
+                currentContent = [];
             } else {
-                currentSection.content = currentContent.join('\n').trim();
-                sections.push(currentSection);
-                currentSection = null;
+                // If we were in other types, flush
+                flushSection();
             }
-            currentContent = [];
         }
     }
 
     // Push last section
-    if (currentSection) {
-        if (currentContent.length > 0) {
-            currentSection.content = currentContent.join('\n').trim();
-        }
-        sections.push(currentSection);
-    }
+    flushSection();
 
     // Add photo sections from ticket
     const photoSections = addPhotoSections(ticket);

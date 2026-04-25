@@ -52,7 +52,7 @@ export default function TicketsPage() {
         const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
         const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-        let filtered = tickets.filter(ticket => {
+        const filtered = tickets.filter(ticket => {
             if (dateFilter === "ALL") return true;
 
             const scheduledDate = ticket.scheduledStart ? ticket.scheduledStart.toDate() : null;

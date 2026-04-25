@@ -1,213 +1,220 @@
-import * as functions from "firebase-functions";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+import { notificationService } from "../notifications";
 
-const db = admin.firestore();
+const getDb = () => admin.firestore();
 
 // 1. Evidence Created -> Draft Quote
-export const onEvidenceCreated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}')
-    .onCreate(async (snap, context) => {
-        const { orgId, ticketId } = context.params;
-        const evidenceData = snap.data();
+export const onEvidenceCreated = onDocumentCreated('orgs/{orgId}/tickets/{ticketId}/evidence/{evidenceId}', async (event: any) => {
+    const snap = event.data;
+    if (!snap) return;
+    const { orgId, ticketId } = event.params;
+    const evidenceData = snap.data();
 
-        console.log(`Evidence created for Ticket ${ticketId}:`, evidenceData.type);
+    console.log(`Evidence created for Ticket ${ticketId}:`, evidenceData.type);
 
-        // A. Logic to determine if we should Auto-Draft
-        // For now, if "DIAGNOSIS" evidence is uploaded, we trigger the "Draft Agent"
-        const ticketRef = db.doc(`orgs/${orgId}/tickets/${ticketId}`);
-        const ticketSnap = await ticketRef.get();
-        const ticket = ticketSnap.data();
+    // A. Logic to determine if we should Auto-Draft
+    // For now, if "DIAGNOSIS" evidence is uploaded, we trigger the "Draft Agent"
+    const ticketRef = getDb().doc(`orgs/${orgId}/tickets/${ticketId}`);
+    const ticketSnap = await ticketRef.get();
+    const ticket = ticketSnap.data();
 
-        if (ticket && (ticket.serviceStatus === 'DIAGNOSIS_IN_PROGRESS' || ticket.serviceStatus === 'ON_SITE')) {
-            // Update Status to EVIDENCE_READY
+    if (ticket && (ticket.serviceStatus === 'DIAGNOSIS_IN_PROGRESS' || ticket.serviceStatus === 'ON_SITE')) {
+        // Update Status to EVIDENCE_READY
+        await ticketRef.update({
+            serviceStatus: 'EVIDENCE_READY',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // --- AI EXPRESS QUOTE GENERATION ---
+        try {
+            // Construct GCS URI (Preferred for Vertex AI)
+            const bucketName = admin.storage().bucket().name;
+            let gcsUri = "";
+
+            if (evidenceData.storagePath) {
+                gcsUri = `gs://${bucketName}/${evidenceData.storagePath}`;
+            } else if (evidenceData.url) {
+                console.warn("Evidence missing storagePath, skipping AI Draft");
+                return;
+            }
+
+            console.log(`Starting AI Analysis for ${gcsUri}...`);
+
+            // Dynamic import to avoid cold start issues if not used? 
+            // Actually top level import is fine but maybe safer here for tree shaking
+            const { analyzeEvidenceAndDraftQuote } = await import('./ai-engine');
+            const aiResult = await analyzeEvidenceAndDraftQuote(gcsUri, ticket);
+
+            console.log("AI Result:", JSON.stringify(aiResult, null, 2));
+
+            // Save Quote Draft
+            const quoteData = {
+                ticketId,
+                items: aiResult.parts.map(p => ({
+                    description: p.name,
+                    unitPrice: p.estimatedNativePrice,
+                    quantity: 1,
+                    total: p.estimatedNativePrice
+                })),
+                laborCost: aiResult.laborCost,
+                totalCost: aiResult.recommendedTotal,
+                diagnosis: aiResult.diagnosis,
+                status: 'DRAFT',
+                aiConfidence: aiResult.confidence,
+                aiReasoning: aiResult.reasoning,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+
+            const quoteRef = await getDb().collection(`orgs/${orgId}/quotes`).add(quoteData);
+
+            // Update Ticket with Draft Info
             await ticketRef.update({
-                serviceStatus: 'EVIDENCE_READY',
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            // --- AI EXPRESS QUOTE GENERATION ---
-            try {
-                // Construct GCS URI (Preferred for Vertex AI)
-                const bucketName = admin.storage().bucket().name;
-                let gcsUri = "";
-
-                if (evidenceData.storagePath) {
-                    gcsUri = `gs://${bucketName}/${evidenceData.storagePath}`;
-                } else if (evidenceData.url) {
-                    console.warn("Evidence missing storagePath, skipping AI Draft");
-                    return;
-                }
-
-                console.log(`Starting AI Analysis for ${gcsUri}...`);
-
-                // Dynamic import to avoid cold start issues if not used? 
-                // Actually top level import is fine but maybe safer here for tree shaking
-                const { analyzeEvidenceAndDraftQuote } = await import('./ai-engine');
-                const aiResult = await analyzeEvidenceAndDraftQuote(gcsUri, ticket);
-
-                console.log("AI Result:", JSON.stringify(aiResult, null, 2));
-
-                // Save Quote Draft
-                const quoteData = {
-                    ticketId,
-                    items: aiResult.parts.map(p => ({
-                        description: p.name,
-                        unitPrice: p.estimatedNativePrice,
-                        quantity: 1,
-                        total: p.estimatedNativePrice
-                    })),
-                    laborCost: aiResult.laborCost,
-                    totalCost: aiResult.recommendedTotal,
-                    diagnosis: aiResult.diagnosis,
-                    status: 'DRAFT',
-                    aiConfidence: aiResult.confidence,
-                    aiReasoning: aiResult.reasoning,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp()
-                };
-
-                const quoteRef = await db.collection(`orgs/${orgId}/quotes`).add(quoteData);
-
-                // Update Ticket with Draft Info
-                await ticketRef.update({
-                    draftQuoteId: quoteRef.id,
-                    serviceStatus: 'QUOTE_DRAFTED', // Advance state immediately if AI succeeds
-                    description: ticket.description ? ticket.description + "\n[AI Diagnosis]: " + aiResult.diagnosis : "[AI Diagnosis]: " + aiResult.diagnosis
-                });
-
-                // Audit Log
-                await db.collection(`orgs/${orgId}/auditLogs`).add({
-                    ticketId,
-                    action: 'AI_QOUTE_GENERATED',
-                    actorId: 'VERTEX_AI',
-                    details: `Quote draft generated by Gemini. Confidence: ${aiResult.confidence}`,
-                    metadata: { quoteId: quoteRef.id, diagnosis: aiResult.diagnosis },
-                    timestamp: admin.firestore.FieldValue.serverTimestamp()
-                });
-
-                await db.collection(`orgs/${orgId}/agentRuns`).add({
-                    ticketId,
-                    trigger: 'EVIDENCE_UPLOADED',
-                    status: 'COMPLETED',
-                    startedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    logs: [`AI Analysis complete. Quote ${quoteRef.id} drafted.`]
-                });
-
-            } catch (err) {
-                console.error("AI Generation Failed:", err);
-                await db.collection(`orgs/${orgId}/agentRuns`).add({
-                    ticketId,
-                    trigger: 'EVIDENCE_UPLOADED',
-                    status: 'FAILED',
-                    error: err instanceof Error ? err.message : 'Unknown AI Error',
-                    startedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-            }
-        }
-    });
-
-// 2. Approval Updated -> Send to Client (if Approved)
-export const onApprovalUpdated = functions.firestore
-    .document('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}')
-    .onUpdate(async (change, context) => {
-        const newValue = change.after.data();
-        const previousValue = change.before.data();
-
-        // Check for transition to APPROVED
-        if (newValue.status === 'APPROVED' && previousValue.status !== 'APPROVED') {
-            const { orgId, ticketId } = context.params;
-            console.log(`Approval ${context.params.approvalId} APPROVED. Generating PDF...`);
-
-            // A. Generate PDF (Mock)
-            // const pdfUrl = await generateQuotePDF(newValue.quoteId);
-            const pdfUrl = "https://mock.com/quote.pdf"; // Mock
-
-            // B. Update Ticket Status
-            await db.doc(`orgs/${orgId}/tickets/${ticketId}`).update({
-                serviceStatus: 'QUOTE_SENT',
-                currentQuoteUrl: pdfUrl,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-            // C. Send WhatsApp to Client
-            // await sendWhatsAppMessage(ticket.clientPhone, "Su cotización está lista: " + pdfUrl);
-            await db.collection(`orgs/${orgId}/agentRuns`).add({
-                ticketId,
-                trigger: 'APPROVAL_GRANTED',
-                status: 'RUNNING',
-                startedAt: admin.firestore.FieldValue.serverTimestamp(),
-                logs: [`Approval granted. Sending Quote PDF to client.`]
-            });
-
-            // Audit
-            await db.collection(`orgs/${orgId}/auditLogs`).add({
-                ticketId,
-                action: 'QUOTE_APPROVED',
-                actorId: 'ADMIN', // Or context auth user if available
-                details: `Quote approved in ${context.params.approvalId}`,
-                timestamp: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-        }
-    });
-
-// 3. Payment Created -> PENDING_REVIEW
-export const onPaymentCreated = functions.firestore
-    .document('orgs/{orgId}/payments/{paymentId}')
-    .onCreate(async (snap, context) => {
-        const payment = snap.data();
-        const { orgId, paymentId } = context.params;
-
-        // Ensure we have a proof file to process
-        // Assuming 'proofStoragePath' or 'proofUrl' exists. Based on user req, let's look for storage path.
-        // If the client uploads via client SDK to 'payments/{id}/proof.jpg', we might need that path.
-        // For now, let's assume `proofStoragePath` is field in payment doc.
-
-        if (payment.proofStoragePath) {
-            console.log(`Payment ${paymentId} created with proof. Enqueueing extraction Job...`);
-
-            try {
-                // Dynamic import to avoid circular dep issues in triggers if manager not cleanly separated
-                const { createAndDispatchJob } = await import('../jobs/manager');
-
-                const jobId = await createAndDispatchJob(orgId, {
-                    type: 'EXTRACT_PAYMENT_PROOF',
-                    paymentId: paymentId,
-                    ticketId: payment.ticketId || 'unknown',
-                    input: {
-                        proofStoragePath: payment.proofStoragePath,
-                        mimeType: payment.mimeType || 'image/jpeg' // default
-                    }
-                });
-
-                console.log(`Job ${jobId} created for Payment ${paymentId}`);
-
-                // Update payment status to indicate processing
-                await snap.ref.update({
-                    status: 'PROCESSING_PROOF',
-                    currentJobId: jobId
-                });
-
-            } catch (error) {
-                console.error("Failed to enqueue payment job:", error);
-            }
-        } else {
-            console.log(`Payment ${paymentId} created without proofStoragePath. Skipping Job.`);
-        }
-
-        // Standard Ticket Status Update logic if ticketId present
-        if (payment.ticketId) {
-            await db.doc(`orgs/${orgId}/tickets/${payment.ticketId}`).update({
-                serviceStatus: 'PROOF_RECEIVED',
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                draftQuoteId: quoteRef.id,
+                serviceStatus: 'QUOTE_DRAFTED', // Advance state immediately if AI succeeds
+                description: ticket.description ? ticket.description + "\n[AI Diagnosis]: " + aiResult.diagnosis : "[AI Diagnosis]: " + aiResult.diagnosis
             });
 
             // Audit Log
-            await db.collection(`orgs/${orgId}/auditLogs`).add({
-                ticketId: payment.ticketId,
-                action: 'PAYMENT_RECEIVED',
-                actorId: 'CLIENT',
-                details: `Payment uploaded: ${snap.id}`,
+            await getDb().collection(`orgs/${orgId}/auditLogs`).add({
+                ticketId,
+                action: 'AI_QOUTE_GENERATED',
+                actorId: 'VERTEX_AI',
+                details: `Quote draft generated by Gemini. Confidence: ${aiResult.confidence}`,
+                metadata: { quoteId: quoteRef.id, diagnosis: aiResult.diagnosis },
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             });
+
+            await getDb().collection(`orgs/${orgId}/agentRuns`).add({
+                ticketId,
+                trigger: 'EVIDENCE_UPLOADED',
+                status: 'COMPLETED',
+                startedAt: admin.firestore.FieldValue.serverTimestamp(),
+                logs: [`AI Analysis complete. Quote ${quoteRef.id} drafted.`]
+            });
+
+        } catch (err) {
+            console.error("AI Generation Failed:", err);
+            await getDb().collection(`orgs/${orgId}/agentRuns`).add({
+                ticketId,
+                trigger: 'EVIDENCE_UPLOADED',
+                status: 'FAILED',
+                error: err instanceof Error ? err.message : 'Unknown AI Error',
+                startedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
         }
-    });
+    }
+});
+
+// 2. Approval Updated -> Send to Client (if Approved)
+export const onApprovalUpdated = onDocumentUpdated('orgs/{orgId}/tickets/{ticketId}/approvals/{approvalId}', async (event: any) => {
+    const change = event.data;
+    if (!change) return;
+    const newValue = change.after.data();
+    const previousValue = change.before.data();
+
+    // Check for transition to APPROVED
+    if (newValue.status === 'APPROVED' && previousValue.status !== 'APPROVED') {
+        const { orgId, ticketId } = event.params;
+        console.log(`Approval ${event.params.approvalId} APPROVED. Generating PDF...`);
+
+        // A. Generate PDF (Mock)
+        // const pdfUrl = await generateQuotePDF(newValue.quoteId);
+        const pdfUrl = "https://mock.com/quote.pdf"; // Mock
+
+        // B. Update Ticket Status
+        await getDb().doc(`orgs/${orgId}/tickets/${ticketId}`).update({
+            serviceStatus: 'QUOTE_SENT',
+            currentQuoteUrl: pdfUrl,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // C. Notify Admins/Staff
+        await notificationService.broadcastToRole("ADMIN", {
+            title: "Cotización Aprobada",
+            body: `El cliente ha aprobado la cotización ${newValue.code || change.after.id}`,
+            type: "SUCCESS",
+            link: `/hvac/asset/${ticketId}` // Deep link
+        });
+
+        await getDb().collection(`orgs/${orgId}/agentRuns`).add({
+            ticketId,
+            trigger: 'APPROVAL_GRANTED',
+            status: 'RUNNING',
+            startedAt: admin.firestore.FieldValue.serverTimestamp(),
+            logs: [`Approval granted. Notification sent.`]
+        });
+
+        // Audit
+        await getDb().collection(`orgs/${orgId}/auditLogs`).add({
+            ticketId,
+            action: 'QUOTE_APPROVED',
+            actorId: 'ADMIN', // Or context auth user if available
+            details: `Quote approved in ${event.params.approvalId}`,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+    }
+});
+
+// 3. Payment Created -> PENDING_REVIEW
+export const onPaymentCreated = onDocumentCreated('orgs/{orgId}/payments/{paymentId}', async (event: any) => {
+    const snap = event.data;
+    if (!snap) return;
+    const payment = snap.data();
+    const { orgId, paymentId } = event.params;
+
+    // Ensure we have a proof file to process
+    // Assuming 'proofStoragePath' or 'proofUrl' exists. Based on user req, let's look for storage path.
+    // If the client uploads via client SDK to 'payments/{id}/proof.jpg', we might need that path.
+    // For now, let's assume `proofStoragePath` is field in payment doc.
+
+    if (payment.proofStoragePath) {
+        console.log(`Payment ${paymentId} created with proof. Enqueueing extraction Job...`);
+
+        try {
+            // Dynamic import to avoid circular dep issues in triggers if manager not cleanly separated
+            const { createAndDispatchJob } = await import('../jobs/manager');
+
+            const jobId = await createAndDispatchJob(orgId, {
+                type: 'EXTRACT_PAYMENT_PROOF',
+                paymentId: paymentId,
+                ticketId: payment.ticketId || 'unknown',
+                input: {
+                    proofStoragePath: payment.proofStoragePath,
+                    mimeType: payment.mimeType || 'image/jpeg' // default
+                }
+            });
+
+            console.log(`Job ${jobId} created for Payment ${paymentId}`);
+
+            // Update payment status to indicate processing
+            await snap.ref.update({
+                status: 'PROCESSING_PROOF',
+                currentJobId: jobId
+            });
+
+        } catch (error) {
+            console.error("Failed to enqueue payment job:", error);
+        }
+    } else {
+        console.log(`Payment ${paymentId} created without proofStoragePath. Skipping Job.`);
+    }
+
+    // Standard Ticket Status Update logic if ticketId present
+    if (payment.ticketId) {
+        await getDb().doc(`orgs/${orgId}/tickets/${payment.ticketId}`).update({
+            serviceStatus: 'PROOF_RECEIVED',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Audit Log
+        await getDb().collection(`orgs/${orgId}/auditLogs`).add({
+            ticketId: payment.ticketId,
+            action: 'PAYMENT_RECEIVED',
+            actorId: 'CLIENT',
+            details: `Payment uploaded: ${snap.id}`,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+    }
+});

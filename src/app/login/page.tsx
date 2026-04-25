@@ -26,7 +26,7 @@ export default function LoginPage() {
             router.push("/");
         } catch (err: any) {
             console.error(err);
-            setError("Credenciales inválidas. Por favor intente de nuevo.");
+            setError(`Error: ${err.message} (${err.code})`);
         } finally {
             setLoading(false);
         }
@@ -108,6 +108,35 @@ export default function LoginPage() {
                                 className="text-sm text-blue-600 hover:underline"
                             >
                                 ¿Olvidaste tu contraseña?
+                            </button>
+                        </div>
+                        <div className="text-center mt-3">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!email || !password) {
+                                        setError("Escribe un correo y contraseña para crear la cuenta.");
+                                        return;
+                                    }
+                                    setLoading(true);
+                                    try {
+                                        const { createUserWithEmailAndPassword } = await import("firebase/auth");
+                                        await createUserWithEmailAndPassword(auth, email, password);
+                                        router.push("/");
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        if (err.code === 'auth/email-already-in-use') {
+                                            setError("Este correo ya existe. Intenta con un número distinto (e.g. lcaa28@gmail.com)");
+                                        } else {
+                                            setError(`Error al crear cuenta: ${err.message}`);
+                                        }
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="text-sm font-semibold text-green-600 hover:underline"
+                            >
+                                Crear una nueva cuenta
                             </button>
                         </div>
                     </form>

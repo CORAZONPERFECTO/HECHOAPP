@@ -6,11 +6,11 @@ import { Mic, Square, X, Check, Loader2, Sparkles, AlertCircle } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parseInvoiceCommand } from "@/lib/voice-parser";
-import { Client, InvoiceItem } from "@/types/schema";
+import { Client, InvoiceLineItem } from "@/types/schema";
 import { cn } from "@/lib/utils";
 
 interface VoiceCommandCenterProps {
-    onInvoiceDataDetected: (data: { clientName?: string; clientId?: string; items: InvoiceItem[] }) => void;
+    onInvoiceDataDetected: (data: { clientName?: string; clientId?: string; items: InvoiceLineItem[] }) => void;
     availableClients: Client[];
     onClose: () => void;
 }
@@ -19,7 +19,7 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [transcript, setTranscript] = useState("");
-    const [parsedData, setParsedData] = useState<{ clientName?: string; items: InvoiceItem[] } | null>(null);
+    const [parsedData, setParsedData] = useState<{ clientName?: string; items: InvoiceLineItem[] } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [hintIndex, setHintIndex] = useState(0);
 
@@ -201,8 +201,8 @@ export function VoiceCommandCenter({ onInvoiceDataDetected, availableClients, on
                                     <span className="text-xs text-gray-400">Items:</span>
                                     {parsedData.items.map((item, idx) => (
                                         <div key={idx} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
-                                            <span>{item.quantity}x {item.description}</span>
-                                            <span className="font-mono font-medium">RD$ {item.unitPrice}</span>
+                                            <span>{(item as InvoiceLineItem).quantity}x {item.description}</span>
+                                            <span className="font-mono font-medium">RD$ {(item as InvoiceLineItem).unitPrice}</span>
                                         </div>
                                     ))}
                                 </div>

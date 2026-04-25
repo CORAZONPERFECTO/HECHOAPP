@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.seedDatabase = void 0;
-const functions = require("firebase-functions");
+const https_1 = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const db = admin.firestore();
-exports.seedDatabase = functions.https.onRequest(async (req, res) => {
+exports.seedDatabase = (0, https_1.onRequest)(async (req, res) => {
     try {
         const batch = db.batch();
         // 1. Create Users

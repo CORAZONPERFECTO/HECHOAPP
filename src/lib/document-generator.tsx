@@ -64,12 +64,17 @@ export interface DocumentData {
  */
 
 export function mapQuoteToDocument(quote: Quote, company: CompanySettings): DocumentData {
-    return {
+    const q = quote as any; // legacy field access shim
+    const mappedBase = {
         id: quote.id,
-        type: 'COTIZACIÓN',
-        number: quote.number,
-        date: quote.issueDate instanceof Timestamp ? quote.issueDate.toDate() : new Date(),
-        validUntil: quote.validUntil instanceof Timestamp ? quote.validUntil.toDate() : undefined,
+        type: 'COTIZACIÓN' as const,
+        number: q.number || quote.name || '',
+        date: quote.transaction_date
+            ? new Date(quote.transaction_date)
+            : (q.issueDate instanceof Timestamp ? q.issueDate.toDate() : new Date()),
+        validUntil: quote.valid_till
+            ? new Date(quote.valid_till)
+            : (q.validUntil instanceof Timestamp ? q.validUntil.toDate() : undefined),
 
         company: {
             name: company.name,
@@ -82,33 +87,44 @@ export function mapQuoteToDocument(quote: Quote, company: CompanySettings): Docu
         },
 
         client: {
-            name: quote.clientName,
-            contact: quote.clientContact,
-            email: quote.clientEmail,
-            phone: quote.clientPhone,
-            // Note: Address might need to be fetched if not in quote root, but schema has it sometimes?
-            // Checking schema... Quote doesn't have address directly on root usually, but let's assume valid default
-            // If schema changes, update here.
+            name: quote.party_name || (quote as any).clientName || '',
+            rnc: (quote as any).clientRnc,
+            contact: (quote as any).clientContact,
+            email: (quote as any).clientEmail,
+            phone: (quote as any).clientPhone,
         },
 
         items: quote.items.map(item => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-            taxAmount: item.taxAmount,
-            // discount not per item in current schema explicitly? 
-            // Assuming item total handles it or 0 for now.
+            description: item.item_name || item.description || '',
+            quantity: item.qty || 1,
+            unitPrice: item.rate || 0,
+            total: item.amount || ((item.qty || 1) * (item.rate || 0)),
+            taxAmount: item.tax_amount,
         })),
+    };
+
+    // Auto-reparar totales si la base de datos tiene 0 (por errores viejos)
+    let subtotal = quote.net_total ?? (quote as any).subtotal ?? 0;
+    let taxTotal = quote.total_taxes_and_charges ?? (quote as any).taxTotal ?? 0;
+    let grandTotal = quote.grand_total ?? (quote as any).total ?? 0;
+
+    if (subtotal === 0 && mappedBase.items.length > 0) {
+        subtotal = mappedBase.items.reduce((acc, item) => acc + item.total, 0);
+        taxTotal = subtotal * 0.18;
+        grandTotal = subtotal + taxTotal;
+    }
+
+    return {
+        ...mappedBase,
 
         currency: quote.currency,
-        subtotal: quote.subtotal,
-        taxTotal: quote.taxTotal,
-        discountTotal: quote.discountTotal,
-        total: quote.total,
+        subtotal: subtotal,
+        taxTotal: taxTotal,
+        discountTotal: (quote as any).discountTotal ?? 0,
+        total: grandTotal,
 
-        notes: quote.notes,
-        terms: quote.terms,
+        notes: quote.note || (quote as any).notes,
+        terms: (quote as any).terms,
         status: quote.status,
     };
 }

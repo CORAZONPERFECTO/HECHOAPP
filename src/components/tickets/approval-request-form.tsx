@@ -14,14 +14,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { AlertCircle, Send, Loader2 } from "lucide-react";
 
 interface ApprovalRequestFormProps {
-    ticketId: string;
+    ticketId?: string;
     ticketNumber?: string;
+    assetId?: string;
     userId: string;
     userName: string;
     onSuccess?: () => void;
 }
 
-export function ApprovalRequestForm({ ticketId, ticketNumber, userId, userName, onSuccess }: ApprovalRequestFormProps) {
+export function ApprovalRequestForm({ ticketId, ticketNumber, assetId, userId, userName, onSuccess }: ApprovalRequestFormProps) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -46,8 +47,9 @@ export function ApprovalRequestForm({ ticketId, ticketNumber, userId, userName, 
 
         try {
             await addDoc(collection(db, "approvalRequests"), {
-                ticketId,
-                ticketNumber: ticketNumber || ticketId.slice(0, 6),
+                ticketId: ticketId || null,
+                assetId: assetId || null,
+                ticketNumber: ticketNumber || (ticketId ? ticketId.slice(0, 6) : "ADHOC"),
                 requestedBy: userId,
                 requestedByName: userName,
                 type: formData.type,

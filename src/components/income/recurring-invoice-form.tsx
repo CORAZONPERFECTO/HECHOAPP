@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, updateDoc, doc, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { RecurringInvoice, InvoiceItem, Client, RecurringFrequency, RecurringStatus } from "@/types/schema";
+import { RecurringInvoice, InvoiceLineItem, Client, RecurringFrequency, RecurringStatus } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,12 +72,12 @@ export function RecurringInvoiceForm({ initialData, isEditing = false }: Recurri
             ...prev,
             items: [
                 ...(prev.items || []),
-                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 }
+                { description: "", quantity: 1, unitPrice: 0, taxRate: 0.18, taxAmount: 0, total: 0 } as InvoiceLineItem
             ]
         }));
     };
 
-    const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const updateItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
         const newItems = [...(formData.items || [])];
         newItems[index] = { ...newItems[index], [field]: value };
 

@@ -1,4 +1,5 @@
-import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, DividerSection, BeforeAfterSection, GallerySection } from "@/types/schema";
+import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, GallerySection, PhotoSection, BeforeAfterSection } from "@/types/schema";
+import { Timestamp } from "firebase/firestore";
 
 /**
  * Helper to create ID
@@ -8,10 +9,10 @@ const uuid = () => crypto.randomUUID();
 /**
  * Helper to safely format ticket date
  */
-const formatTicketDate = (date: any): string => {
+const formatTicketDate = (date: Timestamp | Date | string | number | null | undefined): string => {
     if (!date) return 'N/D';
     try {
-        if (date.seconds) {
+        if (date instanceof Timestamp) {
             return new Date(date.seconds * 1000).toLocaleDateString();
         }
         if (date instanceof Date) {
@@ -21,7 +22,7 @@ const formatTicketDate = (date: any): string => {
             return new Date(date).toLocaleDateString();
         }
         return 'N/D';
-    } catch (e) {
+    } catch (_e) {
         return 'N/D';
     }
 };
@@ -78,7 +79,7 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
                 photoUrl: photo.url,
                 description: photo.description || photo.details || '',
                 photoMeta: {
-                    originalId: (photo as any).id || uuid(),
+                    originalId: (photo as { id?: string }).id || uuid(),
                     area: photo.area,
                     phase: photo.type
                 }
@@ -122,26 +123,50 @@ export function updatePhotosFromTicket(
     report: TicketReportNew,
     ticket: Ticket
 ): TicketReportNew {
-    // Get existing photo IDs by scanning both PhotoSections and GallerySections
-    const existingPhotoIds = new Set<string>();
+    // Get existing photo identifiers (IDs and URLs)
+    const existingIds = new Set<string>();
+    const existingUrls = new Set<string>();
 
     report.sections.forEach(section => {
-        if (section.type === 'photo' && section.photoMeta?.originalId) {
-            existingPhotoIds.add(section.photoMeta.originalId);
+        if (section.type === 'photo') {
+            const p = section as PhotoSection;
+            if (p.photoMeta?.originalId) existingIds.add(p.photoMeta.originalId);
+            if (p.photoUrl) existingUrls.add(p.photoUrl);
         }
-        if (section.type === 'gallery' && section.photos) {
-            section.photos.forEach(p => {
-                if (p.photoMeta?.originalId) {
-                    existingPhotoIds.add(p.photoMeta.originalId);
-                }
-            });
+        if (section.type === 'gallery') {
+            const g = section as GallerySection;
+            if (g.photos) {
+                g.photos.forEach(p => {
+                    if (p.photoMeta?.originalId) existingIds.add(p.photoMeta.originalId);
+                    if (p.photoUrl) existingUrls.add(p.photoUrl);
+                });
+            }
+        }
+        // Also check before/after blocks
+        if (section.type === 'beforeAfter') {
+            const ba = section as BeforeAfterSection;
+            if (ba.beforePhotoUrl) existingUrls.add(ba.beforePhotoUrl);
+            if (ba.afterPhotoUrl) existingUrls.add(ba.afterPhotoUrl);
         }
     });
 
-    // Find new photos (ANY photo not in report)
-    const newPhotos = (ticket.photos || []).filter(
-        photo => !(photo as any).id || !existingPhotoIds.has((photo as any).id)
-    );
+    // Find new photos logic:
+    // A photo is new if:
+    // 1. It has an ID and that ID is NOT in existingIds
+    // 2. OR (if no ID or ID check passed) its URL is NOT in existingUrls
+    const newPhotos = (ticket.photos || []).filter(photo => {
+        const hasId = (photo as any).id;
+        const knownId = hasId && existingIds.has(hasId);
+
+        // Correct logic:
+        // If it has a known ID, it's NOT new.
+        if (hasId && existingIds.has(hasId)) return false;
+
+        // If it has a known URL, it's NOT new.
+        if (photo.url && existingUrls.has(photo.url)) return false;
+
+        return true;
+    });
 
     if (newPhotos.length === 0) {
         return report;
@@ -157,8 +182,8 @@ export function updatePhotosFromTicket(
             photoUrl: photo.url,
             description: photo.description || photo.details || '',
             photoMeta: {
-                originalId: (photo as any).id || uuid(),
-                area: photo.area || null,
+                originalId: (photo as { id?: string }).id || uuid(),
+                area: photo.area || undefined,
                 phase: photo.type || 'EVIDENCE'
             }
         }))

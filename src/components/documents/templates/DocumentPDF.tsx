@@ -4,6 +4,7 @@ import { DocumentData } from '@/lib/document-generator';
 import ClassicTemplate from './ClassicTemplate';
 import ModernTemplate from './ModernTemplate';
 import SimpleTemplate from './SimpleTemplate';
+import ExecutiveTemplate from './ExecutiveTemplate';
 import { DocumentFormat } from '@/stores/document-settings-store';
 
 interface DocumentProps {
@@ -22,6 +23,7 @@ export const DocumentPDF: React.FC<DocumentProps> = ({ data, format = 'classic' 
             {format === 'classic' && <ClassicTemplate data={data} />}
             {format === 'modern' && <ModernTemplate data={data} />}
             {format === 'simple' && <SimpleTemplate data={data} />}
+            {format === 'executive' && <ExecutiveTemplate data={data} />}
         </Document>
     );
 };

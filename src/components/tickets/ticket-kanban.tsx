@@ -11,6 +11,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Clock, User, AlertCircle } from "lucide-react";
+import { TicketCardRefactored } from "./ticket-card-refactored";
 
 interface TicketKanbanProps {
     tickets: Ticket[];
@@ -26,42 +27,7 @@ const COLUMNS: { id: TicketStatus; title: string; color: string }[] = [
     { id: "CANCELLED", title: "Cancelado", color: "bg-red-100" },
 ];
 
-function TicketCard({ ticket, isDragging }: { ticket: Ticket; isDragging?: boolean }) {
-    const priorityColors = {
-        LOW: "bg-green-100 text-green-800",
-        MEDIUM: "bg-yellow-100 text-yellow-800",
-        HIGH: "bg-orange-100 text-orange-800",
-        URGENT: "bg-red-100 text-red-800",
-    };
-
-    return (
-        <div
-            className={`bg-white p-3 rounded-lg border shadow-sm hover:shadow-md transition-shadow cursor-pointer ${isDragging ? "opacity-50" : ""
-                }`}
-        >
-            <div className="flex justify-between items-start mb-2">
-                <span className="font-semibold text-sm text-gray-900">
-                    {ticket.ticketNumber || ticket.id.slice(0, 6)}
-                </span>
-                <Badge className={`text-xs ${priorityColors[ticket.priority]}`}>
-                    {ticket.priority}
-                </Badge>
-            </div>
-            <p className="text-sm text-gray-700 font-medium mb-1">{ticket.clientName}</p>
-            <p className="text-xs text-gray-500 mb-2 line-clamp-2">{ticket.description}</p>
-            <div className="flex items-center justify-between text-xs text-gray-400">
-                <div className="flex items-center gap-1">
-                    <User className="h-3 w-3" />
-                    <span>{ticket.technicianName || "Sin asignar"}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()}</span>
-                </div>
-            </div>
-        </div>
-    );
-}
+// Se ha eliminado el TicketCard local para usar el TicketCardRefactored importado
 
 function SortableTicketCard({ ticket, onTicketClick }: { ticket: Ticket; onTicketClick: (ticket: Ticket) => void }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -74,8 +40,8 @@ function SortableTicketCard({ ticket, onTicketClick }: { ticket: Ticket; onTicke
     };
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={() => onTicketClick(ticket)}>
-            <TicketCard ticket={ticket} isDragging={isDragging} />
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={() => onTicketClick(ticket)} className={isDragging ? "opacity-50" : ""}>
+            <TicketCardRefactored ticketId={ticket.id} initialData={ticket} />
         </div>
     );
 }
@@ -138,7 +104,7 @@ export function TicketKanban({ tickets, onTicketClick }: TicketKanbanProps) {
                     );
                 })}
             </div>
-            <DragOverlay>{activeTicket ? <TicketCard ticket={activeTicket} isDragging /> : null}</DragOverlay>
+            <DragOverlay>{activeTicket ? <div className="opacity-80 scale-105"><TicketCardRefactored ticketId={activeTicket.id} initialData={activeTicket} /></div> : null}</DragOverlay>
         </DndContext>
     );
 }

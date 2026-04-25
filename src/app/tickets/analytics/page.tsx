@@ -65,9 +65,55 @@ export default function TicketAnalyticsPage() {
         };
     }, [router]);
 
-    const handleExport = () => {
-        // TODO: Implement Excel export
-        alert("Exportación a Excel en desarrollo");
+    const handleExport = async () => {
+        if (!analytics || tickets.length === 0) return;
+
+        try {
+            const XLSX = await import("xlsx");
+            const workbook = XLSX.utils.book_new();
+
+            // Sheet 1: Tickets Summary
+            const ticketsData = tickets.map(t => ({
+                ID: t.ticketNumber || t.id.substring(0, 8),
+                Cliente: t.clientName,
+                Ubicación: t.locationName,
+                Tipo: t.serviceType,
+                Estado: t.status,
+                Prioridad: t.priority,
+                Fecha: t.createdAt ? new Date((t.createdAt as any).seconds * 1000).toLocaleDateString() : '',
+                Técnico: t.technicianName || 'Sin asignar'
+            }));
+            const ticketsSheet = XLSX.utils.json_to_sheet(ticketsData);
+            XLSX.utils.book_append_sheet(workbook, ticketsSheet, "Tickets");
+
+            // Sheet 2: Technician Performance
+            const techData = analytics.technicians.map(t => ({
+                Técnico: t.technicianName,
+                Tickets_Resueltos: t.completedTickets,
+                Tiempo_Promedio_Horas: parseFloat(t.avgResolutionTime.toFixed(1)),
+                Satisfacción: t.avgRating || 0
+            }));
+            const techSheet = XLSX.utils.json_to_sheet(techData);
+            XLSX.utils.book_append_sheet(workbook, techSheet, "Rendimiento Técnicos");
+
+            // Sheet 3: Materials
+            const matData = analytics.materials.map(m => ({
+                Categoría: m.category,
+                Total_Costo: m.totalCost,
+                Frecuencia_Uso: m.frequency,
+                Costo_Promedio_Ticket: parseFloat(m.avgCostPerTicket.toFixed(2))
+            }));
+            const matSheet = XLSX.utils.json_to_sheet(matData);
+            XLSX.utils.book_append_sheet(workbook, matSheet, "Materiales");
+
+            // Download
+            const dateStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(workbook, `Reporte_Tickets_${dateStr}.xlsx`);
+
+        } catch (error) {
+            console.error("Error exporting to Excel:", error);
+            alert("Error al generar el archivo Excel");
+        }
     };
 
     if (loading) {

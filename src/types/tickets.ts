@@ -59,6 +59,7 @@ export interface Ticket {
     clientSignature?: string;
     allowGalleryUpload?: boolean;
     equipmentId?: string; // ID of the equipment being serviced
+    interventionId?: string; // ID of the RIT Intervention created
     // SLA Fields
     slaResponseDeadline?: Timestamp; // When first response is due
     slaResolutionDeadline?: Timestamp; // When resolution is due
@@ -101,7 +102,8 @@ export interface TicketType {
 
 export interface ApprovalRequest {
     id: string;
-    ticketId: string;
+    ticketId?: string;
+    assetId?: string; // Linked HVAC Asset
     ticketNumber?: string;
     requestedBy: string; // User ID
     requestedByName: string;

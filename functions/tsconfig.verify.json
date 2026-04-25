@@ -1,0 +1,8 @@
+{
+    "extends": "./tsconfig.json",
+    "include": [
+        "src/test-connection.ts",
+        "src/verify-full-cycle.ts",
+        "src/erpnext/service.ts"
+    ]
+}

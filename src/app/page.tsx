@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, getCountFromServer, doc, getDoc, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { AppCard } from "@/components/ui/app-card";
-import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit } from "lucide-react";
+import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit, Smartphone, Kanban, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as UserSchema } from "@/types/schema";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
@@ -77,12 +78,12 @@ const ALL_MODULES = [
   { id: 'clients', label: 'Clientes', icon: Users, href: '/clients', color: 'text-blue-600', role: 'ADMIN' },
   { id: 'technicians', label: 'Técnicos', icon: Wrench, href: '/technicians', color: 'text-orange-600', role: 'ADMIN' },
   { id: 'messages', label: 'Mensajes', icon: MessageSquare, href: '#', color: 'text-green-600', role: 'ALL', onClick: () => alert("Integración WhatsApp en desarrollo") },
-  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '#', color: 'text-indigo-600', role: 'ALL', onClick: () => alert("Reportes en desarrollo") },
+  { id: 'reports', label: 'Reportes', icon: BarChart3, href: '/reports', color: 'text-indigo-600', role: 'ADMIN' },
   { id: 'settings', label: 'Ajustes', icon: Settings, href: '/settings', color: 'text-gray-600', role: 'ADMIN' },
   { id: 'resources', label: 'Recursos', icon: FileText, href: '/resources', color: 'text-teal-600', role: 'ALL' },
   { id: 'income', label: 'Ingresos', icon: BarChart3, href: '/income', color: 'text-emerald-600', role: 'ADMIN' },
   { id: 'ai-diagnostics', label: 'Diagnóstico IA', icon: BrainCircuit, href: '/resources?tab=errors', color: 'text-violet-600', role: 'ALL' },
-  { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ALL', isSpecial: true },
+  { id: 'quote-chat', label: 'Cotizador IA', icon: Sparkles, href: '#', color: 'text-pink-600', role: 'ADMIN', isSpecial: true },
 ];
 
 const USAGE_KEY = 'dashboard-usage-stats';
@@ -188,9 +189,10 @@ export default function Dashboard() {
     }
   };
 
+  const [isTechnician, setIsTechnician] = useState<boolean>(false);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      // ... same auth logic as before ...
       if (!currentUser) {
         router.push("/login");
       } else {
@@ -199,7 +201,15 @@ export default function Dashboard() {
           const docRef = doc(db, "users", currentUser.uid);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            setUserProfile(docSnap.data() as UserSchema);
+            const profile = docSnap.data() as UserSchema;
+            setUserProfile(profile);
+            
+            // SECURITY / ANTI-HACKER: Bounce technicians out of the dashboard
+            if (profile.rol === "TECNICO") {
+               setIsTechnician(true);
+               router.push("/technician/my-day");
+               return; // Detener ejecución aquí para técnicos
+            }
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -211,11 +221,9 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, [router]);
 
-  const isTechnician = userProfile?.rol === 'TECNICO';
-
   // Load tickets for SLA metrics
   useEffect(() => {
-    if (!isTechnician) {
+    if (user && !isTechnician) {
       const q = query(
         collection(db, "tickets"),
         orderBy("createdAt", "desc"),
@@ -230,14 +238,18 @@ export default function Dashboard() {
       });
       return () => unsubscribe();
     }
-  }, [isTechnician]);
+  }, [user, isTechnician]);
 
   // Filter modules based on role
   const visibleModules = modules.filter(m => {
+    // Modify URL for technicians before evaluating returns
+    if (isTechnician && m.id === 'tickets') {
+        m.href = "/technician/my-day"; // Corrección para que apunte a My Day View directamente
+    }
+
     if (m.role === 'ALL') return true;
     if (m.role === 'ADMIN' && !isTechnician) return true;
-    // Adjust tech specific routing if needed
-    if (isTechnician && m.id === 'tickets') m.href = "/technician/tickets";
+    
     return false;
   });
 
@@ -249,9 +261,62 @@ export default function Dashboard() {
           <ActiveTicketCard />
         ) : (
           <div className="space-y-6">
-            <div className="flex justify-end">
-              <DateRangePicker date={dateRange} setDate={setDateRange} />
+            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
+                <h2 className="text-3xl font-extrabold text-gray-800 tracking-tight">Centro de Mando</h2>
+                <DateRangePicker date={dateRange} setDate={setDateRange} />
             </div>
+
+            {/* LOS 3 GATEWAYS PRINCIPALES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {/* Gateway 1: Servicio Limitado */}
+              <Link href="/technician/my-day" className="group">
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-3xl text-white shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
+                    <Smartphone className="w-32 h-32" />
+                  </div>
+                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
+                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
+                      <Wrench className="w-8 h-8 text-white relative z-10" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-1">Servicio de Campo</h3>
+                    <p className="text-blue-100 text-sm font-medium leading-relaxed">Emular y vigilar vista celular p/ Técnicos</p>
+                  </div>
+                </div>
+              </Link>
+
+              {/* Gateway 2: Administrador */}
+              <Link href="/tickets" className="group">
+                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl text-white shadow-xl shadow-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
+                    <Kanban className="w-32 h-32" />
+                  </div>
+                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
+                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
+                      <Ticket className="w-8 h-8 text-white relative z-10" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-1">Torre de Control</h3>
+                    <p className="text-indigo-100 text-sm font-medium leading-relaxed">Kanban Administrativo: Poder Total de Tickets</p>
+                  </div>
+                </div>
+              </Link>
+
+              {/* Gateway 3: Ingresos */}
+              <Link href="/income/invoices" className="group">
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-3xl text-white shadow-xl shadow-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
+                    <Briefcase className="w-32 h-32" />
+                  </div>
+                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
+                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
+                      <BarChart3 className="w-8 h-8 text-white relative z-10" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-1">Tesorería Financiera</h3>
+                    <p className="text-emerald-100 text-sm font-medium leading-relaxed">Control de Facturas, Cotizaciones y Pagos</p>
+                  </div>
+                </div>
+              </Link>
+            </div>
+
             <DashboardStats dateRange={dateRange} />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <IncomeChart dateRange={dateRange} />
