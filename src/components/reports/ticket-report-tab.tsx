@@ -135,20 +135,12 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
     const handleUpdatePhotos = async () => {
         if (!report) return;
 
-        try {
-            setSaving(true);
-            const updatedReport = updatePhotosFromTicket(report, ticket);
-            await setDoc(doc(db, "ticketReports", ticket.id), updatedReport);
-            setReport(updatedReport);
-            setLastSavedReport(updatedReport);
+        // Optimistic update
+        const updatedReport = updatePhotosFromTicket(report, ticket);
+        setReport(updatedReport); // Update UI immediately
 
-            toast({ title: "Fotos actualizadas", description: "Se han sincronizado las fotos del ticket.", variant: "default" });
-        } catch (error) {
-            console.error("Error updating photos:", error);
-            toast({ title: "Error", description: "Error al actualizar fotos", variant: "destructive" });
-        } finally {
-            setSaving(false);
-        }
+        // Save using the safe handler (deals with sanitization and toast)
+        await handleSave(updatedReport);
     };
 
     const handleRegenerate = async () => {

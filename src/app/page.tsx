@@ -284,6 +284,7 @@ export default function Dashboard() {
         </h2>
 
         <DndContext
+          id="dashboard-dnd-context"
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}

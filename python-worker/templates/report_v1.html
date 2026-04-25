@@ -231,7 +231,8 @@
         <tr>
             <td width="60%">
                 <h1 style="margin: 0;">Informe Técnico</h1>
-                <p style="margin: 5px 0 0 0; color: #666;">Folio: #{{ report.reportNumber if report.reportNumber else ticket.ticketNumber }}</p>
+                <p style="margin: 5px 0 0 0; color: #666;">Folio: #{{ report.reportNumber if report.reportNumber else
+                    ticket.ticketNumber }}</p>
                 <p style="margin: 0; font-size: 10pt;">Fecha: {{ generatedDate }}</p>
             </td>
             <td width="40%" style="text-align: right;">
@@ -242,7 +243,7 @@
                 {% else %}
                 <h2>{{ report.companyInfo.name if report.companyInfo and report.companyInfo.name else org.name }}</h2>
                 {% endif %}
-                
+
                 {% if report.companyInfo and report.companyInfo.address %}
                 <div style="font-size: 8pt; color: #666; margin-top: 5px;">{{ report.companyInfo.address }}</div>
                 {% endif %}
@@ -276,20 +277,90 @@
         <p>{{ ticket.description }}</p>
     </div>
 
-    <!-- Dynamic Sections from Report -->
+    <!-- Dynamic Sections -->
     {% for section in report.sections %}
-    <div class="section">
-        {% if section.title %}
-        <h2>{{ section.title }}</h2>
+    <div class="section" style="break-inside: avoid;">
+
+        <!-- HEADERS -->
+        {% if section.type == 'h1' %}
+        <h1>{{ section.content }}</h1>
+        {% elif section.type == 'h2' or section.title %}
+        <!-- Fallback for legacy 'title' prop -->
+        <h2>{{ section.content if section.content else section.title }}</h2>
         {% endif %}
 
-        <!-- Headers for specific types if they don't have explicit title but need one? 
-             Usually title is enough. -->
-
+        <!-- TEXT -->
+        {% if section.type == 'text' %}
         {% if section.content %}
         <div>{{ section.content | safe }}</div>
         {% endif %}
+        {% endif %}
 
+        <!-- LIST (Bullet Points) -->
+        {% if section.type == 'list' and section.items %}
+        <ul style="margin: 10px 0; padding-left: 20px;">
+            {% for item in section.items %}
+            <li style="margin-bottom: 5px;">{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- SINGLE PHOTO -->
+        {% if section.type == 'photo' %}
+        <div class="photo-item" style="width: 100%; max-width: 400px; margin: 10px auto;">
+            <span class="photo-number"></span>
+            <img src="{{ section.photoUrl }}" alt="Foto">
+            {% if section.description %}
+            <div class="photo-desc">{{ section.description }}</div>
+            {% endif %}
+            {% if section.photoMeta and section.photoMeta.area %}
+            <div class="photo-meta">Area: {{ section.photoMeta.area }}</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- GALLERY -->
+        {% if section.type == 'gallery' and section.photos %}
+        <div class="photo-grid">
+            {% for photo in section.photos %}
+            <div class="photo-item">
+                <span class="photo-number"></span>
+                <img src="{{ photo.photoUrl }}" alt="Foto">
+                <div class="photo-desc">{{ photo.description }}</div>
+                {% if photo.photoMeta and photo.photoMeta.area %}
+                <div class="photo-meta">Area: {{ photo.photoMeta.area }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- BEFORE / AFTER -->
+        {% if section.type == 'beforeAfter' %}
+        <div class="before-after-container">
+            <div class="ba-item">
+                <div class="ba-label">ANTES</div>
+                <img src="{{ section.beforePhotoUrl }}" alt="Antes">
+                {% if section.beforeMeta and section.beforeMeta.area %}
+                <div class="ba-meta">{{ section.beforeMeta.area }}</div>
+                {% endif %}
+            </div>
+            <div class="ba-item">
+                <div class="ba-label">DESPUÉS</div>
+                <img src="{{ section.afterPhotoUrl }}" alt="Después">
+                {% if section.afterMeta and section.afterMeta.area %}
+                <div class="ba-meta">{{ section.afterMeta.area }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% if section.description %}
+        <div class="ba-description">
+            <strong>Observación:</strong> {{ section.description }}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <!-- CHECKLIST (Legacy Support) -->
         {% if section.type == 'checklist' and section['items'] %}
         <table class="data-table">
             <thead>
@@ -317,45 +388,9 @@
         </table>
         {% endif %}
 
-        <!-- Check for Photos -->
-        {% if section.photos and section.photos|length > 0 %}
-        <div class="photo-grid">
-            {% for photo in section.photos %}
-            <div class="photo-item">
-                <span class="photo-number"></span>
-                <img src="{{ photo.photoUrl }}" alt="Evidencia">
-                <div class="photo-desc">{{ photo.description }}</div>
-                {% if photo.photoMeta and photo.photoMeta.area %}
-                <div class="photo-meta">Area: {{ photo.photoMeta.area }}</div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Ticket #2: Before/After Logic -->
-        {% if section.type == 'beforeAfter' %}
-        <div class="before-after-container">
-            <div class="ba-item">
-                <div class="ba-label">ANTES</div>
-                <img src="{{ section.beforePhotoUrl }}" alt="Antes">
-                {% if section.beforeMeta and section.beforeMeta.area %}
-                <div class="ba-meta">{{ section.beforeMeta.area }}</div>
-                {% endif %}
-            </div>
-            <div class="ba-item">
-                <div class="ba-label">DESPUÉS</div>
-                <img src="{{ section.afterPhotoUrl }}" alt="Después">
-                {% if section.afterMeta and section.afterMeta.area %}
-                <div class="ba-meta">{{ section.afterMeta.area }}</div>
-                {% endif %}
-            </div>
-        </div>
-        {% if section.description %}
-        <div class="ba-description">
-            <strong>Observación:</strong> {{ section.description }}
-        </div>
-        {% endif %}
+        <!-- DIVIDER -->
+        {% if section.type == 'divider' %}
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
         {% endif %}
 
     </div>

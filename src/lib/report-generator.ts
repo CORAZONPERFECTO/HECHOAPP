@@ -158,8 +158,8 @@ export function updatePhotosFromTicket(
             description: photo.description || photo.details || '',
             photoMeta: {
                 originalId: (photo as any).id || uuid(),
-                area: photo.area,
-                phase: photo.type
+                area: photo.area || null,
+                phase: photo.type || 'EVIDENCE'
             }
         }))
     };
