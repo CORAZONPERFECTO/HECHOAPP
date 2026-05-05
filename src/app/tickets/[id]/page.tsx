@@ -135,6 +135,22 @@ export default function TicketDetailPage() {
         }
     };
 
+    const handlePhotoAdded = async (photo: import("@/types/schema").TicketPhoto) => {
+        try {
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'PHOTO_UPLOAD',
+                description: `Subió una foto (${photo.type})`,
+                timestamp: serverTimestamp(),
+                mediaUrl: photo.url
+            });
+        } catch (error) {
+            console.error("Error logging photo upload event:", error);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
             {/* Header */}
@@ -315,7 +331,12 @@ export default function TicketDetailPage() {
                                 <CardTitle>Historial</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <TicketTimeline events={events} />
+                                <TicketTimeline 
+                                    events={events} 
+                                    ticketId={ticketId}
+                                    currentUserId={currentUserId}
+                                    currentUserName={currentUserName}
+                                />
                             </CardContent>
                         </Card>
 
@@ -390,6 +411,7 @@ export default function TicketDetailPage() {
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
                                     allowGallery={true}
+                                    onPhotoAdded={handlePhotoAdded}
                                 />
                                 <div className="border-t" />
                                 <PhotoUploader
@@ -398,6 +420,7 @@ export default function TicketDetailPage() {
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
                                     allowGallery={true}
+                                    onPhotoAdded={handlePhotoAdded}
                                 />
                                 <div className="border-t" />
                                 <PhotoUploader
@@ -406,6 +429,7 @@ export default function TicketDetailPage() {
                                     photos={ticket.photos || []}
                                     onChange={(photos) => setTicket({ ...ticket, photos })}
                                     allowGallery={true}
+                                    onPhotoAdded={handlePhotoAdded}
                                 />
                             </CardContent>
                         </Card>

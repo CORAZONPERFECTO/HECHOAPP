@@ -224,7 +224,7 @@ export function MyDayView() {
                                 <TicketCardRefactored 
                                     ticketId={ticket.id} 
                                     initialData={ticket}
-                                    onClick={() => router.push(`/tickets/${ticket.id}`)}
+                                    onClick={() => router.push(`/technician/tickets/${ticket.id}`)}
                                 />
                             </div>
                         ))}

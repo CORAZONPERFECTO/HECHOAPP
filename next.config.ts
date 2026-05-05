@@ -14,6 +14,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  distDir: '.next2',
   images: {
     remotePatterns: [
       {

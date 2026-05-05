@@ -20,9 +20,10 @@ interface PhotoUploaderProps {
     type: 'BEFORE' | 'DURING' | 'AFTER';
     label: string;
     allowGallery?: boolean;
+    onPhotoAdded?: (photo: TicketPhoto) => void;
 }
 
-export function PhotoUploader({ photos, onChange, type, label, allowGallery = false }: PhotoUploaderProps) {
+export function PhotoUploader({ photos, onChange, type, label, allowGallery = false, onPhotoAdded }: PhotoUploaderProps) {
     const currentPhotos = photos.filter(p => p.type === type);
 
     const addWatermark = (file: File): Promise<string> => {
@@ -106,6 +107,7 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                 };
 
                 onChange([...photos, newPhoto]);
+                if (onPhotoAdded) onPhotoAdded(newPhoto);
             } catch (error) {
                 console.error("Error processing image:", error);
                 // Fallback to original if processing fails
@@ -117,6 +119,7 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                     description: file.name
                 };
                 onChange([...photos, newPhoto]);
+                if (onPhotoAdded) onPhotoAdded(newPhoto);
             }
         }
     };

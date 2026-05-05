@@ -16,6 +16,8 @@ export interface TicketEvent {
     type: EventType;
     description: string;
     timestamp: Timestamp;
+    mediaUrl?: string;
+    metadata?: any;
 }
 
 export interface TicketPhoto {

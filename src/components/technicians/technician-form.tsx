@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, serverTimestamp, doc, setDoc } from "firebase/firestore";
+import { serverTimestamp, doc, setDoc } from "firebase/firestore";
 import { db, firebaseConfig } from "@/lib/firebase";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { User, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Trash2, KeyRound } from "lucide-react";
+import { Loader2, Save, Trash2, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteDoc } from "firebase/firestore";
-import { auth } from "@/lib/firebase";
+import { Badge } from "@/components/ui/badge";
 
 interface TechnicianFormProps {
     initialData?: User;
@@ -38,6 +38,10 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         activo: initialData?.activo ?? true,
     });
     const [password, setPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [passwordSaving, setPasswordSaving] = useState(false);
+    const [passwordSuccess, setPasswordSuccess] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -109,16 +113,37 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         }
     };
 
-    const handlePasswordReset = async () => {
-        if (!formData.email) return;
-        if (!confirm(`¿Enviar correo de restablecimiento de contraseña a ${formData.email}?`)) return;
+    const handleDirectPasswordChange = async () => {
+        if (!initialData?.id) return;
+        if (!newPassword || newPassword.length < 6) {
+            alert("La nueva contraseña debe tener al menos 6 caracteres.");
+            return;
+        }
+        if (!confirm(`¿Cambiar la contraseña de ${formData.nombre || formData.email}? Esta acción es inmediata.`)) return;
 
+        setPasswordSaving(true);
+        setPasswordSuccess(false);
         try {
-            await sendPasswordResetEmail(auth, formData.email);
-            alert("Correo enviado correctamente.");
+            const res = await fetch("/api/admin/set-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid: initialData.id, newPassword }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Error desconocido");
+            }
+
+            setPasswordSuccess(true);
+            setNewPassword("");
+            setTimeout(() => setPasswordSuccess(false), 4000);
         } catch (error: any) {
-            console.error("Error sending reset email:", error);
-            alert("Error al enviar el correo: " + error.message);
+            console.error("Error changing password:", error);
+            alert("Error al cambiar la contraseña: " + error.message);
+        } finally {
+            setPasswordSaving(false);
         }
     };
 
@@ -209,14 +234,60 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
             {isEditing && (
                 <div className="pt-4 border-t flex flex-col gap-4">
                     <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-medium text-gray-900">Acciones de Cuenta</h3>
+                        <h3 className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <KeyRound className="h-4 w-4 text-blue-600" />
+                            Cambiar Contraseña de Acceso
+                        </h3>
+                        {passwordSuccess && (
+                            <Badge className="bg-green-100 text-green-700 border-green-300 flex items-center gap-1">
+                                <ShieldCheck className="h-3 w-3" />
+                                ¡Contraseña actualizada!
+                            </Badge>
+                        )}
                     </div>
-                    <div className="flex gap-4">
-                        <Button type="button" variant="outline" onClick={handlePasswordReset} className="text-blue-600 border-blue-200 hover:bg-blue-50">
-                            <KeyRound className="mr-2 h-4 w-4" />
-                            Resetear Contraseña
-                        </Button>
-                        <Button type="button" variant="destructive" onClick={handleDelete}>
+
+                    {/* Direct Password Change */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                        <p className="text-xs text-blue-700">
+                            Escribe la nueva clave y pulsa <strong>Aplicar</strong>. El cambio es inmediato — no requiere email.
+                        </p>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Input
+                                    type={showNewPassword ? "text" : "password"}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Nueva contraseña (mín. 6 caracteres)"
+                                    minLength={6}
+                                    className="pr-10 bg-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={handleDirectPasswordChange}
+                                disabled={passwordSaving || !newPassword || newPassword.length < 6}
+                                className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                            >
+                                {passwordSaving ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <ShieldCheck className="h-4 w-4 mr-1" />
+                                )}
+                                Aplicar
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Delete Button */}
+                    <div className="flex justify-end">
+                        <Button type="button" variant="destructive" onClick={handleDelete} size="sm">
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar Técnico
                         </Button>
