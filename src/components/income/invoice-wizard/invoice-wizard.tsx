@@ -92,7 +92,7 @@ export function InvoiceWizard({ mode = "invoice", initialData, editingId }: Invo
     const [currentStep, setCurrentStep] = useState(0);
     const [clients, setClients] = useState<Client[]>([]);
     const [saving, setSaving] = useState(false);
-    const { totals: erpTotals, calculateTotals, calculating, erpError, erpName } = useErpQuotation();
+    const { totals: erpTotals, calculateTotals, calculating, error: erpError, erpName } = useErpQuotation();
 
     const [formData, setFormData] = useState<FormData>(() => {
     if (initialData) return initialData;
