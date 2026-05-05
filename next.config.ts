@@ -14,7 +14,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  distDir: '.next2',
+  distDir: process.env.VERCEL === "1" ? ".next" : ".next2",
   images: {
     remotePatterns: [
       {
