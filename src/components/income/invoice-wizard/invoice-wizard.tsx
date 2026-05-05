@@ -85,7 +85,15 @@ const in15days = () => {
 
 // ─── Wizard ───────────────────────────────────────────────────────────────────
 
-const [formData, setFormData] = useState<FormData>(() => {
+export function InvoiceWizard({ mode = "invoice", initialData, editingId }: InvoiceWizardProps) {
+    const router = useRouter();
+    const isQuote = mode === "quote";
+    const [currentStep, setCurrentStep] = useState(0);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [saving, setSaving] = useState(false);
+    const { totals: erpTotals, calculateTotals, calculating, erpError, erpName } = useErpQuotation();
+
+    const [formData, setFormData] = useState<FormData>(() => {
     if (initialData) return initialData;
     return isQuote
         ? ({
