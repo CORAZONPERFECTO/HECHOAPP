@@ -1,17 +1,26 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin SDK (singleton pattern)
 if (!admin.apps.length) {
-    const serviceAccount = {
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        clientEmail: process.env.GCP_CLIENT_EMAIL,
-        privateKey: process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    };
+    try {
+        const privateKey = process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, "\n");
+        if (privateKey) {
+            const serviceAccount = {
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+                clientEmail: process.env.GCP_CLIENT_EMAIL,
+                privateKey: privateKey,
+            };
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+            });
+        }
+    } catch (error) {
+        console.warn("Failed to initialize Firebase Admin during build:", error);
+    }
 }
 
 export async function POST(req: NextRequest) {
