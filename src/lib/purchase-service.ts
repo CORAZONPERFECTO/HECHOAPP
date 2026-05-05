@@ -120,8 +120,8 @@ export async function getPurchasesByTicket(ticketId: string) {
     // Y luego lo ordenamos localmente (Alta Ingeniería: ahorramos crear índices compuestos costosos para arrays pequeños)
     const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Purchase));
     return data.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
+        const timeA = (a.createdAt as any)?.seconds || 0;
+        const timeB = (b.createdAt as any)?.seconds || 0;
         return timeB - timeA; // DESC (más reciente primero)
     });
 }
