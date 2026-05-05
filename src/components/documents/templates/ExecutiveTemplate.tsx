@@ -222,7 +222,7 @@ export const ExecutiveTemplate: React.FC<Props> = ({ data }) => {
         }).format(amount);
     };
 
-    const documentTitle = data.type === 'Cotización' ? 'COTIZACIÓN' : data.type.toUpperCase();
+    const documentTitle = data.type === 'COTIZACIÓN' ? 'COTIZACIÓN' : data.type.toUpperCase();
 
     // Split notes by newline to render as list
     const noteItems = data.notes ? data.notes.split('\n').filter(n => n.trim().length > 0) : [];
