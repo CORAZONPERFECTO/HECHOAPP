@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"; // force Vercel redeploy
 import withPWAInit from "@ducanh2912/next-pwa";
 import path from "path";
 
