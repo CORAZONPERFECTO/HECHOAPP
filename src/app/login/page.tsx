@@ -94,14 +94,14 @@ export default function LoginPage() {
                                     }
                                     try {
                                         const { sendPasswordResetEmail } = await import("firebase/auth");
-                                        await sendPasswordResetEmail(auth, email);
+                                        await sendPasswordResetEmail(auth, email.toLowerCase().trim());
                                         alert("Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.");
                                     } catch (err: any) {
                                         console.error(err);
                                         if (err.code === 'auth/user-not-found') {
                                             setError("Este correo no está registrado.");
                                         } else {
-                                            setError("Error al enviar el correo. Intenta de nuevo.");
+                                            setError(`Error: ${err.message}`);
                                         }
                                     }
                                 }}
