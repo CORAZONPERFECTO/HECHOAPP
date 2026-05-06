@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
+import { Toaster } from "@/components/ui/toaster";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +37,7 @@ export default function RootLayout({
           <NotificationBell />
         </div>
         {children}
+        <Toaster />
       </body>
     </html>
   );

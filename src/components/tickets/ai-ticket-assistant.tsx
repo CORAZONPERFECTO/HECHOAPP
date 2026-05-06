@@ -97,24 +97,42 @@ export function AITicketAssistant({ onTicketParsed }: AITicketAssistantProps) {
                 }),
             });
 
-            if (!response.ok) throw new Error("Error en la IA");
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || errorData.raw || "Error en la IA");
+            }
 
             const data = await response.json();
             if (data.output) {
-                onTicketParsed(data.output);
+                let parsedOutput = data.output;
+                
+                // Fallback de seguridad: si el backend devuelve un string (ej. Vercel no está actualizado), lo parseamos en el cliente
+                if (typeof data.output === 'string') {
+                    try {
+                        const jsonMatch = data.output.match(/\{[\s\S]*\}/);
+                        const cleanText = (jsonMatch ? jsonMatch[0] : data.output).replace(/```json/g, '').replace(/```/g, '').trim();
+                        parsedOutput = JSON.parse(cleanText);
+                    } catch (e) {
+                        console.error("No se pudo parsear el JSON del backend:", data.output);
+                        throw new Error("El formato de respuesta de la IA no es válido.");
+                    }
+                }
+
+                onTicketParsed(parsedOutput);
                 toast({
                     title: "¡Ticket Estructurado!",
                     description: "La IA ha rellenado el formulario por ti. Revisa los datos.",
                     className: "bg-green-50 border-green-200",
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             toast({
                 variant: "destructive",
                 title: "Error de IA",
                 description: "No se pudo procesar tu mensaje.",
             });
+            alert("Error de IA: " + error.message);
         } finally {
             setIsProcessing(false);
         }
