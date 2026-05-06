@@ -122,10 +122,10 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
                     <Command>
                         <CommandInput placeholder="Buscar cliente..." />
-                        <CommandList>
+                        <CommandList className="max-h-[300px] overflow-y-auto">
                             <CommandEmpty>No se encontraron clientes.</CommandEmpty>
                             <CommandGroup>
                                 {clients.map((client) => (
@@ -133,6 +133,12 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                         key={client.id}
                                         value={`${client.nombreComercial} ${client.id}`} // Ensure unique value for search
                                         onSelect={() => {
+                                            onSelect(client);
+                                            setOpen(false);
+                                        }}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
                                             onSelect(client);
                                             setOpen(false);
                                         }}

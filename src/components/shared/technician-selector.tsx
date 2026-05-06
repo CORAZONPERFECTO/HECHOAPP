@@ -120,10 +120,10 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
                     <Command>
                         <CommandInput placeholder="Buscar técnico..." />
-                        <CommandList>
+                        <CommandList className="max-h-[300px] overflow-y-auto">
                             <CommandEmpty>No se encontraron técnicos.</CommandEmpty>
                             <CommandGroup>
                                 {technicians.map((tech) => (
@@ -131,6 +131,12 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                         key={tech.id}
                                         value={`${tech.nombre} ${tech.id}`}
                                         onSelect={() => {
+                                            onSelect(tech.id, tech.nombre);
+                                            setOpen(false);
+                                        }}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
