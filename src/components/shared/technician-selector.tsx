@@ -1,22 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Check, ChevronsUpDown, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 import {
     Dialog,
     DialogContent,
@@ -24,6 +10,7 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { collection, getDocs, addDoc, serverTimestamp, query, where, Timestamp } from "firebase/firestore";
@@ -39,14 +26,12 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
     const [open, setOpen] = useState(false);
     const [technicians, setTechnicians] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const containerRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
 
-    // New Technician Modal State
     const [showNewTechModal, setShowNewTechModal] = useState(false);
-    const [newTechData, setNewTechData] = useState({
-        nombre: "",
-        email: "",
-        telefono: "",
-    });
+    const [newTechData, setNewTechData] = useState({ nombre: "", email: "", telefono: "" });
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
@@ -65,20 +50,44 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
         };
 
         const unsubscribe = auth.onAuthStateChanged((user) => {
-            if (user) {
-                fetchTechnicians();
-            }
+            if (user) fetchTechnicians();
         });
-
         return () => unsubscribe();
     }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        if (open) {
+            document.addEventListener("mousedown", handleClickOutside);
+            setTimeout(() => searchRef.current?.focus(), 50);
+        }
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [open]);
+
+    const filteredTechnicians = useMemo(() => {
+        if (!search.trim()) return technicians;
+        const q = search.toLowerCase();
+        return technicians.filter(t => t.nombre?.toLowerCase().includes(q));
+    }, [technicians, search]);
+
+    const selectedTech = technicians.find(t => t.id === value);
+
+    const handleSelect = (tech: User) => {
+        onSelect(tech.id, tech.nombre);
+        setOpen(false);
+        setSearch("");
+    };
 
     const handleCreateTechnician = async () => {
         setCreating(true);
         try {
             const docRef = await addDoc(collection(db, "users"), {
                 ...newTechData,
-                rol: 'TECNICO',
+                rol: "TECNICO",
                 activo: true,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -87,7 +96,7 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
             const newTech: User = {
                 id: docRef.id,
                 ...newTechData,
-                rol: 'TECNICO',
+                rol: "TECNICO",
                 activo: true,
                 createdAt: Timestamp.fromMillis(Date.now()),
                 updatedAt: Timestamp.fromMillis(Date.now()),
@@ -97,6 +106,7 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
             onSelect(newTech.id, newTech.nombre);
             setShowNewTechModal(false);
             setOpen(false);
+            setSearch("");
         } catch (error) {
             console.error("Error creating technician:", error);
         } finally {
@@ -104,66 +114,85 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
         }
     };
 
-    const selectedTech = technicians.find(t => t.id === value);
-
     return (
         <>
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={open}
-                        className="w-full justify-between"
-                    >
+            <div ref={containerRef} className="relative w-full">
+                <button
+                    type="button"
+                    className={cn(
+                        "flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                        "hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    )}
+                    onClick={() => setOpen(prev => !prev)}
+                >
+                    <span className={cn("truncate", !selectedTech && "text-muted-foreground")}>
                         {selectedTech ? selectedTech.nombre : "Seleccionar técnico..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
-                    <Command>
-                        <CommandInput placeholder="Buscar técnico 2.0..." />
-                        <CommandList className="max-h-[300px] overflow-y-auto">
-                            <CommandEmpty>No se encontraron técnicos.</CommandEmpty>
-                            <CommandGroup>
-                                {technicians.map((tech) => (
-                                    <CommandItem
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </button>
+
+                {open && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-lg">
+                        <div className="flex items-center border-b px-3 py-2">
+                            <Search className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                            <input
+                                ref={searchRef}
+                                type="text"
+                                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                                placeholder="Buscar técnico..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                            {search && (
+                                <button onClick={() => setSearch("")} className="ml-1 text-muted-foreground hover:text-foreground">
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="max-h-[240px] overflow-y-auto">
+                            {loading ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">Cargando...</p>
+                            ) : filteredTechnicians.length === 0 ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">No se encontraron técnicos.</p>
+                            ) : (
+                                filteredTechnicians.map(tech => (
+                                    <button
                                         key={tech.id}
-                                        value={`${tech.nombre} ${tech.id}`}
-                                        className="cursor-pointer"
-                                        onSelect={() => {
-                                            onSelect(tech.id, tech.nombre);
-                                            setOpen(false);
-                                        }}
-                                        onPointerDown={() => {
-                                            onSelect(tech.id, tech.nombre);
-                                            setOpen(false);
-                                        }}
+                                        type="button"
+                                        className={cn(
+                                            "flex w-full items-center px-3 py-2 text-sm text-left",
+                                            "hover:bg-accent hover:text-accent-foreground",
+                                            value === tech.id && "bg-accent text-accent-foreground"
+                                        )}
+                                        onClick={() => handleSelect(tech)}
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4 shrink-0",
-                                                value === tech.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
+                                        <Check className={cn(
+                                            "mr-2 h-4 w-4 shrink-0",
+                                            value === tech.id ? "opacity-100" : "opacity-0"
+                                        )} />
                                         <span className="truncate">{tech.nombre}</span>
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            <div className="p-2 border-t">
-                                <Button
-                                    variant="secondary"
-                                    className="w-full justify-start text-blue-600"
-                                    onClick={() => setShowNewTechModal(true)}
-                                >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Agregar nuevo técnico
-                                </Button>
-                            </div>
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="border-t p-2">
+                            <button
+                                type="button"
+                                className="flex w-full items-center rounded-sm px-3 py-2 text-sm text-blue-600 hover:bg-accent"
+                                onClick={() => {
+                                    setOpen(false);
+                                    setShowNewTechModal(true);
+                                }}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Agregar nuevo técnico
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <Dialog open={showNewTechModal} onOpenChange={setShowNewTechModal}>
                 <DialogContent>
