@@ -130,30 +130,23 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                     <CommandItem
                                         key={tech.id}
                                         value={`${tech.nombre} ${tech.id}`}
-                                        className="p-0 cursor-pointer"
+                                        className="cursor-pointer"
                                         onSelect={() => {
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
+                                        onPointerDown={() => {
+                                            onSelect(tech.id, tech.nombre);
+                                            setOpen(false);
+                                        }}
                                     >
-                                        <Button
-                                            variant="ghost"
-                                            className="w-full justify-start rounded-none px-2 py-1.5 h-auto font-normal hover:bg-transparent"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                onSelect(tech.id, tech.nombre);
-                                                setOpen(false);
-                                            }}
-                                        >
-                                            <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4 shrink-0",
-                                                    value === tech.id ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            <span className="truncate">{tech.nombre}</span>
-                                        </Button>
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4 shrink-0",
+                                                value === tech.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        <span className="truncate">{tech.nombre}</span>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>

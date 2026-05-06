@@ -132,30 +132,23 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                     <CommandItem
                                         key={client.id}
                                         value={`${client.nombreComercial} ${client.id}`}
-                                        className="p-0 cursor-pointer"
+                                        className="cursor-pointer"
                                         onSelect={() => {
                                             onSelect(client);
                                             setOpen(false);
                                         }}
+                                        onPointerDown={() => {
+                                            onSelect(client);
+                                            setOpen(false);
+                                        }}
                                     >
-                                        <Button
-                                            variant="ghost"
-                                            className="w-full justify-start rounded-none px-2 py-1.5 h-auto font-normal hover:bg-transparent"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                onSelect(client);
-                                                setOpen(false);
-                                            }}
-                                        >
-                                            <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4 shrink-0",
-                                                    value === client.id ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            <span className="truncate">{client.nombreComercial}</span>
-                                        </Button>
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4 shrink-0",
+                                                value === client.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        <span className="truncate">{client.nombreComercial}</span>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
