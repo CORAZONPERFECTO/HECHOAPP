@@ -253,6 +253,15 @@ export default function Dashboard() {
     return false;
   });
 
+  if (isTechnician) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+              <p className="text-blue-800 font-medium text-lg">Preparando tu agenda de hoy...</p>
+          </div>
+      );
+  }
+
   return (
     <AppLayout>
       {/* 1. Command Center Layer */}
