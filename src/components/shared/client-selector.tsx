@@ -123,10 +123,10 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
-                    <Command>
-                        <CommandInput placeholder="Buscar cliente 2.0..." />
+                    <Command shouldFilter={false}>
+                        <CommandInput placeholder={`Buscar cliente 2.0... (DB: ${clients.length})`} />
                         <CommandList className="max-h-[300px] overflow-y-auto">
-                            <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                            <CommandEmpty>No se encontraron clientes. (Total: {clients.length})</CommandEmpty>
                             <CommandGroup>
                                 {clients.map((client) => (
                                     <CommandItem
