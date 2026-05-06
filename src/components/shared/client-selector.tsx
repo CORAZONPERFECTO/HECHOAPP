@@ -131,18 +131,16 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                 {clients.map((client) => (
                                     <CommandItem
                                         key={client.id}
-                                        value={`${client.nombreComercial} ${client.id}`} // Ensure unique value for search
-                                        onSelect={() => {
+                                        value={`${client.nombreComercial} ${client.id}`}
+                                        onSelect={(currentValue) => {
                                             onSelect(client);
                                             setOpen(false);
                                         }}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
+                                        onPointerUp={() => {
                                             onSelect(client);
                                             setOpen(false);
                                         }}
-                                        className="cursor-pointer" // Force cursor pointer
+                                        className="cursor-pointer"
                                     >
                                         <Check
                                             className={cn(

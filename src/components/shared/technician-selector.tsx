@@ -130,13 +130,11 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                     <CommandItem
                                         key={tech.id}
                                         value={`${tech.nombre} ${tech.id}`}
-                                        onSelect={() => {
+                                        onSelect={(currentValue) => {
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
+                                        onPointerUp={() => {
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
