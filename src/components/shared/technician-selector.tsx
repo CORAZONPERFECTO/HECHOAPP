@@ -130,23 +130,29 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                     <CommandItem
                                         key={tech.id}
                                         value={`${tech.nombre} ${tech.id}`}
-                                        onSelect={(currentValue) => {
+                                        onSelect={() => {
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
-                                        onPointerUp={() => {
-                                            onSelect(tech.id, tech.nombre);
-                                            setOpen(false);
-                                        }}
-                                        className="cursor-pointer"
+                                        className="p-0 cursor-pointer"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                value === tech.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {tech.nombre}
+                                        <div
+                                            className="flex w-full items-center px-2 py-1.5"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onSelect(tech.id, tech.nombre);
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    value === tech.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {tech.nombre}
+                                        </div>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>

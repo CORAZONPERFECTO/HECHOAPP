@@ -132,23 +132,29 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                     <CommandItem
                                         key={client.id}
                                         value={`${client.nombreComercial} ${client.id}`}
-                                        onSelect={(currentValue) => {
+                                        onSelect={() => {
                                             onSelect(client);
                                             setOpen(false);
                                         }}
-                                        onPointerUp={() => {
-                                            onSelect(client);
-                                            setOpen(false);
-                                        }}
-                                        className="cursor-pointer"
+                                        className="p-0 cursor-pointer"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                value === client.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {client.nombreComercial}
+                                        <div
+                                            className="flex w-full items-center px-2 py-1.5"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onSelect(client);
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    value === client.id ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {client.nombreComercial}
+                                        </div>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
