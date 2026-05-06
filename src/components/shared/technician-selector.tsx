@@ -122,7 +122,7 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                 </PopoverTrigger>
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
                     <Command>
-                        <CommandInput placeholder="Buscar técnico..." />
+                        <CommandInput placeholder="Buscar técnico 2.0..." />
                         <CommandList className="max-h-[300px] overflow-y-auto">
                             <CommandEmpty>No se encontraron técnicos.</CommandEmpty>
                             <CommandGroup>
@@ -138,7 +138,7 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                     >
                                         <div
                                             className="flex w-full items-center px-2 py-1.5"
-                                            onClick={(e) => {
+                                            onPointerDown={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 onSelect(tech.id, tech.nombre);

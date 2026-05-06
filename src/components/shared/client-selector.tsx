@@ -124,7 +124,7 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 max-h-[60vh] overflow-hidden">
                     <Command>
-                        <CommandInput placeholder="Buscar cliente..." />
+                        <CommandInput placeholder="Buscar cliente 2.0..." />
                         <CommandList className="max-h-[300px] overflow-y-auto">
                             <CommandEmpty>No se encontraron clientes.</CommandEmpty>
                             <CommandGroup>
@@ -140,7 +140,7 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                     >
                                         <div
                                             className="flex w-full items-center px-2 py-1.5"
-                                            onClick={(e) => {
+                                            onPointerDown={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 onSelect(client);
