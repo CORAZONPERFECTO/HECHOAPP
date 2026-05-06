@@ -126,13 +126,12 @@ export function AITicketAssistant({ onTicketParsed }: AITicketAssistantProps) {
                 });
             }
         } catch (error: any) {
-            console.error(error);
+            console.error("AI Error:", error);
             toast({
                 variant: "destructive",
                 title: "Error de IA",
-                description: "No se pudo procesar tu mensaje.",
+                description: error.message || "No se pudo procesar tu mensaje.",
             });
-            alert("Error de IA: " + error.message);
         } finally {
             setIsProcessing(false);
         }
