@@ -194,7 +194,8 @@ export default function Dashboard() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
-        router.push("/login");
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
       } else {
         setUser(currentUser);
         try {

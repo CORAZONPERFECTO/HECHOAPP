@@ -19,7 +19,9 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                router.push("/login");
+                // Pass current path as redirect query param
+                const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+                router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
                 return;
             }
 

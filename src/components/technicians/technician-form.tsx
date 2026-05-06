@@ -207,8 +207,9 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="ADMIN">Administrador</SelectItem>
-                            <SelectItem value="TECNICO">Técnico</SelectItem>
+                            <SelectItem value="ADMIN">Administrador Full</SelectItem>
+                            <SelectItem value="GERENTE_TICKETS">Gerente de Tickets</SelectItem>
+                            <SelectItem value="TECNICO">Técnico de Campo</SelectItem>
                             <SelectItem value="CLIENTE">Cliente</SelectItem>
                         </SelectContent>
                     </Select>

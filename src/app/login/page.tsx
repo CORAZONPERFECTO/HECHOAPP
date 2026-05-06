@@ -1,21 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { LayoutGrid, Lock, Mail } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get('redirect') || '/';
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,7 +25,7 @@ export default function LoginPage() {
         setError("");
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            router.push("/");
+            router.push(redirectUrl);
         } catch (err: any) {
             console.error(err);
             setError(`Error: ${err.message} (${err.code})`);
@@ -122,7 +124,7 @@ export default function LoginPage() {
                                     try {
                                         const { createUserWithEmailAndPassword } = await import("firebase/auth");
                                         await createUserWithEmailAndPassword(auth, email, password);
-                                        router.push("/");
+                                        router.push(redirectUrl);
                                     } catch (err: any) {
                                         console.error(err);
                                         if (err.code === 'auth/email-already-in-use') {
@@ -146,5 +148,17 @@ export default function LoginPage() {
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-[#f1f5f9]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }

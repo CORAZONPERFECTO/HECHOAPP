@@ -15,6 +15,7 @@ import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { ClientSelector } from "@/components/shared/client-selector";
 import { TechnicianSelector } from "@/components/shared/technician-selector";
 import { generateNextTicketNumber } from "@/lib/tickets";
+import { AITicketAssistant } from "@/components/tickets/ai-ticket-assistant";
 
 const LOCATION_AREAS = [
     "CAP CANA",
@@ -39,6 +40,22 @@ export default function NewTicketPage() {
         locationArea: "",
         specificLocation: "",
     });
+
+    const handleAIParsed = (aiData: any) => {
+        setFormData(prev => ({
+            ...prev,
+            description: aiData.description || prev.description,
+            priority: aiData.priority || prev.priority,
+            locationArea: aiData.locationArea || prev.locationArea,
+            specificLocation: aiData.specificLocation || prev.specificLocation,
+            // we could also map clientName, but client requires an ID from DB, so we'll just set it to search maybe or let user pick
+        }));
+        
+        // Salto automático al paso 3 si la descripción es buena
+        if (aiData.description) {
+            setStep(3);
+        }
+    };
 
     useEffect(() => {
         const fetchTicketTypes = async () => {
@@ -66,16 +83,12 @@ export default function NewTicketPage() {
             ...prev,
             clientId: client.id,
             clientName: client.nombreComercial,
-            // Keep location fields if manually entered, or reset if desired. 
-            // For now, we keep them as they are independent of client selection in this new flow.
         }));
     };
 
-    // State for multi-select
     const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
 
     useEffect(() => {
-        // Sync single selection back to array if came from draft (optional, but good for consistency)
         if (formData.ticketTypeId && selectedTypeIds.length === 0) {
             setSelectedTypeIds([formData.ticketTypeId]);
         }
@@ -92,13 +105,9 @@ export default function NewTicketPage() {
                 newSelection = [...prev, type.id];
             }
 
-            // Sync with formData for backward compatibility and saving
-            // We'll use the FIRST selected type as the primary 'ticketTypeId' 
-            // and join ALL names for 'serviceType'
             const selectedTypes = ticketTypes.filter(t => newSelection.includes(t.id));
             const primaryType = selectedTypes[0];
 
-            // Merge checklists from all selected types
             const combinedChecklist = selectedTypes.flatMap((t, typeIndex) =>
                 t.defaultChecklist.map((item, itemIndex) => ({
                     id: `chk-${Date.now()}-${typeIndex}-${itemIndex}`,
@@ -109,8 +118,8 @@ export default function NewTicketPage() {
 
             setFormData(prev => ({
                 ...prev,
-                ticketTypeId: primaryType?.id || '', // Primary ID for reference
-                serviceType: selectedTypes.map(t => t.name).join(' + ') as any, // "Installation + Repair"
+                ticketTypeId: primaryType?.id || '',
+                serviceType: selectedTypes.map(t => t.name).join(' + ') as any,
                 checklist: combinedChecklist
             }));
 
@@ -131,8 +140,6 @@ export default function NewTicketPage() {
         setLoading(true);
         try {
             const ticketNumber = await generateNextTicketNumber();
-
-            // Construct full location name for display
             const fullLocation = `${formData.locationArea || ''} - ${formData.specificLocation || ''}`.trim().replace(/^- |- $/g, '');
 
             const ticketData: any = {
@@ -145,12 +152,10 @@ export default function NewTicketPage() {
                 createdBy: auth.currentUser?.uid || "SYSTEM",
             };
 
-            // Only add creadoPorId if user is authenticated
             if (auth.currentUser?.uid) {
                 ticketData.creadoPorId = auth.currentUser.uid;
             }
 
-            // Remove any undefined or null fields
             const cleanedData: any = {};
             Object.keys(ticketData).forEach(key => {
                 const value = ticketData[key];
@@ -172,6 +177,8 @@ export default function NewTicketPage() {
     return (
         <div className="container max-w-2xl py-10">
             <h1 className="text-2xl font-bold mb-6">Nuevo Ticket de Servicio</h1>
+            
+            <AITicketAssistant onTicketParsed={handleAIParsed} />
 
             {/* Steps Indicator */}
             <div className="flex gap-4 mb-8">

@@ -24,7 +24,8 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 const adminMenuItems = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
+    { label: "Torre Tickets", icon: Ticket, href: "/tickets", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
     { label: "Facturas", icon: Files, href: "/income/invoices", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recurrentes", icon: Repeat, href: "/income/recurring", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Pagos", icon: CreditCard, href: "/income/payments", roles: ["ADMIN", "SUPERVISOR"] },
@@ -32,13 +33,13 @@ const adminMenuItems = [
     { label: "Notas Crédito", icon: Files, href: "/income/credit-notes", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Conduces", icon: Truck, href: "/income/delivery-notes", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recibos", icon: Receipt, href: "/income/receipts", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
+    { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
+    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
-    { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
     { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
 ];
 

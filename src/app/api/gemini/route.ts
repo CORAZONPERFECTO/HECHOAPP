@@ -60,6 +60,21 @@ export async function POST(req: NextRequest) {
             `;
         } else if (task === 'parse-invoice') {
             systemInstruction += `Tu tarea es extraer datos estructurados de una factura (voz o texto). Devuelve JSON válido con clientName e items.`;
+        } else if (task === 'parse-ticket') {
+            systemInstruction += `Tu tarea es actuar como un asistente inteligente que extrae datos para crear un Ticket de Mantenimiento a partir de texto o un dictado de voz transcrito.
+            Debes devolver un JSON con esta estructura exacta:
+            {
+              "clientName": "Nombre del cliente si se menciona (o vacío)",
+              "locationArea": "Area o zona si se menciona (ej. BAVARO, CAP CANA, PUNTA CANA RESORT, VILLAGE, VILLAGE WEST)",
+              "specificLocation": "Ubicación específica o villa si se menciona (o vacío)",
+              "priority": "LOW, MEDIUM, HIGH o URGENT según la urgencia",
+              "description": "Descripción profesional, clara y detallada del problema o tarea, corrigiendo errores de dictado",
+              "technicianName": "Nombre del técnico si se asigna (o vacío)"
+            }
+            Reglas:
+            1. Si la urgencia suena grave (fuga, no enfría nada en lugar crítico), usa URGENT o HIGH. Por defecto MEDIUM.
+            2. Redacta la descripción de manera formal y coherente, eliminando palabras innecesarias del habla.
+            3. Devuelve SOLO JSON válido.`;
         } else if (task === 'generate-quote') {
             systemInstruction += `Tu tarea es actuar como un experto cotizador de HVAC (Refrigeración).
             El usuario te pedirá una cotización en lenguaje natural o te mostrará una IMAGEN de un equipo dañado.
@@ -144,7 +159,7 @@ export async function POST(req: NextRequest) {
         }
 
         // --- JSON Parsing Logic ---
-        if (['generate-report', 'parse-invoice', 'generate-quote'].includes(task)) {
+        if (['generate-report', 'parse-invoice', 'generate-quote', 'parse-ticket'].includes(task)) {
             try {
                 // Robust JSON extraction
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
