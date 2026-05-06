@@ -132,15 +132,16 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                     <CommandItem
                                         key={client.id}
                                         value={`${client.nombreComercial} ${client.id}`}
+                                        className="p-0 cursor-pointer"
                                         onSelect={() => {
                                             onSelect(client);
                                             setOpen(false);
                                         }}
-                                        className="p-0 cursor-pointer"
                                     >
-                                        <div
-                                            className="flex w-full items-center px-2 py-1.5"
-                                            onPointerDown={(e) => {
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start rounded-none px-2 py-1.5 h-auto font-normal hover:bg-transparent"
+                                            onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 onSelect(client);
@@ -149,12 +150,12 @@ export function ClientSelector({ value, onSelect }: ClientSelectorProps) {
                                         >
                                             <Check
                                                 className={cn(
-                                                    "mr-2 h-4 w-4",
+                                                    "mr-2 h-4 w-4 shrink-0",
                                                     value === client.id ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {client.nombreComercial}
-                                        </div>
+                                            <span className="truncate">{client.nombreComercial}</span>
+                                        </Button>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>

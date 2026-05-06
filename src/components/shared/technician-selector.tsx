@@ -130,15 +130,16 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                     <CommandItem
                                         key={tech.id}
                                         value={`${tech.nombre} ${tech.id}`}
+                                        className="p-0 cursor-pointer"
                                         onSelect={() => {
                                             onSelect(tech.id, tech.nombre);
                                             setOpen(false);
                                         }}
-                                        className="p-0 cursor-pointer"
                                     >
-                                        <div
-                                            className="flex w-full items-center px-2 py-1.5"
-                                            onPointerDown={(e) => {
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full justify-start rounded-none px-2 py-1.5 h-auto font-normal hover:bg-transparent"
+                                            onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 onSelect(tech.id, tech.nombre);
@@ -147,12 +148,12 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
                                         >
                                             <Check
                                                 className={cn(
-                                                    "mr-2 h-4 w-4",
+                                                    "mr-2 h-4 w-4 shrink-0",
                                                     value === tech.id ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {tech.nombre}
-                                        </div>
+                                            <span className="truncate">{tech.nombre}</span>
+                                        </Button>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
