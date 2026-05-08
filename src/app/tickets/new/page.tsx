@@ -132,7 +132,7 @@ export default function NewTicketPage() {
             ...prev,
             technicianId: techId,
             technicianName: techName,
-            status: 'IN_PROGRESS'
+            status: techId ? 'IN_PROGRESS' : 'OPEN'
         }));
     };
 

@@ -117,19 +117,32 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
     return (
         <>
             <div ref={containerRef} className="relative w-full">
-                <button
-                    type="button"
+                <div
                     className={cn(
-                        "flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-                        "hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        "flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer",
+                        "hover:bg-accent hover:text-accent-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                     )}
                     onClick={() => setOpen(prev => !prev)}
                 >
-                    <span className={cn("truncate", !selectedTech && "text-muted-foreground")}>
+                    <span className={cn("truncate flex-1 text-left", !selectedTech && "text-muted-foreground")}>
                         {selectedTech ? selectedTech.nombre : "Seleccionar técnico..."}
                     </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </button>
+                    <div className="flex items-center gap-1">
+                        {selectedTech && (
+                            <button
+                                type="button"
+                                className="rounded-full p-1 hover:bg-muted-foreground/20 transition-colors"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelect("", "");
+                                }}
+                            >
+                                <X className="h-3 w-3 opacity-70" />
+                            </button>
+                        )}
+                        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </div>
+                </div>
 
                 {open && (
                     <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-md border bg-popover shadow-lg">
