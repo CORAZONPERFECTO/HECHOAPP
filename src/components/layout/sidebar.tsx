@@ -33,13 +33,13 @@ const adminMenuItems = [
     { label: "Notas Crédito", icon: Files, href: "/income/credit-notes", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Conduces", icon: Truck, href: "/income/delivery-notes", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recibos", icon: Receipt, href: "/income/receipts", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
-    { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
-    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
+    { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
+    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
 ];
 
@@ -177,7 +177,7 @@ export function Sidebar() {
                             )}
                         >
                             <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-                                {userRole === "TECNICO" ? "T" : "A"}
+                                {userRole === "TECNICO" ? "T" : userRole === "GERENTE_TICKETS" ? "GT" : "A"}
                             </div>
                             {!collapsed && (
                                 <div className="flex-1 min-w-0 text-left">

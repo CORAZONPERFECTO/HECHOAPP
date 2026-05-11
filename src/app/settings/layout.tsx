@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Settings, Users, FileText, Shield, ArrowLeft, Building2, FileSpreadsheet } from "lucide-react";
+import { Settings, Users, FileText, Shield, ArrowLeft, Building2, FileSpreadsheet, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsLayout({
@@ -38,6 +38,11 @@ export default function SettingsLayout({
             title: "Importar Servicios",
             href: "/settings/import-services",
             icon: FileSpreadsheet,
+        },
+        {
+            title: "Plantillas de Informes",
+            href: "/settings/templates",
+            icon: LayoutTemplate,
         },
         {
             title: "Configuración de Documentos",

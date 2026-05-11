@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'TECNICO' | 'CLIENTE';
+export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'GERENTE_TICKETS' | 'TECNICO' | 'CLIENTE';
 export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
 export type PersonnelType = 'EMPLEADO' | 'CONTRATISTA' | 'TECNICO' | 'AYUDANTE' | 'GERENTE' | 'ADMINISTRATIVO';
 

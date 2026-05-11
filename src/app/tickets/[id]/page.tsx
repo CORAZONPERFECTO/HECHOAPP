@@ -45,7 +45,7 @@ export default function TicketDetailPage() {
     const [currentUserName, setCurrentUserName] = useState("");
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
-    const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR';
+    const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
 
     // Auto-save functionality
     useEffect(() => {
@@ -166,7 +166,7 @@ export default function TicketDetailPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     {/* GENERATE QUOTE BUTTON */}
-                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR') && (
+                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
                         <Button
                             variant="outline"
                             size="sm"

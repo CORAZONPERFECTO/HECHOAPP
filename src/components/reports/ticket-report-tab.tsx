@@ -8,12 +8,14 @@ import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-g
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Undo2, Redo2, Maximize2, Sparkles } from "lucide-react";
+import { Loader2, Undo2, Redo2, Maximize2, Sparkles, LayoutTemplate } from "lucide-react";
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDebounce } from "@/hooks/use-debounce";
 import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
+import { TemplatePickerDialog } from "@/components/reports/template-picker-dialog";
+import { ReportTemplate } from "@/types/reports";
 
 interface TicketReportTabProps {
     ticket: Ticket;
@@ -40,6 +42,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [generating, setGenerating] = useState(false);
+    const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
     const { toast } = useToast();
 
     // Undo/Redo para el reporte
@@ -298,6 +301,22 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
         }
     };
 
+    const handleApplyTemplate = (template: ReportTemplate) => {
+        if (!report) return;
+        if (!confirm(`¿Aplicar la plantilla "${template.name}"? Esto reemplazará las secciones actuales del informe.`)) return;
+
+        const updatedReport = {
+            ...report,
+            sections: template.sections,
+        };
+        setReport(updatedReport);
+        handleSave(updatedReport);
+        toast({
+            title: `✅ Plantilla aplicada`,
+            description: `La estructura "${template.name}" se ha cargado en el informe.`,
+        });
+    };
+
     // Atajos de teclado
     useKeyboardShortcuts([
         {
@@ -372,6 +391,17 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                     </div>
                     <div className="h-5 w-px bg-gray-200 dark:bg-zinc-700" />
 
+                    {/* Template Picker Button */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTemplatePickerOpen(true)}
+                        className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:border-gray-300 transition-colors"
+                    >
+                        <LayoutTemplate className="h-3.5 w-3.5" />
+                        Plantilla
+                    </Button>
+
                     {/* Botón Mágico AI */}
                     <Button
                         variant="outline"
@@ -411,5 +441,13 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                 />
             </div>
         </div>
-    );
+
+        {/* Template Picker Dialog */}
+        <TemplatePickerDialog
+            open={templatePickerOpen}
+            onOpenChange={setTemplatePickerOpen}
+            onApply={handleApplyTemplate}
+            serviceType={ticket.serviceType}
+        />
+    </>);
 }

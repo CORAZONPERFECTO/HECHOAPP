@@ -41,7 +41,7 @@ export function RoleGuard({ children, allowedRoles, requireAuth = true }: RoleGu
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
-                    const userRole = userData.rol as UserRole; // Note: schema uses 'rol', verify consistency
+                    const userRole = (userData.rol || userData.role) as UserRole; // Support both field names
 
                     if (allowedRoles.includes(userRole)) {
                         setAuthorized(true);

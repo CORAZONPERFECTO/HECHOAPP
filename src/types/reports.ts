@@ -152,3 +152,20 @@ export interface TicketReportNew {
         at: Timestamp;
     };
 }
+
+// --- Report Templates ---
+
+export type BuiltInTemplateKey = 'mantenimiento' | 'instalacion' | 'reparacion' | 'inspeccion' | 'blank';
+
+export interface ReportTemplate {
+    id: string;
+    name: string;              // e.g. "Mantenimiento Preventivo"
+    description?: string;     // Short description of the template's purpose
+    icon?: string;            // Emoji or icon identifier
+    serviceTypes?: string[];  // Related service types (optional, for smart suggestions)
+    sections: TicketReportSection[];
+    isBuiltIn?: boolean;      // Built-in templates cannot be deleted
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+    createdBy?: string;       // userId
+}
