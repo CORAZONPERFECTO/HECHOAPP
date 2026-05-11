@@ -19,7 +19,18 @@ export function RoleGuard({ children, allowedRoles, requireAuth = true }: RoleGu
     const [authorized, setAuthorized] = useState(false);
 
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        let mounted = true;
+
+        const checkAuth = async () => {
+            // ✅ CRITICAL FIX: Wait for Firebase to fully restore session from persistence
+            // Without this, onAuthStateChanged fires null immediately on mount
+            // causing a premature redirect to /login before the session is confirmed.
+            await auth.authStateReady();
+
+            if (!mounted) return;
+
+            const user = auth.currentUser;
+
             if (!user) {
                 if (requireAuth) {
                     router.push("/login");
@@ -39,29 +50,31 @@ export function RoleGuard({ children, allowedRoles, requireAuth = true }: RoleGu
 
             try {
                 const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (!mounted) return;
+
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
-                    const userRole = (userData.rol || userData.role) as UserRole; // Support both field names
+                    const userRole = (userData.rol || userData.role) as UserRole;
 
                     if (allowedRoles.includes(userRole)) {
                         setAuthorized(true);
                     } else {
-                        // Unauthorized for this role
-                        router.push("/"); // Redirect to home or 403 page
+                        router.push("/");
                     }
                 } else {
-                    // User exists in auth but not in db??
-                    console.error("User document not found");
+                    console.error("User document not found in Firestore");
                     router.push("/login");
                 }
             } catch (error) {
                 console.error("Error checking role:", error);
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
-        });
+        };
 
-        return () => unsubscribe();
+        checkAuth();
+
+        return () => { mounted = false; };
     }, [router, allowedRoles, requireAuth]);
 
     if (loading) {
@@ -76,7 +89,7 @@ export function RoleGuard({ children, allowedRoles, requireAuth = true }: RoleGu
     }
 
     if (!authorized) {
-        return null; // or a forbidden component
+        return null;
     }
 
     return <>{children}</>;
