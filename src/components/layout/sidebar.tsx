@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ const adminMenuItems = [
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Ubicación", icon: MapPin, href: "/admin/tracking", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },

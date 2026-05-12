@@ -1,10 +1,10 @@
-
 "use client";
 
 import { Sidebar } from "./sidebar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { RoleGuard } from "./role-guard";
+import { LocationTracker } from "./location-tracker";
 
 interface AppLayoutProps {
     children: React.ReactNode;

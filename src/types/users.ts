@@ -24,6 +24,12 @@ export interface User {
     clientId?: string; // For CLIENTE role, binds them to a specific tenant
     activo: boolean;
     vehicle?: UserVehicle; // Optional vehicle assigned to technician
+    lastLocation?: {
+        lat: number;
+        lng: number;
+        timestamp: Timestamp;
+        accuracy: number;
+    };
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
