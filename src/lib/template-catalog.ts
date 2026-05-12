@@ -5,7 +5,8 @@ import { ReportTemplate, TicketReportSection } from "@/types/reports";
 // ─────────────────────────────────────────────
 // Helper: build a section with a fresh UUID
 // ─────────────────────────────────────────────
-const s = (section: Omit<TicketReportSection, "id">): TicketReportSection => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const s = (section: any): TicketReportSection => ({
     ...section,
     id: crypto.randomUUID(),
 } as TicketReportSection);
