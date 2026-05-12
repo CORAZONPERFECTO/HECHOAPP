@@ -16,31 +16,49 @@ import { Loader2 } from "lucide-react";
 export default function GerentePage() {
     const router = useRouter();
 
+    const [msg, setMsg] = useState("Accediendo a tu panel...");
+
     useEffect(() => {
+        let mounted = true;
+        
+        // Fallback garantizado: Si Firebase se cuelga (mala conexión), forzamos la entrada a tickets
+        const fallbackTimer = setTimeout(() => {
+            if (mounted) window.location.href = "/tickets";
+        }, 4000);
+
         auth.authStateReady().then(async () => {
+            if (!mounted) return;
             const user = auth.currentUser;
 
             if (!user) {
-                router.replace("/login?redirect=/tickets");
+                window.location.href = "/login?redirect=/gerente";
                 return;
             }
 
             try {
+                setMsg("Verificando permisos...");
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 const userData = userDoc.data();
                 const role = userData?.rol || userData?.role;
 
+                setMsg("Redirigiendo...");
                 if (role === "GERENTE_TICKETS" || role === "ADMIN" || role === "SUPERVISOR") {
-                    router.replace("/tickets");
+                    window.location.href = "/tickets";
                 } else if (role === "TECNICO") {
-                    router.replace("/technician/my-day");
+                    window.location.href = "/technician/my-day";
                 } else {
-                    router.replace("/");
+                    window.location.href = "/";
                 }
-            } catch {
-                router.replace("/tickets");
+            } catch (err) {
+                console.error("Error al obtener perfil", err);
+                window.location.href = "/tickets";
             }
         });
+
+        return () => {
+            mounted = false;
+            clearTimeout(fallbackTimer);
+        };
     }, [router]);
 
     return (
@@ -49,7 +67,7 @@ export default function GerentePage() {
                 <span className="text-white text-2xl font-black">H</span>
             </div>
             <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
-            <p className="text-slate-400 text-sm">Accediendo a tu panel...</p>
+            <p className="text-slate-400 text-sm">{msg}</p>
         </div>
     );
 }
