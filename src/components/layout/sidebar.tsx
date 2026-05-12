@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,7 @@ const adminMenuItems = [
 
 export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [userName, setUserName] = useState<string | null>(null);
     const pathname = usePathname();
@@ -67,6 +68,11 @@ export function Sidebar() {
         return () => unsubscribe();
     }, []);
 
+    // Close mobile menu when route changes
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [pathname]);
+
     const toggleSidebar = () => setCollapsed(!collapsed);
 
     // Filter menu items based on user role
@@ -77,26 +83,47 @@ export function Sidebar() {
     const isTechnician = userRole === "TECNICO";
 
     return (
-        <aside
-            className={cn(
-                "h-screen sticky top-0 left-0 z-40 bg-white/80 dark:bg-[#0f172a]/90 backdrop-blur-xl border-r border-white/20 dark:border-white/5 transition-all duration-300 flex flex-col shadow-2xl",
-                collapsed ? "w-20" : "w-64",
-                isTechnician ? "hidden md:flex" : "" // Anti-hacker / Cleaner view: Técnicos no ven el sidebar en móvil, solo el main view.
+        <>
+            {/* Mobile Toggle Button (Visible only on small screens) */}
+            {!isTechnician && (
+                <button
+                    className="md:hidden fixed top-4 right-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border text-blue-600 focus:outline-none"
+                    onClick={() => setMobileOpen(!mobileOpen)}
+                >
+                    {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                </button>
             )}
-        >
-            {/* Header / Logo */}
-            <div className="h-16 flex items-center justify-center border-b border-gray-200/50 dark:border-gray-800/50 relative">
-                <Link href="/" className={cn("flex items-center gap-2 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
-                        H
-                    </div>
-                    <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-                        HECHOAPP
-                    </span>
-                </Link>
 
-                {/* Collapsed Logo */}
-                <Link href="/" className={cn("absolute transition-all duration-300", collapsed ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
+            {/* Backdrop for mobile */}
+            {mobileOpen && (
+                <div 
+                    className="md:hidden fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+                    onClick={() => setMobileOpen(false)}
+                />
+            )}
+
+            <aside
+                className={cn(
+                    "h-screen fixed md:relative top-0 left-0 z-40 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex flex-col shadow-2xl md:shadow-none",
+                    collapsed ? "md:w-20" : "md:w-64",
+                    "w-64", // Mobile is always full width of the drawer
+                    mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+                    isTechnician ? "hidden md:flex" : "flex"
+                )}
+            >
+                {/* Header / Logo */}
+                <div className="h-16 flex items-center justify-center border-b border-gray-200/50 dark:border-gray-800/50 relative">
+                    <Link href="/" className={cn("flex items-center gap-2 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
+                            H
+                        </div>
+                        <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+                            HECHOAPP
+                        </span>
+                    </Link>
+
+                    {/* Collapsed Logo */}
+                    <Link href="/" className={cn("absolute transition-all duration-300", collapsed ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
                     <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-purple-500/30">
                         H
                     </div>
@@ -225,5 +252,6 @@ export function Sidebar() {
                 </DropdownMenu>
             </div>
         </aside>
+        </>
     );
 }
