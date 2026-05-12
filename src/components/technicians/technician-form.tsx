@@ -97,17 +97,28 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
     };
 
     const handleDelete = async () => {
-        if (!initialData?.id || !confirm("¿Estás seguro de que deseas eliminar este técnico? Esta acción no se puede deshacer.")) return;
+        if (!initialData?.id || !confirm("¿Estás seguro de que deseas eliminar este técnico? Esta acción no se puede deshacer y borrará su acceso al sistema completamente.")) return;
 
         setLoading(true);
         try {
-            await deleteDoc(doc(db, "users", initialData.id));
-            alert("Técnico eliminado correctamente.");
+            const res = await fetch("/api/admin/delete-user", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ uid: initialData.id }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Error desconocido al eliminar");
+            }
+
+            alert("Técnico eliminado correctamente del sistema.");
             router.push("/technicians");
             router.refresh();
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error deleting technician:", error);
-            alert("Error al eliminar el técnico.");
+            alert("Error al eliminar el técnico: " + error.message);
         } finally {
             setLoading(false);
         }
