@@ -217,8 +217,17 @@ export default function TechnicianTicketPage() {
                     <CardContent className="text-sm space-y-2">
                         <div className="font-medium text-lg">{ticket.clientName}</div>
                         <div className="flex items-start gap-2 text-gray-600">
-                            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                            <span>{ticket.locationName}</span>
+                            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
+                            <div className="flex flex-col">
+                                <span className="font-medium">{ticket.locationName}</span>
+                                {(ticket.locationZone || ticket.locationStreet || ticket.locationHouseNumber) && (
+                                    <span className="text-gray-500 text-xs mt-1">
+                                        {ticket.locationZone ? `Zona: ${ticket.locationZone} ` : ''}
+                                        {ticket.locationStreet ? `| Calle: ${ticket.locationStreet} ` : ''}
+                                        {ticket.locationHouseNumber ? `| No. ${ticket.locationHouseNumber}` : ''}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         {/* Google Maps Link */}
                         <a
@@ -244,7 +253,15 @@ export default function TechnicianTicketPage() {
                     <CardContent>
                         <ChecklistRenderer
                             items={ticket.checklist}
-                            onUpdate={(newChecklist) => setTicket({ ...ticket, checklist: newChecklist })}
+                            onItemChange={(id, checked) => {
+                                setTicket(prev => {
+                                    if (!prev) return prev;
+                                    return {
+                                        ...prev,
+                                        checklist: prev.checklist.map(item => item.id === id ? { ...item, checked } : item)
+                                    };
+                                });
+                            }}
                             readOnly={false}
                         />
                     </CardContent>

@@ -81,8 +81,10 @@ INSTRUCCIONES:
             Debes devolver un JSON con esta estructura exacta:
             {
               "clientName": "Nombre del cliente si se menciona (o vacío)",
-              "locationArea": "Area o zona si se menciona (ej. BAVARO, CAP CANA, PUNTA CANA RESORT, VILLAGE, VILLAGE WEST)",
-              "specificLocation": "Ubicación específica o villa si se menciona (o vacío)",
+              "locationName": "Ubicación general o nombre del residencial si se menciona",
+              "locationZone": "Zona geográfica si se menciona (ej. BAVARO, CAP CANA, PUNTA CANA RESORT)",
+              "locationStreet": "Calle si se menciona (o vacío)",
+              "locationHouseNumber": "Número de casa, villa o apartamento (o vacío)",
               "priority": "LOW, MEDIUM, HIGH o URGENT según la urgencia",
               "description": "Descripción profesional, clara y detallada del problema o tarea, corrigiendo errores de dictado",
               "technicianName": "Nombre del técnico si se asigna (o vacío)"
@@ -90,7 +92,7 @@ INSTRUCCIONES:
             Reglas:
             1. Si la urgencia suena grave (fuga, no enfría nada en lugar crítico), usa URGENT o HIGH. Por defecto MEDIUM.
             2. Redacta la descripción de manera formal y coherente, eliminando palabras innecesarias del habla.
-            3. Devuelve SOLO JSON válido.`;
+            3. Devuelve SOLO JSON válido sin bloques markdown.`;
         } else if (task === 'generate-quote') {
             systemInstruction += `Tu tarea es actuar como un experto cotizador de HVAC (Refrigeración).
             El usuario te pedirá una cotización en lenguaje natural o te mostrará una IMAGEN de un equipo dañado.

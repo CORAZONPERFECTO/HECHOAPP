@@ -6,17 +6,14 @@ import { Label } from "@/components/ui/label";
 
 interface ChecklistRendererProps {
     items: ChecklistItem[];
-    onUpdate: (items: ChecklistItem[]) => void;
+    onItemChange?: (id: string, checked: boolean) => void;
     readOnly?: boolean;
 }
 
-export function ChecklistRenderer({ items, onUpdate, readOnly = false }: ChecklistRendererProps) {
+export function ChecklistRenderer({ items, onItemChange, readOnly = false }: ChecklistRendererProps) {
     const handleCheck = (id: string, checked: boolean) => {
         if (readOnly) return;
-        const newItems = items.map(item =>
-            item.id === id ? { ...item, checked } : item
-        );
-        onUpdate(newItems);
+        if (onItemChange) onItemChange(id, checked);
     };
 
     if (!items || items.length === 0) {

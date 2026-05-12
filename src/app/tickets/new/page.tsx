@@ -46,8 +46,13 @@ export default function NewTicketPage() {
             ...prev,
             description: aiData.description || prev.description,
             priority: aiData.priority || prev.priority,
-            locationArea: aiData.locationArea || prev.locationArea,
-            specificLocation: aiData.specificLocation || prev.specificLocation,
+            locationArea: aiData.locationArea || aiData.locationZone || prev.locationArea, // Map locationZone from AI
+            specificLocation: aiData.specificLocation || 
+                (aiData.locationStreet ? `Calle ${aiData.locationStreet} ` : '') + 
+                (aiData.locationHouseNumber ? `No. ${aiData.locationHouseNumber}` : '') || prev.specificLocation,
+            locationZone: aiData.locationZone || prev.locationZone,
+            locationStreet: aiData.locationStreet || prev.locationStreet,
+            locationHouseNumber: aiData.locationHouseNumber || prev.locationHouseNumber,
             // we could also map clientName, but client requires an ID from DB, so we'll just set it to search maybe or let user pick
         }));
         

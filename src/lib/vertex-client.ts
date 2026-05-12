@@ -15,7 +15,7 @@ export async function getGeminiModel(): Promise<GenerativeModel> {
     genAI = new GoogleGenerativeAI(apiKey);
 
     geminiModel = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-pro',
         generationConfig: {
             maxOutputTokens: 2048,
             temperature: 0.4,
