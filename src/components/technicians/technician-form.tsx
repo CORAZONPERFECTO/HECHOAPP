@@ -244,6 +244,56 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                 </div>
             </div>
 
+            {formData.rol === "TECNICO" && (
+                <div className="pt-6 border-t border-gray-100">
+                    <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
+                        <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+                            Vehículo Asignado
+                        </h3>
+                        <p className="text-sm text-slate-500 mb-4">
+                            Los datos del vehículo permiten realizar el seguimiento del kilometraje y avisos de mantenimiento al técnico.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Marca y Modelo</Label>
+                                <Input
+                                    value={formData.vehicle?.brand || ""}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, brand: e.target.value } }))}
+                                    placeholder="Ej. Nissan AD"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Año</Label>
+                                <Input
+                                    value={formData.vehicle?.year || ""}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, year: e.target.value } }))}
+                                    placeholder="Ej. 2014"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Placa</Label>
+                                <Input
+                                    value={formData.vehicle?.plate || ""}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, plate: e.target.value } }))}
+                                    placeholder="Ej. A123456"
+                                    className="uppercase"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Intervalo Cambio de Aceite (KM)</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.vehicle?.oilChangeInterval || 4500}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, oilChangeInterval: Number(e.target.value) } }))}
+                                    placeholder="4500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isEditing && (
                 <div className="pt-4 border-t flex flex-col gap-4">
                     <div className="flex justify-between items-center">
