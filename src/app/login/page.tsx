@@ -22,7 +22,7 @@ const ROLE_DESTINATIONS: Record<string, string> = {
 
 // Detect the "portal mode" from the redirect URL to style the login
 function detectPortal(redirect: string): "gerente" | "tecnico" | "admin" {
-    if (redirect.includes("technician")) return "tecnico";
+    if (redirect.includes("technician") || redirect.includes("tecnico")) return "tecnico";
     if (redirect.includes("tickets") || redirect.includes("gerente")) return "gerente";
     return "admin";
 }
