@@ -29,9 +29,9 @@ export function AppLayout({ children, className }: AppLayoutProps) {
 
     let allowedRoles: string[] | null = null;
     if (isSuperAdmin) {
-        allowedRoles = ["ADMIN", "SUPERVISOR"];
+        allowedRoles = ["ADMIN", "SUPERVISOR", "GERENTE"];
     } else if (isOperation) {
-        allowedRoles = ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"];
+        allowedRoles = ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS"];
     }
 
     return (
