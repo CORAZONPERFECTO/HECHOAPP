@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, Timestamp, arrayUnion } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { Ticket } from "@/types/schema";
+import { Ticket, User } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
-    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut
+    Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
+    Car, AlertTriangle, Droplet
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +22,10 @@ export function MyDayView() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<string>("");
+    const [userData, setUserData] = useState<User | null>(null);
+    const [showVehicleCheckIn, setShowVehicleCheckIn] = useState(false);
+    const [mileageInput, setMileageInput] = useState("");
+    const [updatingMileage, setUpdatingMileage] = useState(false);
     const [activeView, setActiveView] = useState<"list" | "map">("list");
     const router = useRouter();
     const { toast } = useToast();
@@ -28,11 +34,70 @@ export function MyDayView() {
         const unsubAuth = auth.onAuthStateChanged((user) => {
             if (user) {
                 setCurrentUserId(user.uid);
+                const unsubUser = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = { id: docSnap.id, ...docSnap.data() } as User;
+                        setUserData(data);
+
+                        // Check vehicle check-in
+                        const todayStr = new Date().toISOString().split("T")[0];
+                        if (data.vehicle && data.vehicle.lastMileageUpdateDate !== todayStr) {
+                            setShowVehicleCheckIn(true);
+                            // Only set default once
+                            setMileageInput(prev => prev || (data.vehicle?.currentMileage?.toString() || ""));
+                        } else {
+                            setShowVehicleCheckIn(false);
+                        }
+                    }
+                });
+                return () => unsubUser();
             }
         });
 
         return () => unsubAuth();
     }, []);
+
+    const handleMileageSubmit = async () => {
+        if (!currentUserId || !userData?.vehicle || !mileageInput) return;
+        setUpdatingMileage(true);
+        try {
+            const newMileage = parseInt(mileageInput);
+            const todayStr = new Date().toISOString().split("T")[0];
+            
+            const oilInterval = userData.vehicle.oilChangeInterval || 4500;
+            const lastOilChange = userData.vehicle.lastOilChangeMileage || 0;
+            const needsOilChange = newMileage - lastOilChange >= oilInterval;
+
+            await updateDoc(doc(db, "users", currentUserId), {
+                "vehicle.currentMileage": newMileage,
+                "vehicle.lastMileageUpdateDate": todayStr
+            });
+
+            if (needsOilChange) {
+                toast({
+                    title: "⚠️ Mantenimiento de Vehículo",
+                    description: `El vehículo ha superado el intervalo de cambio de aceite (${newMileage - lastOilChange} km recorridos). Se notificará al administrador.`,
+                    variant: "destructive"
+                });
+                // In a real scenario, you could create a ticket or notification here for the manager
+            } else {
+                toast({
+                    title: "✅ Vehículo Actualizado",
+                    description: "Kilometraje registrado correctamente para iniciar el día."
+                });
+            }
+            setShowVehicleCheckIn(false);
+        } catch (error) {
+            console.error("Error updating mileage:", error);
+            toast({
+                title: "Error",
+                description: "No se pudo actualizar el kilometraje",
+                variant: "destructive"
+            });
+        } finally {
+            setUpdatingMileage(false);
+        }
+    };
 
     useEffect(() => {
         if (!currentUserId) return;
@@ -196,13 +261,70 @@ export function MyDayView() {
                 </Button>
             </div>
 
+            {/* Vehicle Check-in Modal */}
+            {showVehicleCheckIn && userData?.vehicle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Car className="h-6 w-6" />
+                                Vehículo Asignado
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-4">
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                <h3 className="font-semibold text-blue-900">{userData.vehicle.brand} {userData.vehicle.model} {userData.vehicle.year}</h3>
+                                <p className="text-blue-700 text-sm mt-1">Placa: <span className="font-bold">{userData.vehicle.plate || "No registrada"}</span></p>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <label className="text-sm font-medium text-gray-700 block">
+                                    Kilometraje actual para iniciar el día:
+                                </label>
+                                <div className="flex gap-3">
+                                    <Input 
+                                        type="number" 
+                                        placeholder="Ej: 45000"
+                                        value={mileageInput}
+                                        onChange={(e) => setMileageInput(e.target.value)}
+                                        className="text-lg"
+                                        autoFocus
+                                    />
+                                    <Button 
+                                        onClick={handleMileageSubmit}
+                                        disabled={!mileageInput || updatingMileage}
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                    >
+                                        {updatingMileage ? "Guardando..." : "Registrar"}
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    Último cambio de aceite: {userData.vehicle.lastOilChangeMileage || 0} km | Próximo en: {(userData.vehicle.lastOilChangeMileage || 0) + (userData.vehicle.oilChangeInterval || 4500)} km
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             <div className="max-w-7xl mx-auto py-8 space-y-6">
                 {/* Titles */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Día</h1>
-                    <p className="text-lg text-gray-600">
-                        {displayTickets.length} {displayTickets.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
-                    </p>
+                <div className="text-center mb-8 space-y-5">
+                    <div>
+                        <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Día</h1>
+                        <p className="text-lg text-gray-600 font-medium">
+                            {displayTickets.length} {displayTickets.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
+                        </p>
+                    </div>
+
+                    {/* Promesa Bíblica */}
+                    <div className="max-w-md mx-auto bg-white/60 backdrop-blur border border-blue-100 rounded-xl p-4 shadow-sm">
+                        <p className="text-base font-bold text-gray-800 italic">"Busca a Dios, él te espera."</p>
+                        <p className="text-sm text-gray-600 mt-2">
+                            El Señor es bueno con los que en él esperan, con los que lo buscan.<br/>
+                            <span className="text-xs text-gray-400 font-semibold">— Lamentaciones 3:25</span>
+                        </p>
+                    </div>
                 </div>
 
                 {/* View Tabs */}

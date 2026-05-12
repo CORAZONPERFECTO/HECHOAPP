@@ -4,6 +4,17 @@ export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'GERENTE_TICKETS' | 
 export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
 export type PersonnelType = 'EMPLEADO' | 'CONTRATISTA' | 'TECNICO' | 'AYUDANTE' | 'GERENTE' | 'ADMINISTRATIVO';
 
+export interface UserVehicle {
+    brand?: string;
+    model?: string;
+    year?: string;
+    plate?: string;
+    currentMileage?: number;
+    lastOilChangeMileage?: number;
+    oilChangeInterval?: number; // e.g., 4500
+    lastMileageUpdateDate?: string; // YYYY-MM-DD
+}
+
 export interface User {
     id: string;
     nombre: string;
@@ -12,6 +23,7 @@ export interface User {
     rol: UserRole;
     clientId?: string; // For CLIENTE role, binds them to a specific tenant
     activo: boolean;
+    vehicle?: UserVehicle; // Optional vehicle assigned to technician
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

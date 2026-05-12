@@ -46,20 +46,25 @@ const adminMenuItems = [
 export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const [userRole, setUserRole] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string | null>(null);
     const pathname = usePathname();
 
     useEffect(() => {
-        const fetchUserRole = async () => {
-            const user = auth.currentUser;
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    setUserRole(docSnap.data().rol || null);
+                    const data = docSnap.data();
+                    setUserRole(data.rol || data.role || null);
+                    setUserName(data.nombre || user.displayName || user.email || "Usuario");
                 }
+            } else {
+                setUserRole(null);
+                setUserName(null);
             }
-        };
-        fetchUserRole();
+        });
+        return () => unsubscribe();
     }, []);
 
     const toggleSidebar = () => setCollapsed(!collapsed);
@@ -181,7 +186,7 @@ export function Sidebar() {
                             </div>
                             {!collapsed && (
                                 <div className="flex-1 min-w-0 text-left">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{auth.currentUser?.displayName || "Usuario"}</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{userName || "Cargando..."}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{userRole || "Cargando..."}</p>
                                 </div>
                             )}
