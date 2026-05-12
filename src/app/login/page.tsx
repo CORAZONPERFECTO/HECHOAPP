@@ -88,8 +88,13 @@ function LoginForm() {
                 try {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     const userData = userDoc.data();
-                    const role = userData?.rol || userData?.role || "";
-                    destination = ROLE_DESTINATIONS[role] || "/";
+                    const rawRole = userData?.rol || userData?.role || "";
+                    const normalizedRole = String(rawRole).toUpperCase().trim();
+                    
+                    // Asegurar que si de alguna forma se guardó como "Técnico" o "TECNICO", vaya al mismo lado
+                    const finalRole = normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO" ? "TECNICO" : normalizedRole;
+                    
+                    destination = ROLE_DESTINATIONS[finalRole] || "/";
                 } catch {
                     // Admin super user fallback
                     if (user.email?.toLowerCase() === "lcaa27@gmail.com") {

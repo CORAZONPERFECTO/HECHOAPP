@@ -18,9 +18,9 @@ import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { AppLayout } from "@/components/layout/app-layout";
+import { RoleGuard } from "@/components/layout/role-guard";
 import { QuoteChatModal } from "@/components/dashboard/quote-chat-modal";
 import { SLAMetricsCard } from "@/components/tickets/sla-metrics-card";
-
 
 // ... imports
 import {
@@ -264,9 +264,10 @@ export default function Dashboard() {
   }
 
   return (
-    <AppLayout>
-      {/* 1. Command Center Layer */}
-      <section>
+    <RoleGuard allowedRoles={["ADMIN", "SUPERVISOR", "GERENTE", "ASISTENTE", "GERENTE_TICKETS"]}>
+      <AppLayout>
+        {/* 1. Command Center Layer */}
+        <section>
         {isTechnician ? (
           <ActiveTicketCard />
         ) : (
@@ -414,6 +415,7 @@ export default function Dashboard() {
       {/* Modals */}
       <QuoteChatModal open={isQuoteModalOpen} onOpenChange={setIsQuoteModalOpen} />
     </AppLayout >
+    </RoleGuard>
   );
 }
 
