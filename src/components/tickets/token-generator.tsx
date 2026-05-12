@@ -18,8 +18,13 @@ export function TokenGenerator() {
         setLoading(true);
         setCopied(false);
         try {
-            // Generate a secure random token (UUID)
-            const token = crypto.randomUUID();
+            // Generate a secure random token (Fallback for older browsers/webviews)
+            const token = typeof crypto !== 'undefined' && crypto.randomUUID 
+                ? crypto.randomUUID() 
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
 
             // Use the token as the document ID for O(1) reads
             await setDoc(doc(db, "ticketTokens", token), {
