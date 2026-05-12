@@ -57,18 +57,32 @@ function buildWhatsAppMessage(ticket: Ticket): string {
         ? format(ticket.scheduledStart.toDate(), "dd/MM/yyyy HH:mm", { locale: es })
         : "Sin programar";
 
-    return [
+    const addressParts = [];
+    if (ticket.locationZone) addressParts.push(`Zona: ${ticket.locationZone}`);
+    if (ticket.locationStreet) addressParts.push(`Calle: ${ticket.locationStreet}`);
+    if (ticket.locationHouseNumber) addressParts.push(`No.: ${ticket.locationHouseNumber}`);
+    
+    const messageLines = [
         `🔧 *TICKET #${ticket.ticketNumber || ticket.id.slice(0, 6)}*`,
         `👤 Cliente: ${ticket.clientName}`,
-        `📍 Ubicación: ${ticket.locationName}`,
+        `📍 Residencial/General: ${ticket.locationName}`,
+    ];
+
+    if (addressParts.length > 0) {
+        messageLines.push(`🏡 Dirección Física: ${addressParts.join(", ")}`);
+    }
+
+    messageLines.push(
         `🗺️ Mapa: ${mapsUrl}`,
-        `📋 Servicio: ${ticket.serviceType.replace(/_/g, " ")}`,
+        `📋 Servicio: ${ticket.serviceType?.replace(/_/g, " ") || "No especificado"}`,
         `⚡ Prioridad: ${priority?.emoji || ""} ${priority?.label || ticket.priority}`,
         `🗓️ Programado: ${scheduled}`,
         ``,
         `📱 *Abre tu ticket aquí:*`,
-        ticketUrl,
-    ].join("\n");
+        ticketUrl
+    );
+
+    return messageLines.join("\n");
 }
 
 // Single ticket card in the operations list
