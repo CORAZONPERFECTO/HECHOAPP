@@ -34,7 +34,18 @@ export function CompanyProfile() {
                 const docRef = doc(db, "settings", "company");
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    setSettings(docSnap.data() as CompanySettings);
+                    const data = docSnap.data() as CompanySettings;
+                    // AUTO-FIX LOGO
+                    if (!data.logoUrl || data.logoUrl === "") {
+                        data.logoUrl = "https://hechoapp.vercel.app/icon-512.png.png";
+                        await setDoc(docRef, data, { merge: true });
+                    }
+                    setSettings(data);
+                } else {
+                    // Create it with the logo if it doesn't exist
+                    const defaultData = { ...settings, logoUrl: "https://hechoapp.vercel.app/icon-512.png.png" };
+                    await setDoc(docRef, defaultData);
+                    setSettings(defaultData);
                 }
             } catch (error) {
                 console.error("Error loading company settings:", error);
@@ -174,7 +185,17 @@ export function CompanyProfile() {
                                 {uploading ? "Subiendo..." : settings.logoUrl ? "Cambiar Logo" : "Subir Logo"}
                             </Button>
                         </div>
-                        <p className="text-xs text-gray-500">Recomendado: PNG transparente. Se optimizará automáticamente.</p>
+                        <p className="text-xs text-gray-500">Recomendado: PNG transparente. (Límite: 5MB)</p>
+                        
+                        <div className="w-full max-w-sm mt-4">
+                            <Label className="text-xs text-gray-500 mb-1 block">O pega una URL directa si tu almacenamiento está lleno:</Label>
+                            <Input
+                                value={settings.logoUrl}
+                                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                                placeholder="https://ejemplo.com/mi-logo.png"
+                                className="text-xs"
+                            />
+                        </div>
                     </div>
 
                     {/* Form Fields */}
