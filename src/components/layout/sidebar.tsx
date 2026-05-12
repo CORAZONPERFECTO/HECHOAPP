@@ -41,6 +41,7 @@ const adminMenuItems = [
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
     { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },
 ];
 
 export function Sidebar() {
