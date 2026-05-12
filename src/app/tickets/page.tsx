@@ -22,12 +22,16 @@ import { startOfDay, endOfDay, addDays, isSameDay, isAfter, isBefore, startOfWee
 
 type DateFilterType = "ALL" | "TODAY" | "TOMORROW" | "THIS_WEEK" | "UNSCHEDULED" | "OVERDUE";
 
+import { useToast } from "@/components/ui/use-toast";
+
 export default function TicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [activeView, setActiveView] = useState("list");
     const [dateFilter, setDateFilter] = useState<DateFilterType>("ALL");
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         const q = query(collection(db, "tickets"), orderBy("createdAt", "desc"));
@@ -38,6 +42,16 @@ export default function TicketsPage() {
             })) as Ticket[];
             setTickets(data);
             setLoading(false);
+            setErrorMsg(null);
+        }, (error) => {
+            console.error("Firestore onSnapshot error:", error);
+            setErrorMsg(error.message);
+            setLoading(false);
+            toast({
+                variant: "destructive",
+                title: "Error cargando tickets",
+                description: error.message
+            });
         });
 
         return () => unsubscribe();
@@ -172,67 +186,77 @@ export default function TicketsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-8">
-            <div className="max-w-[1600px] mx-auto space-y-6">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+            <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" onClick={() => router.push("/")}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver
+                    <div className="flex items-start md:items-center gap-3">
+                        <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mt-1 md:mt-0 flex-shrink-0">
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Tickets de Servicio</h1>
-                            <p className="text-gray-500">Gestión operativa y seguimiento</p>
+                            <div className="flex items-center flex-wrap gap-2">
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">Tickets de Servicio</h1>
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                                    Online
+                                </Badge>
+                            </div>
+                            <p className="text-sm md:text-base text-gray-500 mt-1">Gestión operativa y seguimiento</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Filters Section */}
-                <div className="flex flex-wrap items-center gap-2 pb-2 bg-white p-2 rounded-lg border shadow-sm">
-                    <div className="flex items-center gap-2 mr-2">
+                <div className="flex flex-col xl:flex-row xl:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border shadow-sm">
+                    <div className="flex items-center gap-2 mb-1 xl:mb-0 flex-shrink-0">
                         <Filter className="h-4 w-4 text-gray-500" />
                         <span className="text-sm font-medium text-gray-700">Filtros:</span>
                     </div>
-                    {[
-                        { id: "ALL", label: "Todos" },
-                        { id: "TODAY", label: "Hoy" },
-                        { id: "TOMORROW", label: "Mañana" },
-                        { id: "THIS_WEEK", label: "Esta Semana" },
-                        { id: "UNSCHEDULED", label: "Sin Programar" },
-                        { id: "OVERDUE", label: "Vencidos", color: "text-red-600 bg-red-50 border-red-200" }
-                    ].map((filter) => (
-                        <Button
-                            key={filter.id}
-                            variant={dateFilter === filter.id ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setDateFilter(filter.id as DateFilterType)}
-                            className={filter.color && dateFilter !== filter.id ? filter.color : ""}
-                        >
-                            {filter.label}
-                        </Button>
-                    ))}
+                    
+                    {/* Botones de Filtro - Hacen wrap automáticamente */}
+                    <div className="flex flex-wrap gap-2 flex-1">
+                        {[
+                            { id: "ALL", label: "Todos" },
+                            { id: "TODAY", label: "Hoy" },
+                            { id: "TOMORROW", label: "Mañana" },
+                            { id: "THIS_WEEK", label: "Esta Semana" },
+                            { id: "UNSCHEDULED", label: "Sin Programar" },
+                            { id: "OVERDUE", label: "Vencidos", color: "text-red-600 bg-red-50 border-red-200" }
+                        ].map((filter) => (
+                            <Button
+                                key={filter.id}
+                                variant={dateFilter === filter.id ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setDateFilter(filter.id as DateFilterType)}
+                                className={`flex-grow sm:flex-grow-0 whitespace-nowrap ${filter.color && dateFilter !== filter.id ? filter.color : ""}`}
+                            >
+                                {filter.label}
+                            </Button>
+                        ))}
+                    </div>
 
-                    <div className="ml-auto flex gap-2">
-                        <Link href="/tickets/analytics">
-                            <Button variant="outline" size="sm" className="gap-2">
+                    {/* Botones de Acción */}
+                    <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full xl:w-auto mt-2 xl:mt-0 border-t xl:border-t-0 xl:border-l pt-3 xl:pt-0 xl:pl-4">
+                        <Link href="/tickets/analytics" className="flex-1 sm:flex-none">
+                            <Button variant="outline" size="sm" className="w-full gap-2">
                                 <TrendingUp className="h-4 w-4" />
-                                Analítica
+                                <span className="hidden sm:inline">Analítica</span>
                             </Button>
                         </Link>
                         <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
                                     <ShieldCheck className="mr-2 h-4 w-4" />
-                                    Link Externo
+                                    <span className="hidden sm:inline">Link Externo</span>
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">
                                 <TokenGenerator />
                             </DialogContent>
                         </Dialog>
-                        <Link href="/tickets/new">
-                            <Button size="sm">
+                        <Link href="/tickets/new" className="flex-1 sm:flex-none">
+                            <Button size="sm" className="w-full">
                                 <Plus className="mr-2 h-4 w-4" />
                                 Nuevo Ticket
                             </Button>
@@ -241,7 +265,16 @@ export default function TicketsPage() {
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-12">Cargando tickets...</div>
+                    <div className="text-center py-16">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-500">Cargando tickets...</p>
+                    </div>
+                ) : errorMsg ? (
+                    <div className="text-center py-16 bg-red-50 rounded-xl border border-red-100">
+                        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-red-900 mb-2">Error al cargar tickets</h3>
+                        <p className="text-red-700">{errorMsg}</p>
+                    </div>
                 ) : (
                     <>
                         <SLADashboard />
