@@ -1,274 +1,330 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-// import mapboxgl from "mapbox-gl"; // Removed static import
-import "mapbox-gl/dist/mapbox-gl.css";
-import type { Map, Marker, MapboxOptions } from "mapbox-gl";
+import { useState, useMemo } from "react";
 import { Ticket } from "@/types/schema";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, ExternalLink, Copy, AlertCircle } from "lucide-react";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { isWebGLSupported, logMapError } from "@/lib/webgl-check";
-
-// Set your Mapbox access token in .env.local
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "pk.eyJ1IjoiaGVjaG9zcmwwMSIsImEiOiJjbWowcm5xZzgwMmcyM2ZxMnE2MzlsZ2V3In0.xHEncBdITQeKxGd0n3BsRg";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    MapPin, ExternalLink, MessageCircle, Share2, Copy,
+    Calendar, Clock, User, AlertCircle, CheckCircle2,
+    Phone, Navigation, ChevronDown, ChevronUp
+} from "lucide-react";
+import { format, isSameDay, isToday, isTomorrow, isThisWeek, isPast } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface TicketMapProps {
     tickets: Ticket[];
     onTicketClick: (ticket: Ticket) => void;
 }
 
-function MapFallback({ reason, tickets }: { reason?: string, tickets: Ticket[] }) {
-    const defaultCenter = { lat: 18.4861, lng: -69.9312 }; // Santo Domingo
+const PRIORITY_CONFIG = {
+    URGENT: { label: "Urgente", color: "bg-red-100 text-red-700 border-red-200", dot: "bg-red-500", emoji: "🔴" },
+    HIGH:   { label: "Alta",    color: "bg-orange-100 text-orange-700 border-orange-200", dot: "bg-orange-500", emoji: "🟠" },
+    MEDIUM: { label: "Media",   color: "bg-yellow-100 text-yellow-700 border-yellow-200", dot: "bg-yellow-500", emoji: "🟡" },
+    LOW:    { label: "Baja",    color: "bg-green-100 text-green-700 border-green-200", dot: "bg-green-500", emoji: "🟢" },
+};
 
-    // Construct Google Maps URL. If 1 ticket, point to it. If multiple, search or center.
-    const getGoogleMapsUrl = () => {
-        if (tickets.length === 1) {
-            // Trying to use ticket location if available or random/center
-            // Note: In this demo we don't have real coords in ticket object usually, 
-            // but we can search by address.
-            const query = encodeURIComponent(tickets[0].locationName || "Santo Domingo");
-            return `https://www.google.com/maps/search/?api=1&query=${query}`;
-        }
-        return `https://www.google.com/maps/@${defaultCenter.lat},${defaultCenter.lng},12z`;
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    OPEN:           { label: "Abierto",       color: "bg-blue-100 text-blue-700" },
+    IN_PROGRESS:    { label: "En Progreso",   color: "bg-purple-100 text-purple-700" },
+    WAITING_CLIENT: { label: "Esp. Cliente",  color: "bg-amber-100 text-amber-700" },
+    WAITING_PARTS:  { label: "Esp. Piezas",   color: "bg-orange-100 text-orange-700" },
+    COMPLETED:      { label: "Completado",    color: "bg-green-100 text-green-700" },
+    CANCELLED:      { label: "Cancelado",     color: "bg-gray-100 text-gray-600" },
+};
+
+function getMapsUrl(ticket: Ticket): string {
+    if (ticket.locationUrl && ticket.locationUrl.startsWith("http")) {
+        return ticket.locationUrl;
+    }
+    const q = encodeURIComponent(`${ticket.locationName} ${ticket.clientName}`);
+    return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+function getTicketAppUrl(ticket: Ticket): string {
+    if (typeof window !== "undefined") {
+        return `${window.location.origin}/technician/tickets/${ticket.id}`;
+    }
+    return `/technician/tickets/${ticket.id}`;
+}
+
+function buildWhatsAppMessage(ticket: Ticket): string {
+    const ticketUrl = getTicketAppUrl(ticket);
+    const mapsUrl = getMapsUrl(ticket);
+    const priority = PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG];
+    const scheduled = ticket.scheduledStart
+        ? format(ticket.scheduledStart.toDate(), "dd/MM/yyyy HH:mm", { locale: es })
+        : "Sin programar";
+
+    return [
+        `🔧 *TICKET #${ticket.ticketNumber || ticket.id.slice(0, 6)}*`,
+        `👤 Cliente: ${ticket.clientName}`,
+        `📍 Ubicación: ${ticket.locationName}`,
+        `🗺️ Mapa: ${mapsUrl}`,
+        `📋 Servicio: ${ticket.serviceType.replace(/_/g, " ")}`,
+        `⚡ Prioridad: ${priority?.emoji || ""} ${priority?.label || ticket.priority}`,
+        `🗓️ Programado: ${scheduled}`,
+        ``,
+        `📱 *Abre tu ticket aquí:*`,
+        ticketUrl,
+    ].join("\n");
+}
+
+// Single ticket card in the operations list
+function TicketOpsCard({ ticket, onTicketClick }: { ticket: Ticket; onTicketClick: (t: Ticket) => void }) {
+    const [expanded, setExpanded] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    const priority = PRIORITY_CONFIG[ticket.priority as keyof typeof PRIORITY_CONFIG];
+    const status = STATUS_CONFIG[ticket.status] || { label: ticket.status, color: "bg-gray-100 text-gray-600" };
+    const mapsUrl = getMapsUrl(ticket);
+    const ticketUrl = getTicketAppUrl(ticket);
+    const whatsappMsg = buildWhatsAppMessage(ticket);
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsg)}`;
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(ticketUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleCopyCoords = () => {
-        navigator.clipboard.writeText(`${defaultCenter.lat}, ${defaultCenter.lng}`);
-        alert("Coordenadas centrales copiadas (Demo)");
-    };
+    const hasLocationUrl = ticket.locationUrl && ticket.locationUrl.startsWith("http");
 
     return (
-        <div className="w-full h-[600px] bg-slate-50 rounded-lg flex flex-col items-center justify-center p-8 text-center border-2 border-dashed border-slate-300">
-            <div className="max-w-md space-y-6">
-                <div className="flex justify-center">
-                    <div className="bg-orange-100 p-4 rounded-full">
-                        <AlertCircle className="h-10 w-10 text-orange-600" />
+        <Card className={`border-l-4 transition-all ${
+            ticket.priority === "URGENT" ? "border-l-red-500" :
+            ticket.priority === "HIGH" ? "border-l-orange-500" :
+            ticket.priority === "MEDIUM" ? "border-l-yellow-400" : "border-l-green-500"
+        } hover:shadow-md`}>
+            <CardContent className="p-4">
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full border ${priority?.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${priority?.dot}`} />
+                            {priority?.label}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.color}`}>
+                            {status.label}
+                        </span>
                     </div>
+                    <span className="text-xs font-mono text-gray-400 shrink-0">
+                        #{ticket.ticketNumber || ticket.id.slice(0, 6)}
+                    </span>
                 </div>
 
-                <div>
-                    <h3 className="text-xl font-bold text-slate-800 mb-2">Mapa Interactivo no disponible</h3>
-                    <p className="text-slate-600">
-                        {reason || "Tu dispositivo no soporta la aceleración gráfica (WebGL) requerida."}
-                    </p>
+                {/* Client + Location */}
+                <div className="space-y-1 mb-3">
+                    <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        <span className="font-semibold text-gray-900 text-sm truncate">{ticket.clientName}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <MapPin className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                        <span className="text-xs text-gray-600 truncate">{ticket.locationName}</span>
+                        {hasLocationUrl && (
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full shrink-0">
+                                📍 GPS
+                            </span>
+                        )}
+                    </div>
+                    {ticket.technicianName && (
+                        <div className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                            <span className="text-xs text-purple-600 font-medium">{ticket.technicianName}</span>
+                        </div>
+                    )}
+                    {ticket.scheduledStart && (
+                        <div className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                            <span className="text-xs text-gray-500">
+                                {format(ticket.scheduledStart.toDate(), "HH:mm", { locale: es })} h
+                            </span>
+                        </div>
+                    )}
                 </div>
 
-                <div className="grid gap-3 w-full">
-                    <Button variant="default" className="w-full" onClick={() => window.open(getGoogleMapsUrl(), '_blank')}>
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Abrir ubicación en Google Maps
+                {/* Action Buttons — always visible */}
+                <div className="grid grid-cols-2 gap-2">
+                    {/* Open in Maps */}
+                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50">
+                            <Navigation className="h-3.5 w-3.5" />
+                            {hasLocationUrl ? "Ubicación" : "Ver Mapa"}
+                        </Button>
+                    </a>
+
+                    {/* WhatsApp Send */}
+                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5 border-green-200 text-green-700 hover:bg-green-50">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            WhatsApp
+                        </Button>
+                    </a>
+
+                    {/* Copy Tech Link */}
+                    <Button
+                        variant="outline" size="sm"
+                        className="w-full h-8 text-xs gap-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
+                        onClick={handleCopyLink}
+                    >
+                        {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied ? "¡Copiado!" : "Link Técnico"}
                     </Button>
 
-                    <Button variant="outline" className="w-full" onClick={handleCopyCoords}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copiar Coordenadas
+                    {/* Open Ticket */}
+                    <Button
+                        size="sm"
+                        className="w-full h-8 text-xs gap-1.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                        onClick={() => onTicketClick(ticket)}
+                    >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Abrir Ticket
                     </Button>
                 </div>
 
-                <p className="text-xs text-slate-400 mt-4">
-                    Recomendación: Actualiza tus drivers de video o prueba en otro navegador (Chrome/Edge).
-                </p>
-                <p className="text-[10px] text-slate-300">v2.1 Fix</p>
-            </div>
-        </div>
+                {/* Expandable description */}
+                {ticket.description && (
+                    <div className="mt-2 border-t pt-2">
+                        <button
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 w-full"
+                            onClick={() => setExpanded(!expanded)}
+                        >
+                            {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                            {expanded ? "Ocultar descripción" : "Ver descripción"}
+                        </button>
+                        {expanded && (
+                            <p className="text-xs text-gray-600 mt-1 bg-slate-50 p-2 rounded">
+                                {ticket.description}
+                            </p>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 
-function TicketMapContent({ tickets, onTicketClick }: TicketMapProps) {
-    const mapContainer = useRef<HTMLDivElement>(null);
-    const map = useRef<Map | null>(null);
-    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-    const [mapError, setMapError] = useState<string | null>(null);
-    const mapboxLib = useRef<any>(null); // Keep any for dynamic import lib root
+// Group tickets by day
+function groupByDay(tickets: Ticket[]): Record<string, Ticket[]> {
+    const groups: Record<string, Ticket[]> = {};
 
+    tickets.forEach(ticket => {
+        const date = ticket.scheduledStart?.toDate();
+        const key = date
+            ? format(date, "yyyy-MM-dd")
+            : "__unscheduled__";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(ticket);
+    });
 
+    return groups;
+}
 
-    useEffect(() => {
-        const initMap = async () => {
-            if (map.current) return;
+function getDayLabel(dateKey: string): { label: string; sublabel: string; color: string } {
+    if (dateKey === "__unscheduled__") {
+        return { label: "Sin Programar", sublabel: "Pendientes de fecha", color: "text-gray-500" };
+    }
 
-            // 1. Validate WebGL Support manually
-            const manualCheck = isWebGLSupported();
-            if (!manualCheck) {
-                setMapError("WebGL Check Failed (Manual Test)");
-                return;
-            }
+    const date = new Date(dateKey + "T00:00:00");
 
-            if (!mapContainer.current) return;
+    if (isToday(date)) return { label: "HOY", sublabel: format(date, "EEEE d 'de' MMMM", { locale: es }), color: "text-blue-700" };
+    if (isTomorrow(date)) return { label: "MAÑANA", sublabel: format(date, "EEEE d 'de' MMMM", { locale: es }), color: "text-purple-700" };
+    if (isPast(date)) return { label: "VENCIDO", sublabel: format(date, "EEEE d 'de' MMMM", { locale: es }), color: "text-red-600" };
+    if (isThisWeek(date, { weekStartsOn: 1 })) return { label: format(date, "EEEE", { locale: es }).toUpperCase(), sublabel: format(date, "d 'de' MMMM", { locale: es }), color: "text-emerald-700" };
 
-            try {
-                // Dynamic Import to avoid SSR issues
-                const mapboxgl = (await import("mapbox-gl")).default;
-                mapboxLib.current = mapboxgl;
+    return {
+        label: format(date, "EEEE d", { locale: es }).toUpperCase(),
+        sublabel: format(date, "MMMM yyyy", { locale: es }),
+        color: "text-gray-700"
+    };
+}
 
-                if (!mapboxgl.supported()) {
-                    setMapError("WebGL Check Failed (Mapbox Test)");
-                    return;
-                }
+export function TicketMap({ tickets, onTicketClick }: TicketMapProps) {
+    const groups = useMemo(() => groupByDay(tickets), [tickets]);
 
-                mapboxgl.accessToken = MAPBOX_TOKEN;
-
-                map.current = new mapboxgl.Map({
-                    container: mapContainer.current,
-                    style: "mapbox://styles/mapbox/streets-v12",
-                    center: [-69.9312, 18.4861],
-                    zoom: 11,
-                    attributionControl: false,
-                    failIfMajorPerformanceCaveat: true
-                });
-
-                map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
-
-                map.current.on('error', (e: { error?: Error }) => {
-                    const msg = e.error?.message || "Unknown Mapbox runtime error";
-                    logMapError(e.error);
-                    if (msg.includes("WebGL") || msg.includes("context")) {
-                        setMapError(msg);
-                    }
-                });
-
-                // Force a resize to ensure it fits the container
-                setTimeout(() => {
-                    map.current?.resize();
-                }, 200);
-
-            } catch (error: unknown) {
-                const err = error as Error;
-                logMapError(err);
-                setMapError(err?.message || "Error init map (Dynamic)");
-            }
-        };
-
-        if (!mapError) {
-            initMap();
-        }
-
-        return () => {
-            try {
-                map.current?.remove();
-            } catch (e) { console.warn(e); }
-        };
-    }, [mapError]);
-
-    useEffect(() => {
-        if (!map.current || mapError || !mapboxLib.current) return;
-
-        const mapboxgl = mapboxLib.current;
-
-        // Clean existing markers (if any custom logic used, typically manual DOM removal for custom markers)
-        const markers = document.querySelectorAll(".custom-marker-node");
-        markers.forEach((marker) => marker.remove());
-
-        // Note: Mapbox GL JS markers are separate generic objects.
-        // In this simple implementation, we might clear map layers if we were using layers.
-        // But since we are using DOM markers, let's just clear the container? 
-        // Actually, let's keep it simple: WE NEED TO REMOVE OLD MARKERS.
-        // We didn't store references to them. In a real app we should.
-        // For now, let's assume we can query them or just rebuild map if tickets change drastically.
-        // BETTER: Store markers in a ref.
-    }, [tickets, onTicketClick, mapError]);
-
-    // We need a ref for markers to clear them properly
-    const markersRef = useRef<Marker[]>([]);
-
-    useEffect(() => {
-        if (!map.current || mapError || !mapboxLib.current) return;
-        const mapboxgl = mapboxLib.current;
-
-        // Clear existing markers
-        markersRef.current.forEach(marker => marker.remove());
-        markersRef.current = [];
-
-        tickets.forEach((ticket) => {
-            const coordinates = getTicketCoordinates(ticket);
-            if (!coordinates) return;
-
-            const color = getPriorityColor(ticket.priority);
-            const el = document.createElement("div");
-            el.className = "custom-marker-node"; // Added class for identifying
-            el.style.backgroundColor = color;
-            el.style.width = "30px";
-            el.style.height = "30px";
-            el.style.borderRadius = "50%";
-            el.style.border = "3px solid white";
-            el.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
-            el.style.cursor = "pointer";
-            el.style.display = "flex";
-            el.style.alignItems = "center";
-            el.style.justifyContent = "center";
-            el.innerHTML = '<div style="font-size:14px">📍</div>';
-
-            const marker = new mapboxgl.Marker(el)
-                .setLngLat(coordinates)
-                .addTo(map.current!);
-
-            el.addEventListener("click", () => {
-                setSelectedTicket(ticket);
-                onTicketClick(ticket);
-            });
-
-            const popup = new mapboxgl.Popup({ offset: 25, closeButton: false })
-                .setHTML(`
-                    <div style="padding: 8px;">
-                        <strong>${ticket.ticketNumber || ticket.id.slice(0, 6)}</strong><br/>
-                        <span style="font-size: 12px;">${ticket.clientName}</span><br/>
-                    </div>
-                `);
-            marker.setPopup(popup);
-
-            markersRef.current.push(marker);
+    // Sort keys: scheduled dates ASC, unscheduled last
+    const sortedKeys = useMemo(() => {
+        return Object.keys(groups).sort((a, b) => {
+            if (a === "__unscheduled__") return 1;
+            if (b === "__unscheduled__") return -1;
+            return a.localeCompare(b);
         });
+    }, [groups]);
 
-    }, [tickets, onTicketClick, mapError]); // Re-run when tickets change
-
-    if (mapError) {
-        return <MapFallback reason={mapError} tickets={tickets} />;
-    }
+    const totalWithLocation = tickets.filter(t => t.locationUrl?.startsWith("http")).length;
+    const totalUrgent = tickets.filter(t => t.priority === "URGENT").length;
 
     return (
-        <div className="relative">
-            <div ref={mapContainer} className="w-full h-[700px] rounded-lg shadow-lg" />
-            <Card className="absolute top-4 left-4 z-10">
-                <CardContent className="p-4">
-                    <h4 className="font-semibold text-sm mb-2">Prioridad</h4>
-                    <div className="space-y-1 text-xs">
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-600"></div><span>Urgente</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-orange-500"></div><span>Alta</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-500"></div><span>Media</span></div>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span>Baja</span></div>
+        <div className="space-y-4">
+            {/* Summary bar */}
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-white border rounded-xl shadow-sm">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    <span><strong>{tickets.length}</strong> ticket{tickets.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="w-px h-4 bg-gray-200" />
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4 text-green-500" />
+                    <span><strong>{totalWithLocation}</strong> con GPS/Maps</span>
+                </div>
+                {totalUrgent > 0 && (
+                    <>
+                        <div className="w-px h-4 bg-gray-200" />
+                        <div className="flex items-center gap-2 text-sm text-red-600 font-semibold">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{totalUrgent} URGENTE{totalUrgent !== 1 ? "S" : ""}</span>
+                        </div>
+                    </>
+                )}
+                <div className="ml-auto">
+                    <span className="text-xs text-gray-400">
+                        🟢 WhatsApp: abre WhatsApp Web o la app · 🔗 Link Técnico: envía al celular
+                    </span>
+                </div>
+            </div>
+
+            {tickets.length === 0 && (
+                <div className="text-center py-16 text-gray-400">
+                    <MapPin className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-lg font-medium">No hay tickets en este filtro</p>
+                    <p className="text-sm">Cambia el filtro de fechas para ver más tickets.</p>
+                </div>
+            )}
+
+            {/* Day groups */}
+            {sortedKeys.map(dateKey => {
+                const dayTickets = groups[dateKey];
+                const { label, sublabel, color } = getDayLabel(dateKey);
+                const isOverdue = !["__unscheduled__"].includes(dateKey) && isPast(new Date(dateKey + "T23:59:59"));
+
+                return (
+                    <div key={dateKey} className="space-y-3">
+                        {/* Day header */}
+                        <div className={`flex items-center gap-3 px-1 py-2 border-b ${isOverdue ? "border-red-200" : "border-gray-200"}`}>
+                            <div className={`text-sm font-bold tracking-wide ${color}`}>{label}</div>
+                            <div className="text-xs text-gray-400">{sublabel}</div>
+                            <div className="ml-auto">
+                                <Badge variant="outline" className={`text-xs ${isOverdue ? "border-red-200 text-red-600" : "border-gray-200 text-gray-500"}`}>
+                                    {dayTickets.length} ticket{dayTickets.length !== 1 ? "s" : ""}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        {/* Ticket cards grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            {dayTickets.map(ticket => (
+                                <TicketOpsCard
+                                    key={ticket.id}
+                                    ticket={ticket}
+                                    onTicketClick={onTicketClick}
+                                />
+                            ))}
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                );
+            })}
         </div>
     );
 }
-
-// Helpers
-const getTicketCoordinates = (ticket: Ticket): [number, number] | null => {
-    const baseLat = 18.4861;
-    const baseLng = -69.9312;
-    const randomLat = baseLat + (Math.random() - 0.5) * 0.1;
-    const randomLng = baseLng + (Math.random() - 0.5) * 0.1;
-    return [randomLng, randomLat];
-};
-
-const getPriorityColor = (priority: string): string => {
-    switch (priority) {
-        case "URGENT": return "#dc2626";
-        case "HIGH": return "#f97316";
-        case "MEDIUM": return "#eab308";
-        case "LOW": return "#22c55e";
-        default: return "#3b82f6";
-    }
-};
-
-export function TicketMap(props: TicketMapProps) {
-    return (
-        <ErrorBoundary fallback={<MapFallback reason="Error crítico al cargar el módulo de mapa." tickets={props.tickets} />}>
-            <TicketMapContent {...props} />
-        </ErrorBoundary>
-    );
-}
-

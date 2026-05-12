@@ -262,7 +262,7 @@ export default function TicketsPage() {
                                 </TabsTrigger>
                                 <TabsTrigger value="map" className="flex items-center gap-2">
                                     <MapIcon className="h-4 w-4" />
-                                    Mapa
+                                    Operaciones
                                 </TabsTrigger>
                             </TabsList>
 

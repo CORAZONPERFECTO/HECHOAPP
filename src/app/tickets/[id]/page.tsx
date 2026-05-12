@@ -31,6 +31,7 @@ import { ApprovalRequestForm } from "@/components/tickets/approval-request-form"
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
 import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
+import { LocationInput } from "@/components/ui/location-input";
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -309,6 +310,23 @@ export default function TicketDetailPage() {
                                         <span className="text-gray-500 block">Descripción Inicial</span>
                                         <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>
                                     </div>
+
+                                    {/* 📍 LOCATION LINK — Visible to managers/admins to paste WhatsApp location */}
+                                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
+                                        <div className="col-span-2">
+                                            <LocationInput
+                                                label="Ubicación del Cliente"
+                                                value={ticket.locationUrl || ticket.locationName || ""}
+                                                onChange={(val) => setTicket({ ...ticket, locationUrl: val, locationName: val })}
+                                                placeholder="Pega el link de Google Maps o WhatsApp del cliente..."
+                                                showGpsButton={false}
+                                                showOpenLink={true}
+                                            />
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                💡 El técnico podrá abrir esta ubicación directamente desde su app.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <div className="col-span-2 flex items-center gap-2 mt-2 p-3 border rounded-md bg-gray-50">
                                         <input

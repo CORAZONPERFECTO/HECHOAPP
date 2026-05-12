@@ -43,7 +43,9 @@ export interface Ticket {
     clientName: string;
     ticketTypeId?: string;
     locationName: string;
+    locationUrl?: string;   // Google Maps / WhatsApp link set by manager or client
     locationArea?: string; // e.g., "CAP CANA"
+
     specificLocation?: string; // e.g., "Villa 12"
     serviceType: string;
     priority: TicketPriority;

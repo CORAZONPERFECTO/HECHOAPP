@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle2, Lock } from "lucide-react";
+import { LocationInput } from "@/components/ui/location-input";
 
 export default function PublicTicketForm() {
     const params = useParams();
@@ -202,14 +203,17 @@ export default function PublicTicketForm() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="address">Dirección / Ubicación</Label>
-                                <Input
-                                    id="address"
-                                    required
+                                <LocationInput
+                                    label="Dirección / Ubicación"
                                     value={formData.address}
-                                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                    placeholder="Calle, Número, Sector..."
+                                    onChange={(val) => setFormData({ ...formData, address: val })}
+                                    placeholder="Calle, Sector... o pega tu link de WhatsApp/Maps"
+                                    showGpsButton={true}
+                                    showOpenLink={false}
                                 />
+                                <p className="text-xs text-gray-400">
+                                    📡 Pega el link que envía WhatsApp al compartir ubicación, o usa el botón 📍 para tu ubicación actual.
+                                </p>
                             </div>
 
                             <div className="space-y-2">

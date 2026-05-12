@@ -222,12 +222,16 @@ export default function TechnicianTicketPage() {
                         </div>
                         {/* Google Maps Link */}
                         <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ticket.locationName + " " + ticket.clientName)}`}
+                            href={
+                                ticket.locationUrl && ticket.locationUrl.startsWith('http')
+                                    ? ticket.locationUrl
+                                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ticket.locationName + " " + ticket.clientName)}`
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 text-xs flex items-center gap-1 ml-6 hover:underline"
                         >
-                            Ver en Mapa &rarr;
+                            {ticket.locationUrl ? "📍 Abrir Ubicación del Cliente →" : "Ver en Mapa →"}
                         </a>
                     </CardContent>
                 </Card>
