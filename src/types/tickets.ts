@@ -75,6 +75,7 @@ export interface Ticket {
     // Date Planning
     scheduledStart?: Timestamp; // Programmed start
     scheduledEnd?: Timestamp; // Programmed end
+    schedulingNote?: string; // Note from client if they couldn't pick a date
     closedAt?: Timestamp; // Actual closing time
 
     // Profitability Fields
