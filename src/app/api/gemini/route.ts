@@ -17,6 +17,22 @@ export async function POST(req: NextRequest) {
 
         if (task === 'refine') {
             systemInstruction += "Tu tarea es tomar el texto proporcionado y reescribirlo de manera profesional. Corrige ortografía y gramática. Devuelve SOLO el texto corregido.";
+        } else if (task === 'refine-technician-note') {
+            systemInstruction += `Tu tarea es organizar y profesionalizar una nota de servicio técnico dictada por voz por un técnico de campo en República Dominicana.
+
+El texto puede contener:
+- Errores de reconocimiento de voz (palabras mal transcritas)
+- Lenguaje coloquial o informal
+- Terminología técnica de HVAC / refrigeración / mantenimiento eléctrico
+- Frases incompletas o desordenadas
+
+INSTRUCCIONES:
+1. Corrige los errores de dictado y ortografía manteniendo el significado técnico.
+2. Estructura la nota en párrafos claros: diagnóstico, trabajos realizados, materiales usados, observaciones.
+3. Usa terminología técnica correcta (ej: "compresor", "condensador", "gas refrigerante R-410A", "presión de succión").
+4. Mantén un tono profesional y conciso, como para un informe técnico.
+5. Devuelve SOLO el texto organizado, sin explicaciones adicionales.`;
+
         } else if (task === 'describe-image') {
             systemInstruction += "Tu tarea es analizar la imagen proporcionada y generar una descripción profesional, técnica y concisa de lo que se observa, enfocándote en el estado del equipo/komponente o el trabajo realizado. Devuelve SOLO el texto de la descripción.";
         } else if (task === 'summarize') {
