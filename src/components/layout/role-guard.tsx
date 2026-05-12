@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { Loader2, ShieldAlert } from "lucide-react";
@@ -17,11 +16,27 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     const router = useRouter();
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        let mounted = true;
+
+        const checkAuth = async () => {
+            // ✅ CRITICAL FIX: Wait for Firebase to fully restore session from persistence
+            // Without this, onAuthStateChanged fires null immediately on mount
+            // causing a premature redirect to /login before the session is confirmed.
+            await auth.authStateReady();
+
+            if (!mounted) return;
+
+            const user = auth.currentUser;
+
             if (!user) {
-                // Pass current path as redirect query param
                 const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
                 router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+                return;
+            }
+
+            // ✅ Super Admin Bypass
+            if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
+                setIsAuthorized(true);
                 return;
             }
 
@@ -29,13 +44,14 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
 
+                if (!mounted) return;
+
                 if (docSnap.exists()) {
                     const userRole = docSnap.data().rol || "NONE";
-                    
+
                     if (allowedRoles.includes(userRole)) {
                         setIsAuthorized(true);
                     } else {
-                        // Anti-Hacker / Security Bound: Redirect technicians unconditionally to their domain
                         if (userRole === "TECNICO") {
                             router.push("/technician/my-day");
                         } else {
@@ -47,11 +63,13 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                 }
             } catch (error) {
                 console.error("Error validando permisos:", error);
-                router.push("/login");
+                if (mounted) router.push("/login");
             }
-        });
+        };
 
-        return () => unsubscribe();
+        checkAuth();
+
+        return () => { mounted = false; };
     }, [router, allowedRoles]);
 
     // Loading State

@@ -1,7 +1,12 @@
 "use client";
 
 import { MyDayView } from "@/components/technician/my-day-view";
+import { RoleGuard } from "@/components/layout/role-guard";
 
 export default function MyDayPage() {
-    return <MyDayView />;
+    return (
+        <RoleGuard allowedRoles={["TECNICO", "ADMIN"]}>
+            <MyDayView />
+        </RoleGuard>
+    );
 }

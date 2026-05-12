@@ -1,16 +1,42 @@
 {
-    "name": "HECHOAPP",
+    "name": "HECHOAPP | Gestión Inteligente",
     "short_name": "HECHOAPP",
-    "description": "Gestión Inteligente de Mantenimiento",
+    "description": "Plataforma de gestión de operaciones y mantenimiento técnico",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "orientation": "portrait-primary",
+    "background_color": "#0f172a",
     "theme_color": "#2563eb",
+    "lang": "es",
+    "categories": ["business", "productivity"],
     "icons": [
         {
-            "src": "/next.svg",
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
             "sizes": "512x512",
-            "type": "image/svg+xml"
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Mi Panel de Técnico",
+            "short_name": "Mis Tickets",
+            "description": "Ver mis tickets asignados del día",
+            "url": "/technician/my-day",
+            "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Torre de Tickets",
+            "short_name": "Tickets",
+            "description": "Panel de gestión de tickets",
+            "url": "/tickets",
+            "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
         }
     ]
 }

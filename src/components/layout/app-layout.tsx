@@ -13,7 +13,7 @@ interface AppLayoutProps {
 
 // Rutas de administración estricta (finanzas, usuarios, ajustes)
 const superAdminRoutes = [
-   "/income", "/reports", "/settings", "/admin", "/approvals", "/technicians"
+    "/income", "/reports", "/settings", "/admin", "/approvals", "/technicians"
 ];
 
 // Rutas de operación (tickets, clientes)
@@ -23,7 +23,7 @@ const operationRoutes = [
 
 export function AppLayout({ children, className }: AppLayoutProps) {
     const pathname = usePathname();
-    
+
     const isSuperAdmin = superAdminRoutes.some(route => pathname.startsWith(route));
     const isOperation = operationRoutes.some(route => pathname.startsWith(route));
 
