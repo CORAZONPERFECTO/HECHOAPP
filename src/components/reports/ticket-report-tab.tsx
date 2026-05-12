@@ -363,91 +363,93 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-black rounded-lg overflow-hidden border shadow-sm">
-            {/* Toolbar Local */}
-            <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                    <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-md p-1">
+        <>
+            <div className="flex flex-col h-full bg-gray-50 dark:bg-black rounded-lg overflow-hidden border shadow-sm">
+                {/* Toolbar Local */}
+                <div className="bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                        <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-md p-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={undo}
+                                disabled={!canUndo}
+                                className="h-7 w-7 text-gray-600 dark:text-gray-300"
+                                title="Deshacer (Ctrl+Z)"
+                            >
+                                <Undo2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={redo}
+                                disabled={!canRedo}
+                                className="h-7 w-7 text-gray-600 dark:text-gray-300"
+                                title="Rehacer (Ctrl+Y)"
+                            >
+                                <Redo2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="h-5 w-px bg-gray-200 dark:bg-zinc-700" />
+
+                        {/* Template Picker Button */}
                         <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={undo}
-                            disabled={!canUndo}
-                            className="h-7 w-7 text-gray-600 dark:text-gray-300"
-                            title="Deshacer (Ctrl+Z)"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTemplatePickerOpen(true)}
+                            className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:border-gray-300 transition-colors"
                         >
-                            <Undo2 className="h-4 w-4" />
+                            <LayoutTemplate className="h-3.5 w-3.5" />
+                            Plantilla
                         </Button>
+
+                        {/* Botón Mágico AI */}
                         <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={redo}
-                            disabled={!canRedo}
-                            className="h-7 w-7 text-gray-600 dark:text-gray-300"
-                            title="Rehacer (Ctrl+Y)"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSmartGenerate}
+                            disabled={generating}
+                            className="h-7 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300 transition-colors"
                         >
-                            <Redo2 className="h-4 w-4" />
+                            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                            {generating ? "✨ Generando..." : "✨ Auto-Reporte Mágico"}
                         </Button>
                     </div>
-                    <div className="h-5 w-px bg-gray-200 dark:bg-zinc-700" />
 
-                    {/* Template Picker Button */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setTemplatePickerOpen(true)}
-                        className="h-7 text-xs gap-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:border-gray-300 transition-colors"
-                    >
-                        <LayoutTemplate className="h-3.5 w-3.5" />
-                        Plantilla
-                    </Button>
-
-                    {/* Botón Mágico AI */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSmartGenerate}
-                        disabled={generating}
-                        className="h-7 text-xs gap-1 border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300 transition-colors"
-                    >
-                        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                        {generating ? "✨ Generando..." : "✨ Auto-Reporte Mágico"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400 hidden sm:inline-block">
+                            {saving ? "Guardando..." : "Guardado"}
+                        </span>
+                        <Link href={`/tickets/${ticket.id}/report`} target="_blank">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Pantalla Completa">
+                                <Maximize2 className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <ExportMenu report={report} />
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 hidden sm:inline-block">
-                        {saving ? "Guardando..." : "Guardado"}
-                    </span>
-                    <Link href={`/tickets/${ticket.id}/report`} target="_blank">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Pantalla Completa">
-                            <Maximize2 className="h-4 w-4" />
-                        </Button>
-                    </Link>
-                    <ExportMenu report={report} />
+                {/* Editor Content */}
+                <div className="flex-1 overflow-hidden relative min-h-[600px]">
+                    <TicketReportEditor
+                        report={report}
+                        onChange={setReport}
+                        onSave={async (r) => handleSave(r)}
+                        onUpdatePhotos={handleUpdatePhotos}
+                        onRegenerate={handleRegenerate}
+                        availablePhotos={ticket.photos || []}
+                        saving={saving}
+                    />
                 </div>
             </div>
 
-            {/* Editor Content */}
-            <div className="flex-1 overflow-hidden relative min-h-[600px]">
-                <TicketReportEditor
-                    report={report}
-                    onChange={setReport}
-                    onSave={async (r) => handleSave(r)}
-                    onUpdatePhotos={handleUpdatePhotos}
-                    onRegenerate={handleRegenerate}
-                    availablePhotos={ticket.photos || []}
-                    saving={saving}
-                />
-            </div>
-        </div>
-
-        {/* Template Picker Dialog */}
-        <TemplatePickerDialog
-            open={templatePickerOpen}
-            onOpenChange={setTemplatePickerOpen}
-            onApply={handleApplyTemplate}
-            serviceType={ticket.serviceType}
-        />
-    </>);
+            {/* Template Picker Dialog */}
+            <TemplatePickerDialog
+                open={templatePickerOpen}
+                onOpenChange={setTemplatePickerOpen}
+                onApply={handleApplyTemplate}
+                serviceType={ticket.serviceType}
+            />
+        </>
+    );
 }
