@@ -86,7 +86,25 @@ const config = {
     		animation: {
     			'accordion-down': 'accordion-down 0.2s ease-out',
     			'accordion-up': 'accordion-up 0.2s ease-out'
-    		}
+    		},
+            fontSize: {
+                // Tipografía fluida usando clamp() -> clamp(MIN, VALOR_IDEAL, MAX)
+                'xs': 'clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem)',
+                'sm': 'clamp(0.8rem, 0.75rem + 0.25vw, 0.875rem)',
+                'base': 'clamp(0.9rem, 0.85rem + 0.25vw, 1rem)',
+                'lg': 'clamp(1rem, 0.95rem + 0.25vw, 1.125rem)',
+                'xl': 'clamp(1.125rem, 1.05rem + 0.375vw, 1.25rem)',
+                '2xl': 'clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem)',
+                '3xl': 'clamp(1.5rem, 1.25rem + 1.25vw, 1.875rem)',
+                '4xl': 'clamp(1.875rem, 1.5rem + 1.875vw, 2.25rem)',
+                '5xl': 'clamp(2.25rem, 1.75rem + 2.5vw, 3rem)',
+            },
+            gridTemplateColumns: {
+                // Layout intrínseco fluido (no requiere breakpoints manuales md: o lg:)
+                'fluid': 'repeat(auto-fit, minmax(18rem, 1fr))',
+                'fluid-sm': 'repeat(auto-fit, minmax(14rem, 1fr))',
+                'fluid-lg': 'repeat(auto-fit, minmax(24rem, 1fr))',
+            }
     	}
     },
     plugins: [
