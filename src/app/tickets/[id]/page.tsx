@@ -76,7 +76,7 @@ export default function TicketDetailPage() {
                     } else {
                         const userDoc = await getDoc(doc(db, "users", user.uid));
                         if (userDoc.exists()) {
-                            setCurrentUserRole(userDoc.data().rol || userDoc.data().role);
+                            setCurrentUserRole((userDoc.data().rol || userDoc.data().role) as UserRole);
                         }
                     }
                 }
