@@ -41,7 +41,7 @@ const adminMenuItems = [
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Ubicación", icon: MapPin, href: "/admin/tracking", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
-    { label: "Aprobaciones", icon: Sparkles, href: "/admin/approvals", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Control Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
     { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },
 ];
 
