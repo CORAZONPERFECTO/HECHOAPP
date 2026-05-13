@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 
+// FORZAR ACTUALIZACION VERCEL - VERSION 2.0 TABS
 export default function TechnicianTicketPage() {
     const params = useParams();
     const id = params?.id as string;
