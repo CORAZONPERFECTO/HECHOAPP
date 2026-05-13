@@ -232,6 +232,26 @@ export default function NewTicketPage() {
                                     />
                                 </div>
                             </div>
+
+                            {/* Dirección detallada */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Calle</Label>
+                                    <Input
+                                        value={formData.locationStreet || ""}
+                                        onChange={e => setFormData(prev => ({ ...prev, locationStreet: e.target.value }))}
+                                        placeholder="Ej: Calle Las Palmas"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>No. Villa / Casa</Label>
+                                    <Input
+                                        value={formData.locationHouseNumber || ""}
+                                        onChange={e => setFormData(prev => ({ ...prev, locationHouseNumber: e.target.value }))}
+                                        placeholder="Ej: 22, 4B, Casa 7"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex justify-end pt-4">

@@ -8,7 +8,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -212,17 +212,30 @@ export default function TechnicianTicketPage() {
                 </Button>
             </div>
 
-            <main className="max-w-md mx-auto p-4">
+            <main className="max-w-lg mx-auto p-4">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    {/* Responsive Scrollable Tabs */}
-                    <TabsList className="flex w-full overflow-x-auto bg-white border p-1 rounded-xl mb-4 hide-scrollbar snap-x touch-pan-x">
-                        <TabsTrigger value="info" className="min-w-[80px] snap-center">Info</TabsTrigger>
-                        <TabsTrigger value="checklist" className="min-w-[90px] snap-center">Checklist</TabsTrigger>
-                        <TabsTrigger value="fotos" className="min-w-[80px] snap-center">Fotos</TabsTrigger>
-                        <TabsTrigger value="compras" className="min-w-[90px] snap-center">Compras</TabsTrigger>
-                        <TabsTrigger value="reporte" className="min-w-[90px] snap-center">Reporte</TabsTrigger>
-                        <TabsTrigger value="cierre" className="min-w-[80px] snap-center">Cierre</TabsTrigger>
-                    </TabsList>
+                    {/* Nav de tabs: scroll nativo en div externo, Radix no bloquea overflow */}
+                    <div className="overflow-x-auto hide-scrollbar -mx-4 px-4 mb-4">
+                        <TabsList className="inline-flex min-w-max bg-white border p-1 rounded-xl gap-0.5 shadow-sm">
+                            {([
+                                { value: "info",      label: "Info",      icon: <Info className="h-4 w-4" /> },
+                                { value: "checklist", label: "Checklist", icon: <ListChecks className="h-4 w-4" /> },
+                                { value: "fotos",     label: "Fotos",     icon: <Camera className="h-4 w-4" /> },
+                                { value: "compras",   label: "Compras",   icon: <ShoppingCart className="h-4 w-4" /> },
+                                { value: "reporte",   label: "Reporte",   icon: <FileText className="h-4 w-4" /> },
+                                { value: "cierre",    label: "Cierre",    icon: <CheckCircle className="h-4 w-4" /> },
+                            ] as const).map(tab => (
+                                <TabsTrigger
+                                    key={tab.value}
+                                    value={tab.value}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm whitespace-nowrap rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </div>
 
                     {/* Info Tab */}
                     <TabsContent value="info" className="space-y-4">
@@ -232,19 +245,33 @@ export default function TechnicianTicketPage() {
                             </CardHeader>
                             <CardContent className="text-sm space-y-2">
                                 <div className="font-medium text-lg">{ticket.clientName}</div>
+
+                                {/* Dirección completa */}
                                 <div className="flex items-start gap-2 text-gray-600">
                                     <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
                                     <div className="flex flex-col">
                                         <span className="font-medium">{ticket.locationName}</span>
-                                        {(ticket.locationZone || ticket.locationStreet || ticket.locationHouseNumber) && (
-                                            <span className="text-gray-500 text-xs mt-1">
-                                                {ticket.locationZone ? `Zona: ${ticket.locationZone} ` : ''}
-                                                {ticket.locationStreet ? `| Calle: ${ticket.locationStreet} ` : ''}
-                                                {ticket.locationHouseNumber ? `| No. ${ticket.locationHouseNumber}` : ''}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
+
+                                {/* Calle y Número de Villa/Casa destacados */}
+                                {(ticket.locationStreet || ticket.locationHouseNumber) && (
+                                    <div className="ml-6 mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex flex-col gap-0.5">
+                                        {ticket.locationStreet && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Calle:</span>
+                                                <span className="text-sm font-medium text-blue-900">{ticket.locationStreet}</span>
+                                            </div>
+                                        )}
+                                        {ticket.locationHouseNumber && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">No. Villa / Casa:</span>
+                                                <span className="text-sm font-bold text-blue-900">{ticket.locationHouseNumber}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Google Maps Link */}
                                 <a
                                     href={
@@ -452,14 +479,9 @@ export default function TechnicianTicketPage() {
                 </DialogContent>
             </Dialog>
 
-            <style jsx global>{`
-                .hide-scrollbar::-webkit-scrollbar {
-                    display: none;
-                }
-                .hide-scrollbar {
-                    -ms-overflow-style: none;
-                    scrollbar-width: none;
-                }
+            <style>{`
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
         </div>
     );
