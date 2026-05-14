@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2 } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -66,6 +66,51 @@ export default function NewProjectPage() {
             ...z,
             areas: [...z.areas, { id: crypto.randomUUID(), name: "Nueva Área" }]
         } : z));
+    };
+
+    const handleDuplicateZone = (zoneId: string) => {
+        const zoneToClone = zones.find(z => z.id === zoneId);
+        if (!zoneToClone) return;
+
+        const copiesStr = prompt(`¿Cuántas zonas secuenciales deseas crear a partir de "${zoneToClone.name}"?`, "1");
+        if (!copiesStr) return;
+        
+        const numCopies = parseInt(copiesStr);
+        if (isNaN(numCopies) || numCopies < 1 || numCopies > 50) {
+            alert("Número inválido. Por favor ingrese un número entre 1 y 50.");
+            return;
+        }
+
+        const newZones = [...zones];
+        
+        // Match the last sequence of digits in the name
+        const match = zoneToClone.name.match(/(\d+)(?!.*\d)/);
+        let baseName = zoneToClone.name;
+        let startNumber = 1;
+
+        if (match && match.index !== undefined) {
+            startNumber = parseInt(match[0]);
+            baseName = zoneToClone.name.substring(0, match.index);
+        } else {
+            baseName = zoneToClone.name + " ";
+        }
+
+        for (let i = 1; i <= numCopies; i++) {
+            const nextNum = startNumber + i;
+            const nextNumStr = match ? nextNum.toString().padStart(match[0].length, '0') : nextNum.toString();
+            const newName = `${baseName}${nextNumStr}`;
+            
+            newZones.push({
+                id: crypto.randomUUID(),
+                name: newName,
+                areas: zoneToClone.areas.map(a => ({
+                    id: crypto.randomUUID(),
+                    name: a.name
+                }))
+            });
+        }
+
+        setZones(newZones);
     };
 
     const handleSaveProject = async () => {
@@ -332,14 +377,26 @@ export default function NewProjectPage() {
                                         placeholder="Nombre de la Zona (Ej. Bloque A - Apto 202)"
                                     />
                                 </div>
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    className="text-red-500 hover:bg-red-50"
-                                    onClick={() => setZones(zones.filter(z => z.id !== zone.id))}
-                                >
-                                    Eliminar Zona
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        className="text-blue-600 hover:bg-blue-50 border-blue-200 bg-white"
+                                        onClick={() => handleDuplicateZone(zone.id)}
+                                        title="Duplicar Zona y sus áreas"
+                                    >
+                                        <Copy className="h-4 w-4 mr-2" />
+                                        Clonar
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        className="text-red-500 hover:bg-red-50"
+                                        onClick={() => setZones(zones.filter(z => z.id !== zone.id))}
+                                    >
+                                        Eliminar Zona
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-4 space-y-3">
                                 {zone.areas.length === 0 && (
