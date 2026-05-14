@@ -145,8 +145,8 @@ export default function NewProjectPage() {
                 completedTalleres: 0,
                 progressPercentage: 0,
                 createdBy: user.uid,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
+                createdAt: serverTimestamp() as any,
+                updatedAt: serverTimestamp() as any,
             };
 
             batch.set(projectRef, newProject);
