@@ -216,6 +216,28 @@ export default function TicketDetailPage() {
                         <Share2 className="h-4 w-4" />
                         Compartir
                     </Button>
+                    {/* MARK AS BILLED BUTTON */}
+                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE' || currentUserRole === 'GERENTE_TICKETS') && ticket.status === 'COMPLETED' && ticket.billingStatus !== 'BILLED' && ticket.billingStatus !== 'PAID' && (
+                        <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={async () => {
+                                const num = prompt("Introduce el número de factura para este ticket:");
+                                if (num && num.trim() !== "") {
+                                    try {
+                                        await setDoc(doc(db, "tickets", ticketId), { billingStatus: 'BILLED', linkedInvoiceId: num.trim() }, { merge: true });
+                                        alert(`Ticket facturado con No. ${num.trim()}`);
+                                    } catch (error) {
+                                        console.error("Error updating billing status:", error);
+                                    }
+                                }
+                            }}
+                        >
+                            Facturar
+                        </Button>
+                    )}
+
                     <TicketStatusBadge status={ticket.status} />
                 </div>
             </header>
@@ -224,6 +246,37 @@ export default function TicketDetailPage() {
             {currentUserRole && (currentUserRole === 'TECNICO' || currentUserRole === 'ADMIN') && (
                 <div className="max-w-3xl mx-auto px-4 pt-4 print:hidden">
                     <StatusActionButtons ticket={ticket} />
+                </div>
+            )}
+
+            {/* BILLING REMINDER BANNER */}
+            {ticket.status === 'COMPLETED' && ticket.billingStatus !== 'BILLED' && ticket.billingStatus !== 'PAID' && (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE' || currentUserRole === 'GERENTE_TICKETS') && (
+                <div className="max-w-3xl mx-auto px-4 pt-4 print:hidden">
+                    <div className="bg-orange-100 border-l-4 border-orange-500 p-4 rounded-r-md shadow-sm flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <AlertCircle className="h-6 w-6 text-orange-600 animate-pulse" />
+                            <div>
+                                <h3 className="font-bold text-orange-900">¡Facturación Pendiente!</h3>
+                                <p className="text-orange-800 text-sm">Este ticket fue completado pero no ha sido marcado como facturado.</p>
+                            </div>
+                        </div>
+                        <Button 
+                            className="bg-orange-600 hover:bg-orange-700 text-white"
+                            onClick={async () => {
+                                const num = prompt("Introduce el número de factura para este ticket:");
+                                if (num && num.trim() !== "") {
+                                    try {
+                                        await setDoc(doc(db, "tickets", ticketId), { billingStatus: 'BILLED', linkedInvoiceId: num.trim() }, { merge: true });
+                                        alert(`Ticket facturado con No. ${num.trim()}`);
+                                    } catch (error) {
+                                        console.error("Error updating billing status:", error);
+                                    }
+                                }
+                            }}
+                        >
+                            Marcar como Facturado
+                        </Button>
+                    </div>
                 </div>
             )}
 

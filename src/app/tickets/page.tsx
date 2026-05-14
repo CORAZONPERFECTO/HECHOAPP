@@ -21,7 +21,7 @@ import { SLAIndicator } from "@/components/tickets/sla-indicator";
 import { SLADashboard } from "@/components/tickets/sla-dashboard";
 import { startOfDay, endOfDay, addDays, isSameDay, isAfter, isBefore, startOfWeek, endOfWeek } from "date-fns";
 
-type DateFilterType = "ALL" | "TODAY" | "TOMORROW" | "THIS_WEEK" | "UNSCHEDULED" | "OVERDUE";
+type DateFilterType = "ALL" | "TODAY" | "TOMORROW" | "THIS_WEEK" | "UNSCHEDULED" | "OVERDUE" | "HISTORY" | "PENDING_BILLING";
 
 import { useToast } from "@/components/ui/use-toast";
 
@@ -68,6 +68,24 @@ export default function TicketsPage() {
         const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
         const filtered = tickets.filter(ticket => {
+            const isClosed = ["COMPLETED", "CANCELLED", "RESOLVED"].includes(ticket.status);
+            const needsBilling = ticket.status === 'COMPLETED' && ticket.billingStatus !== 'BILLED' && ticket.billingStatus !== 'PAID';
+
+            // Si estamos en Por Facturar, SOLO mostrar los completados no facturados
+            if (dateFilter === "PENDING_BILLING") {
+                return needsBilling;
+            }
+
+            // Si estamos en Histórico, SOLO mostrar los cerrados
+            if (dateFilter === "HISTORY") {
+                return isClosed;
+            }
+
+            // Para cualquier otro filtro (Activos), OCULTAR los cerrados
+            if (isClosed) {
+                return false;
+            }
+
             if (dateFilter === "ALL") return true;
 
             const scheduledDate = ticket.scheduledStart ? ticket.scheduledStart.toDate() : null;
@@ -104,8 +122,10 @@ export default function TicketsPage() {
             if (dateA !== dateB) {
                 return dateA - dateB;
             }
-            // Fallback to creation date
-            return b.createdAt.toMillis() - a.createdAt.toMillis();
+            // Fallback to creation date, safely handle Firebase serverTimestamp local pending state
+            const createdA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
+            const createdB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
+            return createdB - createdA;
         });
 
     }, [tickets, dateFilter]);
@@ -141,7 +161,7 @@ export default function TicketsPage() {
             cell: (item: Ticket) => (
                 <div className="flex flex-col">
                     <span className="font-medium">{item.clientName}</span>
-                    <span className="text-xs text-gray-500">Creado: {item.createdAt.toDate().toLocaleDateString()}</span>
+                    <span className="text-xs text-gray-500">Creado: {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleDateString() : 'Justo ahora'}</span>
                 </div>
             )
         },
@@ -218,12 +238,14 @@ export default function TicketsPage() {
                     {/* Botones de Filtro - Hacen wrap automáticamente */}
                     <div className="flex flex-wrap gap-2 flex-1">
                         {[
-                            { id: "ALL", label: "Todos" },
+                            { id: "ALL", label: "Todos (Activos)" },
+                            { id: "PENDING_BILLING", label: "Por Facturar", color: "text-orange-700 bg-orange-100 border-orange-300 font-bold" },
                             { id: "TODAY", label: "Hoy" },
                             { id: "TOMORROW", label: "Mañana" },
                             { id: "THIS_WEEK", label: "Esta Semana" },
                             { id: "UNSCHEDULED", label: "Sin Programar" },
-                            { id: "OVERDUE", label: "Vencidos", color: "text-red-600 bg-red-50 border-red-200" }
+                            { id: "OVERDUE", label: "Vencidos", color: "text-red-600 bg-red-50 border-red-200" },
+                            { id: "HISTORY", label: "Histórico (Cerrados)", color: "text-gray-600 bg-gray-100 border-gray-300" }
                         ].map((filter) => (
                             <Button
                                 key={filter.id}

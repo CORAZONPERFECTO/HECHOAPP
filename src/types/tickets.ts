@@ -88,6 +88,7 @@ export interface Ticket {
     linkedInvoiceId?: string; // ID of related invoice
     revenue?: number; // Amount charged to client
     profitMargin?: number; // Calculated: ((revenue - totalCost) / revenue) * 100
+    billingStatus?: 'PENDING' | 'BILLED' | 'PAID'; // Tracking billing state
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

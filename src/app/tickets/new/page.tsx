@@ -83,12 +83,47 @@ export default function NewTicketPage() {
         return () => unsubscribe();
     }, []);
 
-    const handleClientChange = (client: Client) => {
+    const handleClientChange = async (client: Client) => {
         setFormData(prev => ({
             ...prev,
             clientId: client.id,
             clientName: client.nombreComercial,
         }));
+
+        // Buscar el último ticket de este cliente para auto-completar la ubicación
+        try {
+            const q = query(
+                collection(db, "tickets"),
+                where("clientId", "==", client.id),
+                orderBy("createdAt", "desc"),
+                // limit(1) // we just need the most recent one
+            );
+            // Firebase limits require index if we mix where and orderBy on different fields. 
+            // To avoid index error, let's just fetch recent tickets for the client and sort in memory if needed, 
+            // or just use where without orderBy, and grab the first one that has location data.
+            const ticketsQuery = query(collection(db, "tickets"), where("clientId", "==", client.id));
+            const snapshot = await getDocs(ticketsQuery);
+            
+            if (!snapshot.empty) {
+                // Sort in memory to get the most recent one
+                const clientTickets = snapshot.docs.map(d => ({ ...d.data(), createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0 })) as any[];
+                clientTickets.sort((a, b) => b.createdAt - a.createdAt);
+                
+                const lastTicket = clientTickets.find(t => t.locationArea || t.locationStreet || t.specificLocation);
+
+                if (lastTicket) {
+                    setFormData(prev => ({
+                        ...prev,
+                        locationArea: prev.locationArea || lastTicket.locationArea || "",
+                        specificLocation: prev.specificLocation || lastTicket.specificLocation || "",
+                        locationStreet: prev.locationStreet || lastTicket.locationStreet || "",
+                        locationHouseNumber: prev.locationHouseNumber || lastTicket.locationHouseNumber || "",
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching client's last ticket location:", error);
+        }
     };
 
     const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
