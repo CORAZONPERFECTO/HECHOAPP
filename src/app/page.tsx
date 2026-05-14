@@ -7,7 +7,7 @@ import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { collection, getCountFromServer, doc, getDoc, query, orderBy, onSnapshot, limit } from "firebase/firestore";
 import { AppCard } from "@/components/ui/app-card";
-import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit, Smartphone, Kanban, Briefcase } from "lucide-react";
+import { LogOut, Ticket, Users, Settings, MessageSquare, FileText, BarChart3, LayoutGrid, Wrench, Sparkles, BrainCircuit, Smartphone, Kanban, Briefcase, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as UserSchema } from "@/types/schema";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
