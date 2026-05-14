@@ -112,10 +112,10 @@ export function LocationInput({
     };
 
     // Build the open-in-maps URL
-    const mapsLink = value?.startsWith("http")
-        ? value
-        : value
-        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`
+    const mapsLink = value
+        ? extractFromWhatsApp(value).startsWith("http")
+            ? extractFromWhatsApp(value)
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`
         : null;
 
     return (
