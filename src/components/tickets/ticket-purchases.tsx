@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch-ui";
-import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2 } from "lucide-react";
+import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2, ShoppingCart } from "lucide-react";
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerPurchase, getPurchasesByTicket } from "@/lib/purchase-service";
 import { storage } from "@/lib/firebase";
