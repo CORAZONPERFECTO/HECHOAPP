@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, collection, query, where, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Upload, Camera } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Upload, Camera, Building2 } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -22,6 +22,30 @@ export default function TechnicianProjectDetailPage() {
 
     const [expandedZone, setExpandedZone] = useState<string | null>(null);
     const [expandedArea, setExpandedArea] = useState<string | null>(null);
+    const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+    const groupedZones = useMemo(() => {
+        const groups: Record<string, ProjectZone[]> = {};
+        zones.forEach(z => {
+            // Extract the alphabetic prefix before the first number
+            const match = z.name.match(/^([^0-9]+)/);
+            let groupName = match ? match[1].trim().toUpperCase() : "OTROS";
+            
+            if (!groups[groupName]) {
+                groups[groupName] = [];
+            }
+            groups[groupName].push(z);
+        });
+
+        return Object.entries(groups)
+            .map(([name, items]) => ({
+                name,
+                items: items.sort((a, b) => a.name.localeCompare(b.name)),
+                totalTalleres: items.reduce((acc, curr) => acc + curr.totalTalleres, 0),
+                completedTalleres: items.reduce((acc, curr) => acc + curr.completedTalleres, 0),
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [zones]);
 
     // Photo Upload Modal State
     const [selectedTaller, setSelectedTaller] = useState<{zoneId: string, areaId: string, taller: ProjectTaller} | null>(null);
@@ -176,83 +200,117 @@ export default function TechnicianProjectDetailPage() {
                 </div>
             </div>
 
-            <div className="px-4 space-y-3">
-                {zones.map((zone) => (
-                    <Card key={zone.id} className="overflow-hidden border-gray-200">
-                        {/* Zone Header (Click to expand) */}
-                        <div 
-                            className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
-                            onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
-                        >
-                            <div className="flex-1">
-                                <h3 className="font-bold text-gray-800">{zone.name}</h3>
-                                <p className="text-xs text-gray-500">
-                                    {zone.completedTalleres} / {zone.totalTalleres} completados
-                                </p>
+            <div className="px-4 space-y-4">
+                {groupedZones.map((group) => {
+                    const isGroupExpanded = expandedGroup === group.name;
+                    const groupProgress = group.totalTalleres > 0 ? (group.completedTalleres / group.totalTalleres) * 100 : 0;
+                    
+                    return (
+                        <div key={group.name} className="space-y-3">
+                            {/* Header del Grupo (ej. BLOQUE A) */}
+                            <div 
+                                className="flex items-center justify-between p-3 bg-white rounded-xl cursor-pointer border shadow-sm hover:border-blue-300 transition-colors"
+                                onClick={() => setExpandedGroup(isGroupExpanded ? null : group.name)}
+                            >
+                                <div className="flex-1">
+                                    <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                        <Building2 className="h-5 w-5 text-blue-600" />
+                                        {group.name}
+                                    </h2>
+                                    <p className="text-xs text-slate-500">{group.items.length} unidades registradas</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm font-bold text-slate-600">
+                                        {groupProgress.toFixed(0)}%
+                                    </span>
+                                    {isGroupExpanded ? <ChevronDown className="h-5 w-5 text-slate-400" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-bold text-blue-600">
-                                    {zone.progressPercentage?.toFixed(0) || 0}%
-                                </span>
-                                {expandedZone === zone.id ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
-                            </div>
-                        </div>
 
-                        {/* Areas Accordion */}
-                        {expandedZone === zone.id && (
-                            <div className="border-t border-gray-100 bg-slate-50">
-                                {zone.areas.map((area) => {
-                                    const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
-                                    const areaTotal = area.talleres.length;
-                                    const isAreaExpanded = expandedArea === area.id;
-
-                                    return (
-                                        <div key={area.id} className="border-b border-gray-100 last:border-0">
-                                            {/* Area Header */}
+                            {/* Contenido del Grupo (Las Zonas/Apartamentos) */}
+                            {isGroupExpanded && (
+                                <div className="pl-2 space-y-3 border-l-2 border-blue-100 ml-2 py-1">
+                                    {group.items.map((zone) => (
+                                        <Card key={zone.id} className="overflow-hidden border-gray-200">
+                                            {/* Zone Header (Click to expand) */}
                                             <div 
-                                                className="p-3 pl-6 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
-                                                onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
+                                                className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                                                onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
                                             >
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${areaCompleted === areaTotal ? 'bg-green-500' : 'bg-yellow-400'}`} />
-                                                    <span className="font-medium text-sm text-gray-700">{area.name}</span>
+                                                <div className="flex-1">
+                                                    <h3 className="font-bold text-gray-800">{zone.name}</h3>
+                                                    <p className="text-xs text-gray-500">
+                                                        {zone.completedTalleres} / {zone.totalTalleres} completados
+                                                    </p>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-400">{areaCompleted}/{areaTotal}</span>
-                                                    {isAreaExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-sm font-bold text-blue-600">
+                                                        {zone.progressPercentage?.toFixed(0) || 0}%
+                                                    </span>
+                                                    {expandedZone === zone.id ? <ChevronDown className="h-5 w-5 text-gray-400" /> : <ChevronRight className="h-5 w-5 text-gray-400" />}
                                                 </div>
                                             </div>
 
-                                            {/* Talleres List */}
-                                            {isAreaExpanded && (
-                                                <div className="bg-white p-2 pl-8 pb-4 space-y-1">
-                                                    {area.talleres.sort((a,b) => a.orderIndex - b.orderIndex).map((taller) => {
-                                                        const isCompleted = taller.status === 'COMPLETED';
+                                            {/* Areas Accordion */}
+                                            {expandedZone === zone.id && (
+                                                <div className="border-t border-gray-100 bg-slate-50">
+                                                    {zone.areas.map((area) => {
+                                                        const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
+                                                        const areaTotal = area.talleres.length;
+                                                        const isAreaExpanded = expandedArea === area.id;
+
                                                         return (
-                                                            <div 
-                                                                key={taller.id} 
-                                                                className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
-                                                                    isCompleted ? 'bg-green-50/50 border-green-100' : 'bg-white border-gray-100 hover:border-blue-200 cursor-pointer'
-                                                                }`}
-                                                                onClick={() => {
-                                                                    if (!isCompleted) {
-                                                                        setSelectedTaller({ zoneId: zone.id, areaId: area.id, taller });
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${
-                                                                        isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-gray-50'
-                                                                    }`}>
-                                                                        {isCompleted && <CheckCircle2 className="h-3 w-3" />}
+                                                            <div key={area.id} className="border-b border-gray-100 last:border-0">
+                                                                {/* Area Header */}
+                                                                <div 
+                                                                    className="p-3 pl-6 flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                                                                    onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className={`w-1.5 h-1.5 rounded-full ${areaCompleted === areaTotal ? 'bg-green-500' : 'bg-yellow-400'}`} />
+                                                                        <span className="font-medium text-sm text-gray-700">{area.name}</span>
                                                                     </div>
-                                                                    <span className={`text-sm ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-700 font-medium'}`}>
-                                                                        {taller.name}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-xs text-gray-400">{areaCompleted}/{areaTotal}</span>
+                                                                        {isAreaExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                                                                    </div>
                                                                 </div>
-                                                                {!isCompleted && (
-                                                                    <div className="h-6 w-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
-                                                                        <Camera className="h-3 w-3" />
+
+                                                                {/* Talleres List */}
+                                                                {isAreaExpanded && (
+                                                                    <div className="bg-white p-2 pl-8 pb-4 space-y-1">
+                                                                        {area.talleres.sort((a,b) => a.orderIndex - b.orderIndex).map((taller) => {
+                                                                            const isCompleted = taller.status === 'COMPLETED';
+                                                                            return (
+                                                                                <div 
+                                                                                    key={taller.id} 
+                                                                                    className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
+                                                                                        isCompleted ? 'bg-green-50/50 border-green-100' : 'bg-white border-gray-100 hover:border-blue-200 cursor-pointer'
+                                                                                    }`}
+                                                                                    onClick={() => {
+                                                                                        if (!isCompleted) {
+                                                                                            setSelectedTaller({ zoneId: zone.id, areaId: area.id, taller });
+                                                                                        }
+                                                                                    }}
+                                                                                >
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <div className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                                                                            isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 bg-gray-50'
+                                                                                        }`}>
+                                                                                            {isCompleted && <CheckCircle2 className="h-3 w-3" />}
+                                                                                        </div>
+                                                                                        <span className={`text-sm ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-700 font-medium'}`}>
+                                                                                            {taller.name}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {!isCompleted && (
+                                                                                        <div className="h-6 w-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center">
+                                                                                            <Camera className="h-3 w-3" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -260,13 +318,13 @@ export default function TechnicianProjectDetailPage() {
                                                     })}
                                                 </div>
                                             )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </Card>
-                ))}
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
             {/* Modal de Validación (Evidencia) */}
