@@ -5,6 +5,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { formatDistance, formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { Ticket, TicketEvent, TicketStatus, UserRole } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +31,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 
@@ -298,7 +300,19 @@ export default function TicketDetailPage() {
                     <TabsContent value="info" className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Detalles del Servicio</CardTitle>
+                                <CardTitle className="flex justify-between items-center">
+                                    <span>Detalles del Servicio</span>
+                                    {ticket.arrivedAt && (
+                                        <div className="text-sm font-normal px-3 py-1 bg-green-100 text-green-800 rounded-full flex items-center gap-2">
+                                            <Clock className="h-4 w-4" />
+                                            {ticket.closedAt ? 
+                                                `Tiempo Total: ${formatDistance(new Date(ticket.arrivedAt.seconds * 1000), new Date(ticket.closedAt.seconds * 1000), { locale: es })}`
+                                                : 
+                                                `Tiempo Transcurrido: ${formatDistanceToNow(new Date(ticket.arrivedAt.seconds * 1000), { locale: es })}`
+                                            }
+                                        </div>
+                                    )}
+                                </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4 text-sm">

@@ -80,6 +80,11 @@ export interface Ticket {
     schedulingNote?: string; // Note from client if they couldn't pick a date
     closedAt?: Timestamp; // Actual closing time
 
+    // Time Tracking (New)
+    enRouteAt?: Timestamp; // When technician started moving towards location
+    arrivedAt?: Timestamp; // When technician arrived at the location
+    workStartedAt?: Timestamp; // When actual work started
+    
     // Profitability Fields
     laborHours?: number; // Hours worked on this ticket
     laborRate?: number; // Hourly rate (RD$/hour)

@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
+import { StartServiceCard } from "@/components/technician/start-service-card";
 
 // FORZAR ACTUALIZACION VERCEL - VERSION 2.0 TABS
 export default function TechnicianTicketPage() {
@@ -271,6 +272,8 @@ export default function TechnicianTicketPage() {
 
                     {/* Info Tab */}
                     <TabsContent value="info" className="space-y-4">
+                        <StartServiceCard ticket={ticket} onStart={fetchTicket} />
+                        
                         {/* Cliente */}
                         <Card>
                             <CardHeader className="pb-2">
