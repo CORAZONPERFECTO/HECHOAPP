@@ -58,6 +58,7 @@ export interface Ticket {
     technicianId?: string;
     technicianName?: string;
     tecnicoAsignadoId?: string;
+    extraServices?: string[]; // Multiple additional services added by admin/manager
     creadoPorId?: string;
     diagnosis?: string;
     solution?: string;

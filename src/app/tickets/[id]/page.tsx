@@ -286,7 +286,28 @@ export default function TicketDetailPage() {
 
                                     <div>
                                         <span className="text-gray-500 block">Tipo de Servicio</span>
-                                        <span className="font-medium">{ticket.serviceType.replace(/_/g, ' ')}</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-medium">{ticket.serviceType.replace(/_/g, ' ')}</span>
+                                            {ticket.extraServices?.map(es => (
+                                                <span key={es} className="font-medium text-blue-600">+ {es.replace(/_/g, ' ')}</span>
+                                            ))}
+                                            {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="w-fit h-6 text-xs mt-1 border border-dashed border-gray-300"
+                                                    onClick={() => {
+                                                        const sv = prompt("Escribe el nombre del servicio adicional (ej: MANTENIMIENTO, REPARACION):");
+                                                        if (sv) {
+                                                            const arr = ticket.extraServices || [];
+                                                            setTicket({ ...ticket, extraServices: [...arr, sv.toUpperCase()] });
+                                                        }
+                                                    }}
+                                                >
+                                                    + Agregar Servicio
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div>
                                         <span className="text-gray-500 block">Prioridad</span>
@@ -311,22 +332,31 @@ export default function TicketDetailPage() {
                                         <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>
                                     </div>
 
-                                    {/* 📍 LOCATION LINK — Visible to managers/admins to paste WhatsApp location */}
-                                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
-                                        <div className="col-span-2">
-                                            <LocationInput
-                                                label="Ubicación del Cliente"
-                                                value={ticket.locationUrl || ticket.locationName || ""}
-                                                onChange={(val) => setTicket({ ...ticket, locationUrl: val, locationName: val })}
-                                                placeholder="Pega el link de Google Maps o WhatsApp del cliente..."
-                                                showGpsButton={false}
-                                                showOpenLink={true}
-                                            />
+                                    {/* 📍 LOCATION LINK — Readonly for Technicians, editable for Admin/Managers */}
+                                    <div className="col-span-2">
+                                        <LocationInput
+                                            label="Ubicación del Cliente"
+                                            value={ticket.locationUrl || ticket.locationName || ""}
+                                            onChange={(val) => {
+                                                if (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') {
+                                                    setTicket({ ...ticket, locationUrl: val, locationName: val });
+                                                }
+                                            }}
+                                            placeholder={
+                                                (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS')
+                                                ? "Pega el link de Google Maps o WhatsApp del cliente..."
+                                                : "Dirección de servicio"
+                                            }
+                                            showGpsButton={false}
+                                            showOpenLink={true}
+                                            disabled={!(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS')}
+                                        />
+                                        {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
                                             <p className="text-xs text-gray-400 mt-1">
                                                 💡 El técnico podrá abrir esta ubicación directamente desde su app.
                                             </p>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
 
                                     <div className="col-span-2 flex items-center gap-2 mt-2 p-3 border rounded-md bg-gray-50">
                                         <input

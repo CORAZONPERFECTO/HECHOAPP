@@ -24,6 +24,7 @@ function ResourcesContent() {
     // Initialize tab from URL or default to personnel
     const [activeTab, setActiveTab] = useState("personnel");
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | undefined>(undefined);
+    const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
     // Personnel View State
@@ -46,18 +47,19 @@ function ResourcesContent() {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // Super Admin Override
+                setCurrentUserId(user.uid);
                 if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
                     setCurrentUserRole('ADMIN');
                 } else {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists()) {
-                        const role = userDoc.data().role as UserRole;
+                        const role = userDoc.data().role || userDoc.data().rol as UserRole;
                         setCurrentUserRole(role);
 
-                        // If user is Technician, default to errors tab ONLY if no URL param overrides it
+                        // If user is Technician, default to personnel (so they can see their profile) or errors if param says so
                         const tabParam = searchParams.get("tab");
                         if (role === 'TECNICO' && !tabParam) {
-                            setActiveTab("errors");
+                            setActiveTab("personnel");
                         }
                     }
                 }
@@ -104,7 +106,7 @@ function ResourcesContent() {
         return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>;
     }
 
-    const canViewPersonnel = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE';
+    const canViewPersonnel = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE' || currentUserRole === 'TECNICO';
     const canViewCompany = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE';
 
     return (
@@ -138,7 +140,12 @@ function ResourcesContent() {
                 {canViewPersonnel && (
                     <TabsContent value="personnel" className="outline-none">
                         {personnelView === 'list' ? (
-                            <PersonnelList onSelect={handleSelectPerson} onNew={handleNewPerson} />
+                            <PersonnelList 
+                                onSelect={handleSelectPerson} 
+                                onNew={handleNewPerson} 
+                                currentUserRole={currentUserRole}
+                                currentUserId={currentUserId}
+                            />
                         ) : (
                             <PersonnelDetail
                                 person={selectedPerson}

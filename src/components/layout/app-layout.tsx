@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import { RoleGuard } from "./role-guard";
 import { LocationTracker } from "./location-tracker";
+import { MileagePromptModal } from "@/components/technician/mileage-prompt-modal";
 
 interface AppLayoutProps {
     children: React.ReactNode;
@@ -16,9 +17,9 @@ const superAdminRoutes = [
     "/income", "/reports", "/settings", "/admin", "/approvals", "/technicians"
 ];
 
-// Rutas de operación (tickets, clientes)
+// Rutas de operación (tickets, clientes, proyectos)
 const operationRoutes = [
-    "/tickets", "/clients", "/inventory"
+    "/tickets", "/clients", "/inventory", "/projects"
 ];
 
 export function AppLayout({ children, className }: AppLayoutProps) {
@@ -57,6 +58,8 @@ export function AppLayout({ children, className }: AppLayoutProps) {
                     )}
                 </div>
             </main>
+
+            <MileagePromptModal />
         </div>
     );
 }

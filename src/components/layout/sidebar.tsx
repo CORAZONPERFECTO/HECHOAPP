@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 const adminMenuItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
+    { label: "Proyectos", icon: Building2, href: "/projects", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
     { label: "Torre Tickets", icon: Ticket, href: "/tickets", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
     { label: "Facturas", icon: Files, href: "/income/invoices", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recurrentes", icon: Repeat, href: "/income/recurring", roles: ["ADMIN", "SUPERVISOR"] },
@@ -36,6 +37,7 @@ const adminMenuItems = [
     { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
+    { label: "Mis Proyectos", icon: Building2, href: "/technician/projects", roles: ["TECNICO"] },
     { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
     { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },

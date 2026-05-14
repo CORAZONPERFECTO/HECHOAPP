@@ -72,15 +72,22 @@ export function PersonnelDetail({ person, onBack, onSave }: PersonnelDetailProps
         }
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'cedulaUrl' | 'licenseUrl' | 'carnetUrl' | 'documents') => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             const reader = new FileReader();
             reader.onloadend = () => {
-                setFormData(prev => ({
-                    ...prev,
-                    documents: [...prev.documents, reader.result as string]
-                }));
+                if (field === 'documents') {
+                    setFormData(prev => ({
+                        ...prev,
+                        documents: [...prev.documents, reader.result as string]
+                    }));
+                } else {
+                    setFormData(prev => ({
+                        ...prev,
+                        [field]: reader.result as string
+                    }));
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -268,14 +275,114 @@ export function PersonnelDetail({ person, onBack, onSave }: PersonnelDetailProps
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex justify-between items-center">
-                                Documentos
+                            <CardTitle className="text-lg">Documentos Especiales</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Cédula Upload */}
+                            <div className="space-y-2">
+                                <Label className="flex justify-between items-center">
+                                    Cédula (Foto)
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            onChange={(e) => handleFileUpload(e, 'cedulaUrl')}
+                                        />
+                                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                                            <Upload className="h-3 w-3 mr-1" /> Subir
+                                        </Button>
+                                    </div>
+                                </Label>
+                                {formData.cedulaUrl ? (
+                                    <div className="relative border rounded-lg overflow-hidden aspect-video bg-gray-100">
+                                        <Image src={formData.cedulaUrl} alt="Cédula" fill className="object-cover" />
+                                        <button
+                                            onClick={() => setFormData({ ...formData, cedulaUrl: undefined })}
+                                            className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full"
+                                        >
+                                            <XIcon className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-gray-400">No se ha subido cédula</p>
+                                )}
+                            </div>
+
+                            {/* Licencia Upload */}
+                            <div className="space-y-2">
+                                <Label className="flex justify-between items-center">
+                                    Licencia de Conducir (Foto)
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            onChange={(e) => handleFileUpload(e, 'licenseUrl')}
+                                        />
+                                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                                            <Upload className="h-3 w-3 mr-1" /> Subir
+                                        </Button>
+                                    </div>
+                                </Label>
+                                {formData.licenseUrl ? (
+                                    <div className="relative border rounded-lg overflow-hidden aspect-video bg-gray-100">
+                                        <Image src={formData.licenseUrl} alt="Licencia" fill className="object-cover" />
+                                        <button
+                                            onClick={() => setFormData({ ...formData, licenseUrl: undefined })}
+                                            className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full"
+                                        >
+                                            <XIcon className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-gray-400">No se ha subido licencia</p>
+                                )}
+                            </div>
+
+                            {/* Carnet Upload */}
+                            <div className="space-y-2">
+                                <Label className="flex justify-between items-center">
+                                    Carnet de la Zona
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            onChange={(e) => handleFileUpload(e, 'carnetUrl')}
+                                        />
+                                        <Button size="sm" variant="outline" className="h-6 px-2 text-xs">
+                                            <Upload className="h-3 w-3 mr-1" /> Subir
+                                        </Button>
+                                    </div>
+                                </Label>
+                                {formData.carnetUrl ? (
+                                    <div className="relative border rounded-lg overflow-hidden aspect-video bg-gray-100">
+                                        <Image src={formData.carnetUrl} alt="Carnet" fill className="object-cover" />
+                                        <button
+                                            onClick={() => setFormData({ ...formData, carnetUrl: undefined })}
+                                            className="absolute top-1 right-1 bg-black/50 text-white p-1 rounded-full"
+                                        >
+                                            <XIcon className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-gray-400">No se ha subido carnet</p>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex justify-between items-center text-lg">
+                                Otros Documentos
                                 <div className="relative">
                                     <input
                                         type="file"
                                         accept="image/*"
                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        onChange={handleFileUpload}
+                                        onChange={(e) => handleFileUpload(e, 'documents')}
                                     />
                                     <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                                         <Upload className="h-4 w-4" />
@@ -285,7 +392,7 @@ export function PersonnelDetail({ person, onBack, onSave }: PersonnelDetailProps
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {formData.documents.length === 0 && (
-                                <p className="text-sm text-gray-400 text-center py-4">Sin documentos</p>
+                                <p className="text-sm text-gray-400 text-center py-4">Sin documentos extra</p>
                             )}
                             {formData.documents.map((docUrl, idx) => (
                                 <div key={idx} className="relative group border rounded-lg overflow-hidden aspect-video bg-gray-100">

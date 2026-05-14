@@ -16,6 +16,7 @@ interface LocationInputProps {
     showGpsButton?: boolean;
     /** If true, shows a "Open in Maps" link when value is present */
     showOpenLink?: boolean;
+    disabled?: boolean;
 }
 
 /**
@@ -56,6 +57,7 @@ export function LocationInput({
     className,
     showGpsButton = false,
     showOpenLink = true,
+    disabled = false,
 }: LocationInputProps) {
     const [gpsLoading, setGpsLoading] = useState(false);
     const [gpsError, setGpsError] = useState("");
@@ -154,10 +156,11 @@ export function LocationInput({
                         onPaste={handlePaste}
                         placeholder={placeholder}
                         className="pl-9 text-sm"
+                        disabled={disabled}
                     />
                 </div>
 
-                {showGpsButton && (
+                {showGpsButton && !disabled && (
                     <Button
                         type="button"
                         variant="outline"

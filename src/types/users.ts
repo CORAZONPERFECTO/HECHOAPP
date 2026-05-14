@@ -61,6 +61,10 @@ export interface PersonnelResource {
     email?: string;
     notes?: string;
     documents: string[]; // Array of URLs
+    cedulaUrl?: string;
+    licenseUrl?: string;
+    carnetUrl?: string;
+    userId?: string; // Link to auth user if they have an account
     active: boolean;
     createdAt?: Timestamp | Date;
     updatedAt?: Timestamp | Date;

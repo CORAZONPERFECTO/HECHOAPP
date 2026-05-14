@@ -1,9 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // DEV MODE: Allow everything
-    match /{document=**} {
-      allow read, write: if true;
+    
+    // Función básica para verificar autenticación
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Obtener rol del usuario (hace 1 read en servidor)
+    function getUserRole() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc == null ? null : (userDoc.data.rol != null ? userDoc.data.rol : userDoc.data.role);
+    }
+
+    // Comprobar si es un rol gerencial o admin
+    function isManager() {
+      let role = getUserRole();
+      return isAuth() && (
+        (request.auth.token.email != null && request.auth.token.email == 'lcaa27@gmail.com') ||
+        role == 'ADMIN' || 
+        role == 'GERENTE' || 
+        role == 'GERENTE_TICKETS' || 
+        role == 'SUPERVISOR'
+      );
+    }
+
+    // 1) REGLAS DE SEGURIDAD ESTRICTA: Colección de Usuarios
+    // Impide que un TECNICO (o cualquier rol no admin) lea o modifique perfiles de otros
+    match /users/{userId} {
+      allow read, write: if isAuth() && (request.auth.uid == userId || isManager());
+      
+      // Permitir acceso a subcolecciones (ej. notificaciones) solo al dueño o admin
+      match /{document=**} {
+        allow read, write: if isAuth() && (request.auth.uid == userId || isManager());
+      }
+    }
+
+    // 2) REGLAS DE SEGURIDAD ESTRICTA: Colección de Recursos/Personal
+    // Impide que un TECNICO vea los documentos sensibles de otros empleados
+    match /personnel/{personnelId} {
+      allow read: if isAuth() && (isManager() || (resource != null && resource.data.userId == request.auth.uid));
+      allow write: if isAuth() && (isManager() || (
+        (request.method == 'create' && request.resource.data.userId == request.auth.uid) || 
+        (request.method != 'create' && resource != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid)
+      ));
+    }
+
+    // 3) RESTO DE COLECCIONES (Tickets, Inventario, Finanzas, etc.)
+    // Permitido a usuarios autenticados para que la operativa del sistema funcione.
+    // La seguridad fina de módulos se maneja en el FrontEnd, excepto para usuarios/personal.
+    match /{colId}/{docId} {
+      allow read, write: if isAuth() && colId != 'users' && colId != 'personnel';
+      
+      // Manejar subcolecciones
+      match /{document=**} {
+        allow read, write: if isAuth() && colId != 'users' && colId != 'personnel';
+      }
     }
   }
 }

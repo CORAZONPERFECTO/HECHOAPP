@@ -13,16 +13,21 @@ import { db } from "@/lib/firebase";
 interface PersonnelListProps {
     onSelect: (person: PersonnelResource) => void;
     onNew: () => void;
+    currentUserRole?: string;
+    currentUserId?: string;
 }
 
-export function PersonnelList({ onSelect, onNew }: PersonnelListProps) {
+export function PersonnelList({ onSelect, onNew, currentUserRole, currentUserId }: PersonnelListProps) {
     const [personnel, setPersonnel] = useState<PersonnelResource[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterType, setFilterType] = useState<string>("ALL");
     const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
-        const q = query(collection(db, "personnel"), orderBy("fullName"));
+        let q = query(collection(db, "personnel"), orderBy("fullName"));
+        if (currentUserRole === 'TECNICO' && currentUserId) {
+            q = query(collection(db, "personnel"), where("userId", "==", currentUserId));
+        }
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PersonnelResource));
             setPersonnel(data);
@@ -52,23 +57,27 @@ export function PersonnelList({ onSelect, onNew }: PersonnelListProps) {
                     />
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                    <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="Tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Todos</SelectItem>
-                            <SelectItem value="EMPLEADO">Empleados</SelectItem>
-                            <SelectItem value="TECNICO">Técnicos</SelectItem>
-                            <SelectItem value="CONTRATISTA">Contratistas</SelectItem>
-                            <SelectItem value="AYUDANTE">Ayudantes</SelectItem>
-                            <SelectItem value="GERENTE">Gerentes</SelectItem>
-                            <SelectItem value="ADMINISTRATIVO">Admin.</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={onNew} className="gap-2">
-                        <Plus className="h-4 w-4" /> Nuevo
-                    </Button>
+                    {currentUserRole !== 'TECNICO' && (
+                        <Select value={filterType} onValueChange={setFilterType}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Todos</SelectItem>
+                                <SelectItem value="EMPLEADO">Empleados</SelectItem>
+                                <SelectItem value="TECNICO">Técnicos</SelectItem>
+                                <SelectItem value="CONTRATISTA">Contratistas</SelectItem>
+                                <SelectItem value="AYUDANTE">Ayudantes</SelectItem>
+                                <SelectItem value="GERENTE">Gerentes</SelectItem>
+                                <SelectItem value="ADMINISTRATIVO">Admin.</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
+                    {currentUserRole !== 'TECNICO' && (
+                        <Button onClick={onNew} className="gap-2">
+                            <Plus className="h-4 w-4" /> Nuevo
+                        </Button>
+                    )}
                 </div>
             </div>
 
