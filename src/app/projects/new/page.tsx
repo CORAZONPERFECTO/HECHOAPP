@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy, Grid3X3 } from "lucide-react";
 import Link from "next/link";
 import { collection, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { DEFAULT_TALLERES_TEMPLATES, ProjectTallerTemplate, ProjectZone, ProjectArea, ProjectTaller, Project } from "@/types/projects";
+import { MatrixGeneratorModal } from "@/components/projects/matrix-generator-modal";
 
 export default function NewProjectPage() {
     const router = useRouter();
@@ -36,6 +37,9 @@ export default function NewProjectPage() {
     const [zones, setZones] = useState<{ id: string; name: string; areas: { id: string; name: string }[] }[]>([
         { id: crypto.randomUUID(), name: "Bloque A / Nivel 1", areas: [{ id: crypto.randomUUID(), name: "Habitación Principal" }] }
     ]);
+
+    const [showMatrixModal, setShowMatrixModal] = useState(false);
+    const [matrixBaseZone, setMatrixBaseZone] = useState<{ id: string; name: string; areas: { id: string; name: string }[] } | null>(null);
 
     const handleAddTemplate = () => {
         setTemplates([
@@ -349,14 +353,26 @@ export default function NewProjectPage() {
 
             {step === 3 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex justify-between items-center bg-blue-50 p-4 rounded-lg border border-blue-100">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-blue-50 p-4 rounded-lg border border-blue-100 gap-4">
                         <div>
                             <h3 className="font-semibold text-blue-900">Estructura del Proyecto</h3>
                             <p className="text-sm text-blue-700">Define las Zonas (Ej. Apartamentos) y sus Áreas (Ej. Habitaciones). Cada área recibirá la plantilla de {templates.length} hitos automáticamente.</p>
                         </div>
-                        <Button onClick={handleAddZone} className="bg-blue-600 hover:bg-blue-700">
-                            <Plus className="h-4 w-4 mr-2" /> Agregar Zona
-                        </Button>
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <Button 
+                                onClick={() => {
+                                    setMatrixBaseZone(zones[0] || { id: "", name: "", areas: [] });
+                                    setShowMatrixModal(true);
+                                }} 
+                                variant="outline" 
+                                className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 flex-1 md:flex-none"
+                            >
+                                <Grid3X3 className="h-4 w-4 mr-2" /> Generar Matriz
+                            </Button>
+                            <Button onClick={handleAddZone} className="bg-blue-600 hover:bg-blue-700 flex-1 md:flex-none">
+                                <Plus className="h-4 w-4 mr-2" /> Agregar Zona
+                            </Button>
+                        </div>
                     </div>
 
                     {zones.map((zone, zIndex) => (
@@ -443,6 +459,15 @@ export default function NewProjectPage() {
                     ))}
                 </div>
             )}
+            {/* Modal Matrix Generator */}
+            <MatrixGeneratorModal 
+                open={showMatrixModal}
+                onOpenChange={setShowMatrixModal}
+                baseAreas={matrixBaseZone?.areas || []}
+                onGenerate={(generatedZones) => {
+                    setZones([...zones, ...generatedZones]);
+                }}
+            />
         </div>
     );
 }
