@@ -52,6 +52,7 @@ export function TicketTimeline({ events, ticketId, currentUserId, currentUserNam
             case 'ASIGNACION': return <User className="h-4 w-4 text-purple-500" />;
             case 'COMMENT': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
             case 'PHOTO_UPLOAD': return <ImageIcon className="h-4 w-4 text-pink-500" />;
+            case 'TOOL_REPORT': return <AlertCircle className="h-4 w-4 text-orange-600" />;
             default: return <AlertCircle className="h-4 w-4 text-gray-400" />;
         }
     };

@@ -89,6 +89,27 @@ export function StatusActionButtons({ ticket, onStatusChange }: StatusActionButt
                 updates.workStartedAt = serverTimestamp();
             } else if (action.label.includes("Terminado")) {
                 updates.resolvedAt = serverTimestamp();
+
+                // Check for incomplete checklist/materials
+                const pendingChecklist = (ticket.checklist || []).filter(item => !item.checked);
+                const pendingMaterials = (ticket.materialsChecklist || []).filter(item => !item.checked);
+                
+                if (pendingChecklist.length > 0 || pendingMaterials.length > 0) {
+                    import("firebase/firestore").then(({ addDoc, collection }) => {
+                        addDoc(collection(db, "ticketEvents"), {
+                            ticketId: ticket.id,
+                            userId: "system",
+                            userName: "Sistema Automático",
+                            type: "COMMENT",
+                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó ítems sin verificar:\n\n${
+                                pendingChecklist.length > 0 ? `Pasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}\n` : ""
+                            }${
+                                pendingMaterials.length > 0 ? `Materiales no usados/marcados: ${pendingMaterials.map(i => i.text).join(", ")}` : ""
+                            }`,
+                            timestamp: serverTimestamp()
+                        }).catch(console.error);
+                    });
+                }
             }
 
             await updateDoc(doc(db, "tickets", ticket.id), updates);

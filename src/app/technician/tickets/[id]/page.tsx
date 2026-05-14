@@ -8,7 +8,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { InterventionForm } from "@/components/hvac/intervention-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
+import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 
 // FORZAR ACTUALIZACION VERCEL - VERSION 2.0 TABS
@@ -45,6 +46,8 @@ export default function TechnicianTicketPage() {
     // Offline sync
     const { isOnline, isSyncing, pendingOperations, saveOffline } = useOfflineSync();
 
+    const [ticketEvents, setTicketEvents] = useState<any[]>([]);
+
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((u) => {
             setUser(u);
@@ -60,6 +63,17 @@ export default function TechnicianTicketPage() {
         });
         return () => unsubscribe();
     }, [id]);
+
+    useEffect(() => {
+        if (!id || !permissionsGranted) return;
+        import("firebase/firestore").then(({ query, collection, where, onSnapshot }) => {
+            const q = query(collection(db, "ticketEvents"), where("ticketId", "==", id));
+            const unsub = onSnapshot(q, snap => {
+                setTicketEvents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            });
+            return () => unsub();
+        });
+    }, [id, permissionsGranted]);
 
     const fetchTicket = async () => {
         if (!id) return;
@@ -240,6 +254,7 @@ export default function TechnicianTicketPage() {
                                 { value: "fotos",     label: "Fotos",     icon: <Camera className="h-4 w-4" /> },
                                 { value: "reporte",   label: "Reporte",   icon: <FileText className="h-4 w-4" /> },
                                 { value: "compras",   label: "Compras",   icon: <ShoppingCart className="h-4 w-4" /> },
+                                { value: "herramientas", label: "Herramientas", icon: <Wrench className="h-4 w-4" /> },
                                 { value: "cierre",    label: "Cierre",    icon: <CheckCircle className="h-4 w-4" /> },
                             ] as const).map(tab => (
                                 <TabsTrigger
@@ -530,6 +545,15 @@ export default function TechnicianTicketPage() {
                         </Card>
                     </TabsContent>
 
+                    {/* Herramientas Tab */}
+                    <TabsContent value="herramientas" className="space-y-4">
+                        <TicketToolsReport 
+                            ticket={ticket} 
+                            currentUser={{ id: user.uid, name: user.displayName || user.email || "Técnico" }}
+                            events={ticketEvents}
+                        />
+                    </TabsContent>
+
                     {/* Cierre Tab */}
                     <TabsContent value="cierre" className="space-y-6">
                         <Card>
@@ -576,6 +600,28 @@ export default function TechnicianTicketPage() {
                             technicianName={user.displayName || user.email || "Técnico"}
                             onSuccess={async () => {
                                 setIsInterventionOpen(false);
+                                
+                                // Create checklist alert
+                                const pendingChecklist = (ticket.checklist || []).filter(item => !item.checked);
+                                const pendingMaterials = (ticket.materialsChecklist || []).filter(item => !item.checked);
+                                
+                                if (pendingChecklist.length > 0 || pendingMaterials.length > 0) {
+                                    import("firebase/firestore").then(({ addDoc, collection }) => {
+                                        addDoc(collection(db, "ticketEvents"), {
+                                            ticketId: ticket.id,
+                                            userId: "system",
+                                            userName: "Sistema Automático",
+                                            type: "COMMENT",
+                                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó ítems sin verificar:\n\n${
+                                                pendingChecklist.length > 0 ? `Pasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}\n` : ""
+                                            }${
+                                                pendingMaterials.length > 0 ? `Materiales no usados/marcados: ${pendingMaterials.map(i => i.text).join(", ")}` : ""
+                                            }`,
+                                            timestamp: serverTimestamp()
+                                        }).catch(console.error);
+                                    });
+                                }
+
                                 // Complete Ticket
                                 await updateDoc(doc(db, "tickets", ticket.id!), {
                                     status: 'COMPLETED',
