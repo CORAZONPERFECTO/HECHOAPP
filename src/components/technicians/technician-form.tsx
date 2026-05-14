@@ -222,6 +222,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                             <SelectItem value="SUPERVISOR">🔵 Supervisor</SelectItem>
                             <SelectItem value="GERENTE_TICKETS">🎫 Gerente de Tickets</SelectItem>
                             <SelectItem value="TECNICO">🔧 Técnico de Campo</SelectItem>
+                            <SelectItem value="CONTRATISTA">👷‍♂️ Contratista Externo</SelectItem>
                             <SelectItem value="CLIENTE">👤 Cliente</SelectItem>
                         </SelectContent>
                     </Select>
@@ -244,7 +245,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                 </div>
             </div>
 
-            {formData.rol === "TECNICO" && (
+            {(formData.rol === "TECNICO" || formData.rol === "CONTRATISTA") && (
                 <div className="pt-6 border-t border-gray-100">
                     <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
                         <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">

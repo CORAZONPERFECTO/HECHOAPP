@@ -55,7 +55,7 @@ export function DispatchOrderModal() {
     useEffect(() => {
         if (!open) return;
         const fetchTechs = async () => {
-            const q = query(collection(db, "users"), where("rol", "in", ["TECNICO"]));
+            const q = query(collection(db, "users"), where("rol", "in", ["TECNICO", "CONTRATISTA"]));
             // We should ideally fetch all who can have tickets, maybe SUPERVISOR too.
             // But let's fetch everyone that has rol TECNICO. If needed, we can expand.
             const snap = await getDocs(q);

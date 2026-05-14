@@ -37,12 +37,12 @@ const adminMenuItems = [
     { label: "Clientes", icon: Users, href: "/clients", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Mis Proyectos", icon: Building2, href: "/technician/projects", roles: ["TECNICO"] },
-    { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO"] },
-    { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
+    { label: "Mis Proyectos", icon: Building2, href: "/technician/projects", roles: ["TECNICO", "CONTRATISTA"] },
+    { label: "Tickets", icon: Ticket, href: "/technician/my-day", roles: ["TECNICO", "CONTRATISTA"] },
+    { label: "Mensajes", icon: MessageSquare, href: "#", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "CONTRATISTA", "GERENTE_TICKETS"] },
     { label: "Reportes", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Ubicación", icon: MapPin, href: "/admin/tracking", roles: ["ADMIN", "SUPERVISOR"] },
-    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO"] },
+    { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "CONTRATISTA"] },
     { label: "Control Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
     { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },
 ];
@@ -84,7 +84,7 @@ export function Sidebar() {
         !userRole || item.roles.includes(userRole)
     );
 
-    const isTechnician = userRole === "TECNICO";
+    const isTechnician = userRole === "TECNICO" || userRole === "CONTRATISTA";
 
     return (
         <>
@@ -213,7 +213,7 @@ export function Sidebar() {
                             )}
                         >
                             <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-                                {userRole === "TECNICO" ? "T" : userRole === "GERENTE_TICKETS" ? "GT" : "A"}
+                                {userRole === "TECNICO" ? "T" : userRole === "CONTRATISTA" ? "C" : userRole === "GERENTE_TICKETS" ? "GT" : "A"}
                             </div>
                             {!collapsed && (
                                 <div className="flex-1 min-w-0 text-left">

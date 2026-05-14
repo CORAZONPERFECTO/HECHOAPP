@@ -57,7 +57,7 @@ export function PersonnelList({ onSelect, onNew, currentUserRole, currentUserId 
                     />
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
-                    {currentUserRole !== 'TECNICO' && (
+                    {currentUserRole !== 'TECNICO' && currentUserRole !== 'CONTRATISTA' && (
                         <Select value={filterType} onValueChange={setFilterType}>
                             <SelectTrigger className="w-[140px]">
                                 <SelectValue placeholder="Tipo" />
@@ -73,7 +73,7 @@ export function PersonnelList({ onSelect, onNew, currentUserRole, currentUserId 
                             </SelectContent>
                         </Select>
                     )}
-                    {currentUserRole !== 'TECNICO' && (
+                    {currentUserRole !== 'TECNICO' && currentUserRole !== 'CONTRATISTA' && (
                         <Button onClick={onNew} className="gap-2">
                             <Plus className="h-4 w-4" /> Nuevo
                         </Button>

@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/layout/role-guard";
 
 export default function MyDayPage() {
     return (
-        <RoleGuard allowedRoles={["TECNICO", "ADMIN"]}>
+        <RoleGuard allowedRoles={["TECNICO", "ADMIN", "CONTRATISTA"]}>
             <MyDayView />
         </RoleGuard>
     );

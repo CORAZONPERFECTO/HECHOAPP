@@ -48,7 +48,7 @@ export function LocationManager() {
 
             const [locs, usersSnap] = await Promise.all([
                 getLocations(),
-                getDocs(query(collection(db, "users"), where("role", "==", "TECNICO")))
+                getDocs(query(collection(db, "users"), where("rol", "in", ["TECNICO", "CONTRATISTA"])))
             ]);
 
             setLocations(locs);

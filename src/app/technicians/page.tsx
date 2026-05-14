@@ -16,6 +16,7 @@ const ROL_LABELS: Record<string, string> = {
     GERENTE: "Gerente",
     GERENTE_TICKETS: "Gerente de Tickets",
     TECNICO: "Técnico",
+    CONTRATISTA: "Contratista",
     CLIENTE: "Cliente",
 };
 
@@ -25,6 +26,7 @@ const ROL_COLORS: Record<string, string> = {
     GERENTE: "bg-blue-100 text-blue-700 border-blue-200",
     GERENTE_TICKETS: "bg-indigo-100 text-indigo-700 border-indigo-200",
     TECNICO: "bg-green-100 text-green-700 border-green-200",
+    CONTRATISTA: "bg-orange-100 text-orange-700 border-orange-200",
     CLIENTE: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
@@ -34,6 +36,7 @@ const FILTER_TABS = [
     { label: "Supervisores", value: "SUPERVISOR" },
     { label: "Ger. Tickets", value: "GERENTE_TICKETS" },
     { label: "Técnicos", value: "TECNICO" },
+    { label: "Contratistas", value: "CONTRATISTA" },
     { label: "Clientes", value: "CLIENTE" },
 ];
 

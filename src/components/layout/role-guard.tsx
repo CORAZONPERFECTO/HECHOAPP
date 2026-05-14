@@ -52,7 +52,7 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                     if (allowedRoles.includes(userRole)) {
                         setIsAuthorized(true);
                     } else {
-                        if (userRole === "TECNICO") {
+                        if (userRole === "TECNICO" || userRole === "CONTRATISTA") {
                             router.push("/technician/my-day");
                         } else {
                             router.push("/");

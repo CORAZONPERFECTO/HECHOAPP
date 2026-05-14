@@ -38,7 +38,7 @@ export function TechnicianSelector({ value, onSelect }: TechnicianSelectorProps)
         const fetchTechnicians = async () => {
             setLoading(true);
             try {
-                const q = query(collection(db, "users"), where("rol", "==", "TECNICO"));
+                const q = query(collection(db, "users"), where("rol", "in", ["TECNICO", "CONTRATISTA"]));
                 const snapshot = await getDocs(q);
                 const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
                 setTechnicians(data);

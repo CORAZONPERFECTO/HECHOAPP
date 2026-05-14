@@ -30,7 +30,7 @@ export function LocationTracker() {
 
     // 2. Track location if user is TECNICO
     useEffect(() => {
-        if (!role || role !== "TECNICO") return;
+        if (!role || (role !== "TECNICO" && role !== "CONTRATISTA")) return;
         
         const updateLocation = () => {
             if ("geolocation" in navigator) {
@@ -74,7 +74,7 @@ export function LocationTracker() {
     }, [role]);
 
     // Show warning if permission denied
-    if (hasPermission === false && role === "TECNICO") {
+    if (hasPermission === false && (role === "TECNICO" || role === "CONTRATISTA")) {
         return (
             <div className="fixed bottom-4 left-4 right-4 bg-red-100 border border-red-300 text-red-800 p-3 rounded-lg text-sm z-50 shadow-lg">
                 ⚠️ <strong>Permiso de ubicación denegado.</strong> Para recibir tickets, debes permitir el acceso a tu ubicación en el navegador.
