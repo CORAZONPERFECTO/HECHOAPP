@@ -27,7 +27,7 @@ import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { StartServiceCard } from "@/components/technician/start-service-card";
 
-// FORZAR ACTUALIZACION VERCEL - VERSION 2.0 TABS
+// FORZAR ACTUALIZACION VERCEL - VERSION 3.0 TABS, MATERIALES Y HERRAMIENTAS
 export default function TechnicianTicketPage() {
     const params = useParams();
     const id = params?.id as string;
@@ -395,6 +395,30 @@ export default function TechnicianTicketPage() {
                                     }}
                                     readOnly={false}
                                 />
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base text-blue-700">Materiales a Utilizar</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {(!ticket.materialsChecklist || ticket.materialsChecklist.length === 0) ? (
+                                    <p className="text-sm text-gray-500 italic">No se agregaron materiales para este servicio.</p>
+                                ) : (
+                                    <ChecklistRenderer
+                                        items={ticket.materialsChecklist}
+                                        onItemChange={(id, checked) => {
+                                            setTicket(prev => {
+                                                if (!prev) return prev;
+                                                return {
+                                                    ...prev,
+                                                    materialsChecklist: prev.materialsChecklist.map(item => item.id === id ? { ...item, checked } : item)
+                                                };
+                                            });
+                                        }}
+                                        readOnly={false}
+                                    />
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
