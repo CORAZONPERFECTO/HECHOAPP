@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch-ui";
 import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2 } from "lucide-react";
 import { Purchase, PurchaseItem } from "@/types/purchase";
-import { registerPurchase, getPurchasesByTicket, analyzeReceiptImage } from "@/lib/purchase-service";
+import { registerPurchase, getPurchasesByTicket } from "@/lib/purchase-service";
+import { storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { InventoryProduct, InventoryLocation } from "@/types/inventory";
 import { getProducts, getLocations } from "@/lib/inventory-service";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,8 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
         ncf: "",
         tax: 0,
         total: 0,
+        manualTotal: 0,       // ← Total ingresado manualmente por el técnico
+        useManualTotal: false, // ← Si true, omite el cálculo de items y usa manualTotal
         items: [] as PurchaseItem[],
         paymentMethod: "CASH" as "CASH" | "CARD" | "TRANSFER",
         addToInventory: false,
@@ -199,14 +203,33 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Upload Image (Mock: we need to implement storage upload or use base64 for MVP? 
-            // In integrated app we should use `storage`)
-            // Skipping real upload for this snippet, focusing on logic.
-            // Assuming `file` is uploaded and we get URL.
-            const fakeUrl = previewUrl || "https://placeholder.com/receipt.jpg";
+            // Upload image to Firebase Storage
+            let receiptUrl = "";
+            if (file) {
+                try {
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const storageRef = ref(storage, `receipts/${ticketId}/${Date.now()}.${ext}`);
+                    await uploadBytes(storageRef, file);
+                    receiptUrl = await getDownloadURL(storageRef);
+                } catch (uploadErr) {
+                    console.warn("Storage upload failed, continuing without image URL:", uploadErr);
+                }
+            }
 
-            const itemSubtotal = formData.items.reduce((acc, i) => acc + i.total, 0);
-            const total = itemSubtotal + (formData.tax || 0);
+            // Use manual total if set, otherwise recalculate from items
+            const recalcItems = formData.items.map(item => ({
+                ...item,
+                total: item.quantity * item.unitPrice
+            }));
+            const itemSubtotal = recalcItems.reduce((acc, i) => acc + i.total, 0);
+            const effectiveSubtotal = (formData.useManualTotal && formData.manualTotal > 0)
+                ? formData.manualTotal
+                : itemSubtotal;
+            const total = effectiveSubtotal + (formData.tax || 0);
+            // If using manual total, create a single summary item if items list is empty
+            const finalItems = recalcItems.length > 0 ? recalcItems : [
+                { description: "Compra registrada manualmente", quantity: 1, unitPrice: effectiveSubtotal, total: effectiveSubtotal, isInventory: false }
+            ];
 
             const purchaseParams = {
                 ticketId,
@@ -215,12 +238,12 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 rnc: formData.rnc,
                 ncf: formData.ncf,
                 date: new Date() as any,
-                subtotal: itemSubtotal,
+                subtotal: effectiveSubtotal,
                 tax: formData.tax || 0,
                 total: total,
-                items: formData.items,
+                items: finalItems,
                 paymentMethod: formData.paymentMethod,
-                evidenceUrls: [fakeUrl],
+                evidenceUrls: receiptUrl ? [receiptUrl] : [],
                 userId: userId || 'unknown',
                 addToInventory: formData.addToInventory,
                 inventoryTargetLocationId: formData.targetLocationId
@@ -256,6 +279,8 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 ncf: "",
                 tax: 0,
                 total: 0,
+                manualTotal: 0,
+                useManualTotal: false,
                 items: [],
                 paymentMethod: "CASH",
                 addToInventory: false,
@@ -302,19 +327,76 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                     </DialogHeader>
 
                     {step === 1 && (
-                        <div className="flex flex-col items-center gap-6 py-8">
-                            <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed relative overflow-hidden">
+                        <div className="flex flex-col items-center gap-4 py-6">
+                            {/* Total Manual — campo rápido prominente */}
+                            <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4">
+                                <label className="text-xs font-bold text-amber-700 uppercase tracking-wide block mb-1">Total de la Factura (RD$)</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl font-bold text-amber-600">$</span>
+                                    <input
+                                        type="number"
+                                        inputMode="decimal"
+                                        placeholder="0.00"
+                                        value={formData.manualTotal || ""}
+                                        onChange={e => setFormData(prev => ({ ...prev, manualTotal: Number(e.target.value), useManualTotal: Number(e.target.value) > 0 }))}
+                                        className="flex-1 text-3xl font-bold bg-transparent border-none outline-none text-amber-900 placeholder-amber-300"
+                                    />
+                                </div>
+                                {formData.manualTotal > 0 && (
+                                    <p className="text-xs text-amber-600 mt-1">✓ Total confirmado: RD$ {formData.manualTotal.toLocaleString()}</p>
+                                )}
+                            </div>
+
+                            {/* Foto del bauche */}
+                            <div className="w-full h-44 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed relative overflow-hidden">
                                 {previewUrl ? (
                                     <img src={previewUrl} className="object-contain h-full w-full" />
                                 ) : (
-                                    <Camera className="h-12 w-12 text-gray-400" />
+                                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                                        <Camera className="h-10 w-10" />
+                                        <span className="text-xs">Toca para tomar foto del bauche</span>
+                                    </div>
                                 )}
-                                <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileSelect} />
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                    onChange={handleFileSelect}
+                                />
                             </div>
-                            <Button onClick={handleAnalyze} disabled={!file || analyzing} size="lg" className="w-full">
-                                {analyzing ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />}
-                                Analizar Factura
-                            </Button>
+
+                            <div className="flex gap-2 w-full">
+                                <Button
+                                    onClick={handleAnalyze}
+                                    disabled={!file || analyzing}
+                                    size="lg"
+                                    variant="outline"
+                                    className="flex-1"
+                                >
+                                    {analyzing ? <Loader2 className="animate-spin mr-2" /> : <CheckCircle2 className="mr-2" />}
+                                    Analizar con IA
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        // Skip AI and go directly to review with manual total
+                                        if (formData.manualTotal <= 0) {
+                                            alert("Ingresa el total de la factura primero.");
+                                            return;
+                                        }
+                                        if (formData.items.length === 0) {
+                                            setFormData(prev => ({ ...prev, items: [{ description: "Compra en calle", quantity: 1, unitPrice: prev.manualTotal, total: prev.manualTotal, isInventory: false }] }));
+                                        }
+                                        setStep(2);
+                                    }}
+                                    size="lg"
+                                    className="flex-1 bg-green-600 hover:bg-green-700"
+                                    disabled={formData.manualTotal <= 0}
+                                >
+                                    <CheckCircle2 className="mr-2" />
+                                    Confirmar Total
+                                </Button>
+                            </div>
                         </div>
                     )}
 

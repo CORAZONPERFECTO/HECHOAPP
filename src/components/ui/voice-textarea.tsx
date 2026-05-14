@@ -44,6 +44,8 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
     const recognitionRef = React.useRef<SpeechRecognition | null>(null);
     // ✅ FIX: Use a ref to track the latest value — avoids re-creating SpeechRecognition on every keystroke
     const valueRef = React.useRef<string>((value as string) || "");
+    // ✅ FIX: Track last processed index to avoid duplicating results on continuous mode
+    const lastProcessedIndexRef = React.useRef<number>(-1);
     const { toast } = useToast();
 
     // Sync valueRef whenever prop changes
@@ -62,20 +64,22 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
         }
 
         const recognition = new SpeechRecognition() as SpeechRecognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
+        recognition.continuous = false;  // ← false: stops after a pause, prevents duplicate results
+        recognition.interimResults = false; // ← false: only fire on final results
         recognition.lang = 'es-DO';
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
+            // Process only NEW results (from lastProcessedIndex+1 onwards)
+            for (let i = lastProcessedIndexRef.current + 1; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
                     finalTranscript += event.results[i][0].transcript;
+                    lastProcessedIndexRef.current = i;
                 }
             }
-            if (finalTranscript) {
+            if (finalTranscript.trim()) {
                 const current = valueRef.current;
-                const newValue = current ? `${current} ${finalTranscript}` : finalTranscript;
+                const newValue = current ? `${current} ${finalTranscript.trim()}` : finalTranscript.trim();
                 triggerChange(newValue);
             }
         };
@@ -119,6 +123,8 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
             setIsListening(false);
         } else {
             try {
+                // Reset the processed index on each new recording session
+                lastProcessedIndexRef.current = -1;
                 recognitionRef.current?.start();
                 setIsListening(true);
             } catch (error) {

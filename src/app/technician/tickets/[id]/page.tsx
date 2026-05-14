@@ -138,6 +138,10 @@ export default function TechnicianTicketPage() {
                 solution: ticket.solution || "",
                 recommendations: ticket.recommendations || "",
                 clientSignature: ticket.clientSignature || "",
+                // Location fields editable by technician
+                locationArea: ticket.locationArea || "",
+                locationStreet: ticket.locationStreet || "",
+                locationHouseNumber: ticket.locationHouseNumber || "",
                 updatedAt: serverTimestamp()
             };
 
@@ -221,8 +225,8 @@ export default function TechnicianTicketPage() {
                                 { value: "info",      label: "Info",      icon: <Info className="h-4 w-4" /> },
                                 { value: "checklist", label: "Checklist", icon: <ListChecks className="h-4 w-4" /> },
                                 { value: "fotos",     label: "Fotos",     icon: <Camera className="h-4 w-4" /> },
-                                { value: "compras",   label: "Compras",   icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "reporte",   label: "Reporte",   icon: <FileText className="h-4 w-4" /> },
+                                { value: "compras",   label: "Compras",   icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "cierre",    label: "Cierre",    icon: <CheckCircle className="h-4 w-4" /> },
                             ] as const).map(tab => (
                                 <TabsTrigger
@@ -239,40 +243,17 @@ export default function TechnicianTicketPage() {
 
                     {/* Info Tab */}
                     <TabsContent value="info" className="space-y-4">
+                        {/* Cliente */}
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base">Información del Cliente</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-sm space-y-2">
-                                <div className="font-medium text-lg">{ticket.clientName}</div>
-
-                                {/* Dirección completa */}
-                                <div className="flex items-start gap-2 text-gray-600">
-                                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{ticket.locationName}</span>
-                                    </div>
+                            <CardContent className="text-sm space-y-1">
+                                <div className="font-bold text-lg">{ticket.clientName}</div>
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <MapPin className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                    <span>{ticket.locationName}</span>
                                 </div>
-
-                                {/* Calle y Número de Villa/Casa destacados */}
-                                {(ticket.locationStreet || ticket.locationHouseNumber) && (
-                                    <div className="ml-6 mt-1 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex flex-col gap-0.5">
-                                        {ticket.locationStreet && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Calle:</span>
-                                                <span className="text-sm font-medium text-blue-900">{ticket.locationStreet}</span>
-                                            </div>
-                                        )}
-                                        {ticket.locationHouseNumber && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">No. Villa / Casa:</span>
-                                                <span className="text-sm font-bold text-blue-900">{ticket.locationHouseNumber}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Google Maps Link */}
                                 <a
                                     href={
                                         ticket.locationUrl && ticket.locationUrl.startsWith('http')
@@ -281,10 +262,67 @@ export default function TechnicianTicketPage() {
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 text-xs flex items-center gap-1 ml-6 hover:underline"
+                                    className="text-blue-600 text-xs flex items-center gap-1 hover:underline mt-1"
                                 >
-                                    {ticket.locationUrl ? "📍 Abrir Ubicación del Cliente →" : "Ver en Mapa →"}
+                                    {ticket.locationUrl ? "📍 Abrir Ubicación del Cliente →" : "📍 Ver en Mapa →"}
                                 </a>
+                            </CardContent>
+                        </Card>
+
+                        {/* Dirección detallada — siempre editable */}
+                        <Card className="border-blue-200">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2 text-blue-800">
+                                    <MapPin className="h-4 w-4 text-blue-600" />
+                                    Dirección de Servicio
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {/* Área / Zona */}
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Área / Zona</label>
+                                    <select
+                                        value={ticket.locationArea || ""}
+                                        onChange={e => setTicket({ ...ticket, locationArea: e.target.value })}
+                                        className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    >
+                                        <option value="">Seleccionar zona...</option>
+                                        {["CAP CANA","PUNTA CANA RESORT","VILLAGE","VILLAGE WEST","BAVARO","OTROS"].map(z => (
+                                            <option key={z} value={z}>{z}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Calle + Número en fila */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Calle</label>
+                                        <Input
+                                            value={ticket.locationStreet || ""}
+                                            onChange={e => setTicket({ ...ticket, locationStreet: e.target.value })}
+                                            placeholder="Ej: Las Palmas"
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Villa / Casa</label>
+                                        <Input
+                                            value={ticket.locationHouseNumber || ""}
+                                            onChange={e => setTicket({ ...ticket, locationHouseNumber: e.target.value })}
+                                            placeholder="Ej: 22"
+                                            className="text-sm font-bold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Preview badge cuando hay datos */}
+                                {(ticket.locationArea || ticket.locationStreet || ticket.locationHouseNumber) && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 font-medium">
+                                        📍 {[ticket.locationArea, ticket.locationStreet, ticket.locationHouseNumber ? `No. ${ticket.locationHouseNumber}` : null].filter(Boolean).join(' · ')}
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-gray-400">Guarda los cambios con el botón ↑ Guardar</p>
                             </CardContent>
                         </Card>
                     </TabsContent>
