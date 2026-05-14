@@ -75,6 +75,7 @@ function SortableItem(props: any) {
 // Definition of all possible modules
 const ALL_MODULES = [
   { id: 'tickets', label: 'Tickets', icon: Ticket, href: '/tickets', color: 'text-purple-600', role: 'ALL' },
+  { id: 'projects', label: 'Proyectos', icon: Building2, href: '/projects', color: 'text-orange-500', role: 'ALL' },
   { id: 'clients', label: 'Clientes', icon: Users, href: '/clients', color: 'text-blue-600', role: 'ADMIN' },
   { id: 'technicians', label: 'Técnicos', icon: Wrench, href: '/technicians', color: 'text-orange-600', role: 'ADMIN' },
   { id: 'messages', label: 'Mensajes', icon: MessageSquare, href: '#', color: 'text-green-600', role: 'ALL', onClick: () => alert("Integración WhatsApp en desarrollo") },

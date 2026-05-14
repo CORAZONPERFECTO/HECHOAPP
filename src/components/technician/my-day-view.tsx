@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
-    Car, AlertTriangle, Droplet
+    Car, AlertTriangle, Droplet, Building2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
@@ -249,7 +249,16 @@ export function MyDayView() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 relative">
             {/* Header / Botón Salir (Mobile First) */}
-            <div className="absolute top-4 right-4 z-10 md:hidden">
+            <div className="absolute top-4 right-4 z-10 md:hidden flex items-center gap-2">
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-blue-600 bg-white/80 backdrop-blur rounded-full shadow-sm"
+                    onClick={() => router.push('/technician/projects')}
+                >
+                    <Building2 className="h-4 w-4 mr-1" />
+                    Proyectos
+                </Button>
                 <Button 
                     variant="ghost" 
                     size="sm" 
@@ -312,9 +321,21 @@ export function MyDayView() {
                 <div className="text-center mb-8 space-y-5">
                     <div>
                         <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Día</h1>
-                        <p className="text-lg text-gray-600 font-medium">
+                        <p className="text-lg text-gray-600 font-medium mb-4">
                             {displayTickets.length} {displayTickets.length === 1 ? "trabajo pendiente" : "trabajos pendientes"}
                         </p>
+                        
+                        {/* Quick Navigation for Desktop/Large screens */}
+                        <div className="hidden md:flex justify-center gap-4 mb-2">
+                            <Button 
+                                variant="outline" 
+                                className="bg-white hover:bg-blue-50 text-blue-700 border-blue-200"
+                                onClick={() => router.push('/technician/projects')}
+                            >
+                                <Building2 className="h-4 w-4 mr-2" />
+                                Ver Mis Proyectos Asignados
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Promesa Bíblica */}

@@ -8,7 +8,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,10 +138,6 @@ export default function TechnicianTicketPage() {
                 solution: ticket.solution || "",
                 recommendations: ticket.recommendations || "",
                 clientSignature: ticket.clientSignature || "",
-                // Location fields editable by technician
-                locationArea: ticket.locationArea || "",
-                locationStreet: ticket.locationStreet || "",
-                locationHouseNumber: ticket.locationHouseNumber || "",
                 updatedAt: serverTimestamp()
             };
 
@@ -269,60 +265,24 @@ export default function TechnicianTicketPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Dirección detallada — siempre editable */}
-                        <Card className="border-blue-200">
+                        {/* Dirección detallada — SOLO LECTURA */}
+                        <Card className="border-gray-200 bg-gray-50">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base flex items-center gap-2 text-blue-800">
-                                    <MapPin className="h-4 w-4 text-blue-600" />
+                                <CardTitle className="text-base flex items-center gap-2 text-gray-700">
+                                    <MapPin className="h-4 w-4 text-gray-500" />
                                     Dirección de Servicio
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {/* Área / Zona */}
-                                <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Área / Zona</label>
-                                    <select
-                                        value={ticket.locationArea || ""}
-                                        onChange={e => setTicket({ ...ticket, locationArea: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    >
-                                        <option value="">Seleccionar zona...</option>
-                                        {["CAP CANA","PUNTA CANA RESORT","VILLAGE","VILLAGE WEST","BAVARO","OTROS"].map(z => (
-                                            <option key={z} value={z}>{z}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Calle + Número en fila */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Calle</label>
-                                        <Input
-                                            value={ticket.locationStreet || ""}
-                                            onChange={e => setTicket({ ...ticket, locationStreet: e.target.value })}
-                                            placeholder="Ej: Las Palmas"
-                                            className="text-sm"
-                                        />
+                                {ticket.locationArea || ticket.locationStreet || ticket.locationHouseNumber ? (
+                                    <div className="bg-white border border-gray-200 rounded-lg px-3 py-3 text-sm text-gray-800">
+                                        <p className="font-semibold text-gray-500 text-xs mb-1 uppercase">Detalle de Ubicación</p>
+                                        <p>{[ticket.locationArea, ticket.locationStreet, ticket.locationHouseNumber ? `No. ${ticket.locationHouseNumber}` : null].filter(Boolean).join(' · ')}</p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Villa / Casa</label>
-                                        <Input
-                                            value={ticket.locationHouseNumber || ""}
-                                            onChange={e => setTicket({ ...ticket, locationHouseNumber: e.target.value })}
-                                            placeholder="Ej: 22"
-                                            className="text-sm font-bold"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Preview badge cuando hay datos */}
-                                {(ticket.locationArea || ticket.locationStreet || ticket.locationHouseNumber) && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800 font-medium">
-                                        📍 {[ticket.locationArea, ticket.locationStreet, ticket.locationHouseNumber ? `No. ${ticket.locationHouseNumber}` : null].filter(Boolean).join(' · ')}
-                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-500 italic">No hay detalles adicionales de dirección registrados.</p>
                                 )}
-
-                                <p className="text-xs text-gray-400">Guarda los cambios con el botón ↑ Guardar</p>
+                                <p className="text-xs text-red-500 font-medium">Solo el gerente puede modificar la dirección de servicio.</p>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -396,6 +356,50 @@ export default function TechnicianTicketPage() {
 
                     {/* Reporte Tab */}
                     <TabsContent value="reporte" className="space-y-4">
+                        <div className="flex justify-end mb-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+                                onClick={async () => {
+                                    if (!ticket.diagnosis && !ticket.solution) {
+                                        alert("Escribe algo de diagnóstico o solución primero para que la IA pueda mejorarlo.");
+                                        return;
+                                    }
+                                    setSaving(true);
+                                    try {
+                                        const contextData = {
+                                            diagnosis: ticket.diagnosis || "Sin diagnóstico",
+                                            solution: ticket.solution || "Sin solución",
+                                            task: "Mejora la ortografía, gramática y haz que suene como un reporte técnico profesional de mantenimiento. Separa claramente el Diagnóstico y la Solución en dos bloques de texto. No uses markdown de asteriscos."
+                                        };
+                                        const response = await fetch('/api/gemini', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                context: JSON.stringify(contextData),
+                                                task: 'generate-report'
+                                            })
+                                        });
+                                        const data = await response.json();
+                                        if (data.output && data.output.sections) {
+                                            const textBlocks = data.output.sections.filter((s: any) => s.type === 'text' || s.type === 'h2').map((s: any) => s.content).join('\\n\\n');
+                                            setTicket({ ...ticket, solution: textBlocks, diagnosis: "Revisado por IA. Ver detalles en Solución." });
+                                            alert("¡Reporte mejorado por IA con éxito!");
+                                        }
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Error al conectar con la IA.");
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }}
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                Mejorar texto con IA
+                            </Button>
+                        </div>
+
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base flex items-center justify-between">
@@ -406,7 +410,7 @@ export default function TechnicianTicketPage() {
                                     <ErrorSearchModal
                                         onSelectSolution={(sol: string) => {
                                             const current = ticket?.diagnosis || "";
-                                            setTicket({ ...ticket!, diagnosis: current + (current ? "\n\n" : "") + "Solución sugerida: " + sol });
+                                            setTicket({ ...ticket!, diagnosis: current + (current ? "\\n\\n" : "") + "Solución sugerida: " + sol });
                                         }}
                                     />
                                 </CardTitle>

@@ -24,9 +24,9 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
 const adminMenuItems = [
-    { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "GERENTE_TICKETS"] },
-    { label: "Proyectos", icon: Building2, href: "/projects", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
-    { label: "Torre Tickets", icon: Ticket, href: "/tickets", roles: ["ADMIN", "SUPERVISOR", "GERENTE_TICKETS"] },
+    { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS", "TECNICO"] },
+    { label: "Proyectos", icon: Building2, href: "/projects", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS"] },
+    { label: "Torre Tickets", icon: Ticket, href: "/tickets", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS"] },
     { label: "Facturas", icon: Files, href: "/income/invoices", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recurrentes", icon: Repeat, href: "/income/recurring", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Pagos", icon: CreditCard, href: "/income/payments", roles: ["ADMIN", "SUPERVISOR"] },
