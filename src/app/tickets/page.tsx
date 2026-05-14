@@ -220,7 +220,10 @@ export default function TicketsPage() {
             header: "",
             id: "actions",
             cell: (item: Ticket) => {
-                if (currentUserRole !== 'ADMIN' && currentUserRole !== 'GERENTE' && currentUserRole !== 'GERENTE_TICKETS') return null;
+                const isSuperUser = auth.currentUser?.email?.toLowerCase() === 'lcaa27@gmail.com';
+                const hasRole = currentUserRole === 'ADMIN' || currentUserRole === 'GERENTE' || currentUserRole === 'GERENTE_TICKETS';
+                if (!isSuperUser && !hasRole) return null;
+                
                 return (
                     <Button
                         variant="ghost"
