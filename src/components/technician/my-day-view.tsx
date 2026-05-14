@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InstallAppButton } from "@/components/shared/install-app-button";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
@@ -232,8 +233,6 @@ export function MyDayView() {
         );
     }
 
-    // Si la lista está vacía, no mostramos pantalla vacía de éxito, sino que preparamos el ticket de bienvenida
-    // para renderizarlo directamente y evitar el "Too many re-renders" de React.
     const displayTickets = tickets.length > 0 ? tickets : [{
         id: "DEFAULT-WELCOME-TICKET",
         ticketNumber: "TIC-BIENVENIDA",
@@ -273,6 +272,7 @@ export function MyDayView() {
                     <LogOut className="h-4 w-4 mr-1" />
                     Salir
                 </Button>
+                <InstallAppButton />
             </div>
 
             {/* Vehicle Check-in Modal */}
@@ -338,8 +338,17 @@ export function MyDayView() {
                                 onClick={() => router.push('/technician/projects')}
                             >
                                 <Building2 className="h-4 w-4 mr-2" />
-                                Ver Mis Proyectos Asignados
+                                Gestionar Proyectos
                             </Button>
+                            <Button 
+                                variant="outline" 
+                                className="bg-white hover:bg-red-50 text-red-700 border-red-200"
+                                onClick={() => auth.signOut()}
+                            >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Cerrar Sesión
+                            </Button>
+                            <InstallAppButton />
                         </div>
                     </div>
 

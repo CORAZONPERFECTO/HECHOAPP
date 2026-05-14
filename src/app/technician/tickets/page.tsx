@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
 import { onAuthStateChanged } from "firebase/auth";
 
+import { InstallAppButton } from "@/components/shared/install-app-button";
+
 export default function TechnicianTicketsPage() {
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
@@ -117,7 +119,7 @@ export default function TechnicianTicketsPage() {
     return (
         <div className="min-h-screen bg-slate-50 p-8">
             <div className="max-w-7xl mx-auto space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center flex-wrap gap-4">
                     <div className="flex items-center gap-4">
                         <Button variant="ghost" onClick={() => router.push("/")}>
                             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -128,6 +130,7 @@ export default function TechnicianTicketsPage() {
                             <p className="text-gray-500">Tickets pendientes de atención</p>
                         </div>
                     </div>
+                    <InstallAppButton />
                 </div>
 
                 {loading ? (
