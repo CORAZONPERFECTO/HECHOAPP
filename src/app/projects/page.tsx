@@ -15,9 +15,14 @@ export default function ProjectsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const q = query(collection(db, "projects"), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "projects"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+            data.sort((a, b) => {
+                const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
+                const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
+                return dateB - dateA;
+            });
             setProjects(data);
             setLoading(false);
         });

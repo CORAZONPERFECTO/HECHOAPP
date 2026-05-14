@@ -36,7 +36,7 @@ export default function TicketsPage() {
     const { toast } = useToast();
 
     useEffect(() => {
-        const q = query(collection(db, "tickets"), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "tickets")); // Removed orderBy to allow pending serverTimestamps to render immediately
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map((doc) => ({
                 id: doc.id,
@@ -114,11 +114,11 @@ export default function TicketsPage() {
         });
 
         // SORTING:
-        // 1. Scheduled ASC (Earliest first)
-        // 2. Unscheduled (Newest created first)
+        // 1. Unscheduled (Requires action) -> Top
+        // 2. Scheduled ASC (Earliest first)
         return filtered.sort((a, b) => {
-            const dateA = a.scheduledStart ? a.scheduledStart.toDate().getTime() : Number.MAX_SAFE_INTEGER;
-            const dateB = b.scheduledStart ? b.scheduledStart.toDate().getTime() : Number.MAX_SAFE_INTEGER;
+            const dateA = a.scheduledStart ? a.scheduledStart.toDate().getTime() : 0;
+            const dateB = b.scheduledStart ? b.scheduledStart.toDate().getTime() : 0;
 
             if (dateA !== dateB) {
                 return dateA - dateB;
