@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TokenGenerator } from "@/components/tickets/token-generator";
+import { DispatchOrderModal } from "@/components/tickets/dispatch-order-modal";
 import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter, TrendingUp, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -278,6 +279,7 @@ export default function TicketsPage() {
                                 <TokenGenerator />
                             </DialogContent>
                         </Dialog>
+                        <DispatchOrderModal />
                         <Link href="/tickets/new" className="flex-1 sm:flex-none">
                             <Button size="sm" className="w-full">
                                 <Plus className="mr-2 h-4 w-4" />

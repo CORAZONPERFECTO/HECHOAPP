@@ -89,6 +89,7 @@ export interface Ticket {
     revenue?: number; // Amount charged to client
     profitMargin?: number; // Calculated: ((revenue - totalCost) / revenue) * 100
     billingStatus?: 'PENDING' | 'BILLED' | 'PAID'; // Tracking billing state
+    executionOrder?: number; // Manual override for technician's daily execution order
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }

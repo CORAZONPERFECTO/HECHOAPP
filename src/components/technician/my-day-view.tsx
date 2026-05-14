@@ -123,12 +123,17 @@ export function MyDayView() {
             };
 
             data.sort((a, b) => {
-                // 1. Sort by Priority (Desc)
+                // 1. Check Execution Order (Manual Dispatch Override)
+                const orderA = a.executionOrder !== undefined ? a.executionOrder : Number.MAX_SAFE_INTEGER;
+                const orderB = b.executionOrder !== undefined ? b.executionOrder : Number.MAX_SAFE_INTEGER;
+                if (orderA !== orderB) return orderA - orderB;
+
+                // 2. Sort by Priority (Desc)
                 const weightA = priorityWeight[a.priority as keyof typeof priorityWeight] || 0;
                 const weightB = priorityWeight[b.priority as keyof typeof priorityWeight] || 0;
                 if (weightA !== weightB) return weightB - weightA;
 
-                // 2. Sort by CreatedAt (Asc) - Oldest first
+                // 3. Sort by CreatedAt (Asc) - Oldest first
                 const dateA = a.createdAt?.seconds || 0;
                 const dateB = b.createdAt?.seconds || 0;
                 return dateA - dateB;
