@@ -19,8 +19,8 @@ export default function ProjectsPage() {
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
             data.sort((a, b) => {
-                const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
-                const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
+                const dateA = (a.createdAt as any)?.toMillis ? (a.createdAt as any).toMillis() : ((a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : Date.now());
+                const dateB = (b.createdAt as any)?.toMillis ? (b.createdAt as any).toMillis() : ((b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : Date.now());
                 return dateB - dateA;
             });
             setProjects(data);
