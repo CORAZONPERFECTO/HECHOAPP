@@ -28,8 +28,8 @@ export default function TechnicianProjectsPage() {
             
             // Ordenar en memoria (descendente por createdAt)
             data.sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+                const dateA = (a.createdAt as any)?.toDate ? (a.createdAt as any).toDate().getTime() : ((a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0);
+                const dateB = (b.createdAt as any)?.toDate ? (b.createdAt as any).toDate().getTime() : ((b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0);
                 return dateB - dateA;
             });
             
