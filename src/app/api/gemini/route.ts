@@ -72,7 +72,8 @@ INSTRUCCIONES:
             2. Si identificas dos fotos que parecen ser "Antes" y "Después" (o una secuencia lógica), AGRÚPALAS en una sección "beforeAfter".
             3. Si hay varias fotos generales, úsalas en una sección "gallery" o múltiples "photo".
             4. Genera texto profesional para las secciones de Diagnóstico y Solución.
-            5. DEBES devolver SOLO EL JSON VÁLIDO.
+            5. Si hay "materialsUsed" en el contexto, INCLUYE obligatoriamente una sección de tipo "list" con el título "Materiales y Herramientas".
+            6. DEBES devolver SOLO EL JSON VÁLIDO.
             `;
         } else if (task === 'parse-invoice') {
             systemInstruction += `Tu tarea es extraer datos estructurados de una factura (voz o texto). Devuelve JSON válido con clientName e items.`;

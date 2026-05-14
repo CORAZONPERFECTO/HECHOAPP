@@ -63,6 +63,22 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
         } as TextSection);
     }
 
+    // --- 1.5 MATERIALES Y HERRAMIENTAS ---
+    if (ticket.materialsChecklist && ticket.materialsChecklist.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Materiales y Herramientas'
+        } as TitleSection);
+
+        const materialsList = ticket.materialsChecklist.map(m => `[${m.checked ? 'X' : ' '}] ${m.text}`);
+        sections.push({
+            id: uuid(),
+            type: 'list',
+            items: materialsList
+        } as ListSection);
+    }
+
     // --- 2. FOTOS (TODAS LAS EVIDENCIAS) ---
     // Catch-all: Include ALL photos, grouped under one GallerySection
     if (ticket.photos && ticket.photos.length > 0) {

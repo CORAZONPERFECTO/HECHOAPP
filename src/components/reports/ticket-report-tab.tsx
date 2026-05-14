@@ -241,6 +241,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                 recommendations: ticket.recommendations,
                 clientName: ticket.clientName,
                 serviceType: ticket.serviceType,
+                materialsUsed: ticket.materialsChecklist?.filter(m => m.checked).map(m => m.text).join(", ") || "No registrados",
                 // Pass the analyzed photo context
                 photoEvidence: photoContexts.join('\n')
             };
