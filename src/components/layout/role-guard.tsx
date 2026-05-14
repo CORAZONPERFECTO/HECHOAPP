@@ -47,23 +47,31 @@ export function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                 if (!mounted) return;
 
                 if (docSnap.exists()) {
-                    const userRole = docSnap.data().rol || "NONE";
+                    const rawRole = docSnap.data().rol || "NONE";
+                    const upperRole = String(rawRole).toUpperCase().trim();
+                    const normalizedRole = (upperRole === "TÉCNICO" || upperRole === "TECNICO") ? "TECNICO" : upperRole;
 
-                    if (allowedRoles.includes(userRole)) {
+                    if (allowedRoles.includes(normalizedRole)) {
                         setIsAuthorized(true);
                     } else {
-                        if (userRole === "TECNICO" || userRole === "CONTRATISTA") {
+                        if (normalizedRole === "TECNICO" || normalizedRole === "CONTRATISTA") {
                             router.push("/technician/my-day");
                         } else {
                             router.push("/");
                         }
                     }
                 } else {
-                    router.push("/login");
+                    console.error("Ghost user: document not found in Firestore");
+                    await auth.signOut();
+                    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+                    router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
                 }
             } catch (error) {
                 console.error("Error validando permisos:", error);
-                if (mounted) router.push("/login");
+                if (mounted) {
+                    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+                    router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+                }
             }
         };
 

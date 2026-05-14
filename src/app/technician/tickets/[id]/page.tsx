@@ -252,13 +252,13 @@ export default function TechnicianTicketPage() {
                     <div className="overflow-x-auto hide-scrollbar -mx-4 px-4 mb-4">
                         <TabsList className="inline-flex min-w-max bg-white border p-1 rounded-xl gap-0.5 shadow-sm">
                             {([
-                                { value: "info",      label: "Info",      icon: <Info className="h-4 w-4" /> },
+                                { value: "info", label: "Info", icon: <Info className="h-4 w-4" /> },
                                 { value: "checklist", label: "Checklist", icon: <ListChecks className="h-4 w-4" /> },
-                                { value: "fotos",     label: "Fotos",     icon: <Camera className="h-4 w-4" /> },
-                                { value: "reporte",   label: "Reporte",   icon: <FileText className="h-4 w-4" /> },
-                                { value: "compras",   label: "Compras",   icon: <ShoppingCart className="h-4 w-4" /> },
+                                { value: "fotos", label: "Fotos", icon: <Camera className="h-4 w-4" /> },
+                                { value: "reporte", label: "Reporte", icon: <FileText className="h-4 w-4" /> },
+                                { value: "compras", label: "Compras", icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "herramientas", label: "Herramientas", icon: <Wrench className="h-4 w-4" /> },
-                                { value: "cierre",    label: "Cierre",    icon: <CheckCircle className="h-4 w-4" /> },
+                                { value: "cierre", label: "Cierre", icon: <CheckCircle className="h-4 w-4" /> },
                             ] as const).map(tab => (
                                 <TabsTrigger
                                     key={tab.value}
@@ -275,7 +275,7 @@ export default function TechnicianTicketPage() {
                     {/* Info Tab */}
                     <TabsContent value="info" className="space-y-4">
                         <StartServiceCard ticket={ticket} onStart={fetchTicket} />
-                        
+
                         {/* Cliente */}
                         <Card>
                             <CardHeader className="pb-2">
@@ -362,8 +362,8 @@ export default function TechnicianTicketPage() {
                                     }}
                                 />
                                 <div className="flex gap-2">
-                                    <Input 
-                                        placeholder="Ej: Taladro, Cables, Tornillos..." 
+                                    <Input
+                                        placeholder="Ej: Taladro, Cables, Tornillos..."
                                         value={newMaterialText}
                                         onChange={e => setNewMaterialText(e.target.value)}
                                         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMaterial(); } }}
@@ -497,8 +497,8 @@ export default function TechnicianTicketPage() {
                                         });
                                         const data = await response.json();
                                         if (data.output && data.output.sections) {
-                                            const textBlocks = data.output.sections.filter((s: any) => s.type === 'text' || s.type === 'h2').map((s: any) => s.content).join('\\n\\n');
-                                            setTicket({ ...ticket, solution: textBlocks, diagnosis: "Revisado por IA. Ver detalles en Solución." });
+                                            const textBlocks = data.output.sections.filter((s: any) => s.type === 'text' || s.type === 'h2').map((s: any) => s.content).join('\n\n');
+                                            setTicket(prev => prev ? { ...prev, solution: textBlocks } : null);
                                             alert("¡Reporte mejorado por IA con éxito!");
                                         }
                                     } catch (err) {
@@ -523,8 +523,11 @@ export default function TechnicianTicketPage() {
                                     </div>
                                     <ErrorSearchModal
                                         onSelectSolution={(sol: string) => {
-                                            const current = ticket?.diagnosis || "";
-                                            setTicket({ ...ticket!, diagnosis: current + (current ? "\\n\\n" : "") + "Solución sugerida: " + sol });
+                                            setTicket(prev => {
+                                                if (!prev) return prev;
+                                                const current = prev.diagnosis || "";
+                                                return { ...prev, diagnosis: current + (current ? "\n\n" : "") + "Solución sugerida: " + sol };
+                                            });
                                         }}
                                     />
                                 </CardTitle>
@@ -533,7 +536,7 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe el diagnóstico..."
                                     value={ticket.diagnosis || ""}
-                                    onChange={(e) => setTicket(prev => prev ? { ...prev, diagnosis: e.target.value } : null)}
+                                    onValueChange={(val) => setTicket(prev => prev ? { ...prev, diagnosis: val } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
@@ -550,7 +553,7 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe la solución ampliada..."
                                     value={ticket.solution || ""}
-                                    onChange={(e) => setTicket(prev => prev ? { ...prev, solution: e.target.value } : null)}
+                                    onValueChange={(val) => setTicket(prev => prev ? { ...prev, solution: val } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
@@ -567,7 +570,7 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe las recomendaciones para el cliente..."
                                     value={ticket.recommendations || ""}
-                                    onChange={(e) => setTicket(prev => prev ? { ...prev, recommendations: e.target.value } : null)}
+                                    onValueChange={(val) => setTicket(prev => prev ? { ...prev, recommendations: val } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
@@ -582,8 +585,8 @@ export default function TechnicianTicketPage() {
 
                     {/* Herramientas Tab */}
                     <TabsContent value="herramientas" className="space-y-4">
-                        <TicketToolsReport 
-                            ticket={ticket} 
+                        <TicketToolsReport
+                            ticket={ticket}
                             currentUser={{ id: user.uid, name: user.displayName || user.email || "Técnico" }}
                             events={ticketEvents}
                         />
@@ -598,8 +601,8 @@ export default function TechnicianTicketPage() {
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="font-semibold">Nombre legible de quien recibe *</Label>
-                                    <VoiceInput 
-                                        placeholder="Ej. Juan Pérez" 
+                                    <VoiceInput
+                                        placeholder="Ej. Juan Pérez"
                                         value={ticket.clientSignatureName || ""}
                                         onChange={(e) => setTicket(prev => prev ? { ...prev, clientSignatureName: e.target.value } : null)}
                                         className="h-12 text-lg font-medium"
@@ -610,7 +613,7 @@ export default function TechnicianTicketPage() {
                                     <Label className="font-semibold">Firma de Conformidad</Label>
                                     <SignaturePad
                                         value={ticket.clientSignature || ""}
-                                        onChange={(val) => setTicket({ ...ticket, clientSignature: val })}
+                                        onChange={(val) => setTicket(prev => prev ? { ...prev, clientSignature: val } : null)}
                                     />
                                 </div>
                             </CardContent>
@@ -671,11 +674,11 @@ export default function TechnicianTicketPage() {
                             technicianName={user.displayName || user.email || "Técnico"}
                             onSuccess={async () => {
                                 setIsInterventionOpen(false);
-                                
+
                                 // Create checklist alert
                                 const pendingChecklist = (ticket.checklist || []).filter(item => !item.checked);
                                 const pendingMaterials = (ticket.materialsChecklist || []).filter(item => !item.checked);
-                                
+
                                 if (pendingChecklist.length > 0 || pendingMaterials.length > 0) {
                                     import("firebase/firestore").then(({ addDoc, collection }) => {
                                         addDoc(collection(db, "ticketEvents"), {
@@ -683,11 +686,9 @@ export default function TechnicianTicketPage() {
                                             userId: "system",
                                             userName: "Sistema Automático",
                                             type: "COMMENT",
-                                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó ítems sin verificar:\n\n${
-                                                pendingChecklist.length > 0 ? `Pasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}\n` : ""
-                                            }${
-                                                pendingMaterials.length > 0 ? `Materiales no usados/marcados: ${pendingMaterials.map(i => i.text).join(", ")}` : ""
-                                            }`,
+                                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó ítems sin verificar:\n\n${pendingChecklist.length > 0 ? `Pasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}\n` : ""
+                                                }${pendingMaterials.length > 0 ? `Materiales no usados/marcados: ${pendingMaterials.map(i => i.text).join(", ")}` : ""
+                                                }`,
                                             timestamp: serverTimestamp()
                                         }).catch(console.error);
                                     });

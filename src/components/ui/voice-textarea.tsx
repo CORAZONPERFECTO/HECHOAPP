@@ -190,6 +190,7 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
                 onChange={(e) => {
                     valueRef.current = e.target.value;
                     if (onChange) onChange(e);
+                    if (onValueChange) onValueChange(e.target.value);
                 }}
                 className={cn("pr-24 min-h-[100px]", className)}
                 disabled={isProcessing}

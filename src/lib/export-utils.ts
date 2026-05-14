@@ -621,7 +621,22 @@ async function addPhotoToPDF(pdf: jsPDF, photo: PhotoSection, x: number, y: numb
 }
 
 function extractPhotos(report: TicketReportNew): PhotoSection[] {
-    return report.sections.filter(s => s.type === 'photo') as PhotoSection[];
+    const allPhotos: PhotoSection[] = [];
+    for (const section of report.sections) {
+        if (section.type === 'photo') {
+            allPhotos.push(section as PhotoSection);
+        } else if (section.type === 'gallery') {
+            (section as GallerySection).photos.forEach(p => {
+                allPhotos.push({
+                    id: p.photoMeta?.originalId || String(Date.now()),
+                    type: 'photo',
+                    photoUrl: p.photoUrl,
+                    description: p.description
+                } as PhotoSection);
+            });
+        }
+    }
+    return allPhotos;
 }
 
 

@@ -54,16 +54,20 @@ export function RoleGuard({ children, allowedRoles, requireAuth = true }: RoleGu
 
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
-                    const userRole = (userData.rol || userData.role) as UserRole;
+                    const rawRole = userData.rol || userData.role || "NONE";
+                    const upperRole = String(rawRole).toUpperCase().trim();
+                    const normalizedRole = (upperRole === "TÉCNICO" || upperRole === "TECNICO") ? "TECNICO" : upperRole;
 
-                    if (allowedRoles.includes(userRole)) {
+                    if (allowedRoles.includes(normalizedRole as UserRole)) {
                         setAuthorized(true);
                     } else {
                         router.push("/");
                     }
                 } else {
                     console.error("User document not found in Firestore");
-                    router.push("/login");
+                    await auth.signOut();
+                    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+                    router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
                 }
             } catch (error) {
                 console.error("Error checking role:", error);
