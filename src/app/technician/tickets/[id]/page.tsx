@@ -34,6 +34,7 @@ export default function TechnicianTicketPage() {
     const [saving, setSaving] = useState(false);
     const [isInterventionOpen, setIsInterventionOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("info");
+    const [newMaterialText, setNewMaterialText] = useState("");
 
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState("");
@@ -132,6 +133,7 @@ export default function TechnicianTicketPage() {
         try {
             const updates = {
                 checklist: ticket.checklist || [],
+                materialsChecklist: ticket.materialsChecklist || [],
                 photos: ticket.photos || [],
                 status: ticket.status,
                 diagnosis: ticket.diagnosis || "",
@@ -176,6 +178,21 @@ export default function TechnicianTicketPage() {
             console.error("Error auto-saving photos:", error);
             alert("Error al guardar la foto en la nube. Por favor intente de nuevo.");
         }
+    };
+
+    const handleAddMaterial = () => {
+        if (!newMaterialText.trim()) return;
+        setTicket(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                materialsChecklist: [
+                    ...(prev.materialsChecklist || []),
+                    { id: Date.now().toString(), text: newMaterialText.trim(), checked: false }
+                ]
+            };
+        });
+        setNewMaterialText("");
     };
 
     // Show permission request if user is logged in but hasn't granted permissions
@@ -282,7 +299,60 @@ export default function TechnicianTicketPage() {
                                 ) : (
                                     <p className="text-sm text-gray-500 italic">No hay detalles adicionales de dirección registrados.</p>
                                 )}
-                                <p className="text-xs text-red-500 font-medium">Solo el gerente puede modificar la dirección de servicio.</p>
+                            </CardContent>
+                        </Card>
+
+                        {/* Descripción del Servicio */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2 text-gray-700">
+                                    <FileText className="h-4 w-4 text-gray-500" />
+                                    Descripción del Servicio
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap">
+                                    {ticket.description || "No hay descripción detallada para este ticket."}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Checklist de Materiales y Herramientas */}
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center gap-2 text-gray-700">
+                                    <PenTool className="h-4 w-4 text-gray-500" />
+                                    Materiales y Herramientas
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-xs text-gray-500">
+                                    Verifica los insumos que necesitas antes de desplazarte.
+                                </p>
+                                <ChecklistRenderer
+                                    items={ticket.materialsChecklist || []}
+                                    onItemChange={(id, checked) => {
+                                        setTicket(prev => {
+                                            if (!prev) return prev;
+                                            return {
+                                                ...prev,
+                                                materialsChecklist: (prev.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item)
+                                            };
+                                        });
+                                    }}
+                                />
+                                <div className="flex gap-2">
+                                    <Input 
+                                        placeholder="Ej: Taladro, Cables, Tornillos..." 
+                                        value={newMaterialText}
+                                        onChange={e => setNewMaterialText(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddMaterial(); } }}
+                                        className="flex-1 text-sm"
+                                    />
+                                    <Button type="button" onClick={handleAddMaterial} variant="secondary" size="sm">
+                                        Añadir
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>

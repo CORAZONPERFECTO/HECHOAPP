@@ -54,6 +54,7 @@ export interface Ticket {
     description: string;
     status: TicketStatus;
     checklist: ChecklistItem[];
+    materialsChecklist?: ChecklistItem[];
     photos: TicketPhoto[];
     technicianId?: string;
     technicianName?: string;

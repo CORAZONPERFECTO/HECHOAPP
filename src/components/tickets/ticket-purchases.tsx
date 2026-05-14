@@ -300,21 +300,8 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const expTotal = formData.items.filter(i => !i.isInventory).reduce((acc, i) => acc + i.total, 0);
 
     return (
-        <div className="space-y-4">
-            {/* List */}
-            {purchases.map(p => (
-                <div key={p.id} className="p-3 border rounded-lg bg-white flex justify-between items-center">
-                    <div>
-                        <div className="font-bold">{p.providerName}</div>
-                        <div className="text-sm text-gray-500">{new Date((p.createdAt as any)?.seconds * 1000).toLocaleDateString()}</div>
-                    </div>
-                    <div className="text-right">
-                        <div className="font-bold text-lg">${p.total.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">{p.items.length} items</div>
-                    </div>
-                </div>
-            ))}
-
+        <div className="space-y-6">
+            {/* Action Button at the top */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                     <Button className="w-full h-12 dashed border-2 border-dashed bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-300">
@@ -550,6 +537,45 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* List View of past purchases */}
+            {purchases.length > 0 && (
+                <div className="space-y-3">
+                    <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm uppercase">
+                        <ShoppingCart className="h-4 w-4" /> Compras Registradas
+                    </h3>
+                    <div className="space-y-3">
+                        {purchases.map(p => (
+                            <Card key={p.id} className="overflow-hidden shadow-sm">
+                                <CardContent className="p-0">
+                                    <div className="p-4 flex justify-between items-start">
+                                        <div>
+                                            <div className="font-bold text-gray-900">{p.providerName || "Proveedor No Definido"}</div>
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                                {p.createdAt && (p.createdAt as any).seconds ? new Date((p.createdAt as any).seconds * 1000).toLocaleString() : "Recién registrado"}
+                                            </div>
+                                            {p.evidenceUrls && p.evidenceUrls.length > 0 && (
+                                                <a 
+                                                    href={p.evidenceUrls[0]} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 font-medium hover:underline bg-blue-50 px-2 py-1 rounded-md"
+                                                >
+                                                    <Camera className="h-3 w-3" /> Ver Foto de Factura
+                                                </a>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-lg text-gray-900">${p.total.toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500">{p.items?.length || 0} items</div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
