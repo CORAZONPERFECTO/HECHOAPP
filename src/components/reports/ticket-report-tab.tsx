@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/use-toast";
 import { TemplatePickerDialog } from "@/components/reports/template-picker-dialog";
 import { ReportTemplate } from "@/types/reports";
+import { Link as LinkIcon, ExternalLink } from "lucide-react";
 
 interface TicketReportTabProps {
     ticket: Ticket;
@@ -420,11 +421,32 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                         <span className="text-xs text-gray-400 hidden sm:inline-block">
                             {saving ? "Guardando..." : "Guardado"}
                         </span>
-                        <Link href={`/tickets/${ticket.id}/report`} target="_blank">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Pantalla Completa">
-                                <Maximize2 className="h-4 w-4" />
+                        
+                        {/* Smart-Link Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-2 border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                            onClick={() => {
+                                const url = `${window.location.origin}/r/${ticket.id}`;
+                                navigator.clipboard.writeText(url);
+                                toast({
+                                    title: "Enlace Copiado",
+                                    description: "El Smart-Link se ha copiado al portapapeles. ¡Envíalo por WhatsApp!",
+                                    variant: "default",
+                                });
+                            }}
+                        >
+                            <LinkIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline">Copiar Link Cliente</span>
+                        </Button>
+
+                        <Link href={`/r/${ticket.id}`} target="_blank">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50" title="Ver Vista del Cliente">
+                                <ExternalLink className="h-4 w-4" />
                             </Button>
                         </Link>
+
                         <ExportMenu report={report} />
                     </div>
                 </div>
