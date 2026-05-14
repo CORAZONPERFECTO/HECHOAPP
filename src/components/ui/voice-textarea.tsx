@@ -187,7 +187,10 @@ export function VoiceTextarea({ className, value, onChange, onValueChange, ...pr
         <div className="relative group">
             <Textarea
                 value={value}
-                onChange={onChange}
+                onChange={(e) => {
+                    valueRef.current = e.target.value;
+                    if (onChange) onChange(e);
+                }}
                 className={cn("pr-24 min-h-[100px]", className)}
                 disabled={isProcessing}
                 placeholder="Escribe o dicta aquí..."

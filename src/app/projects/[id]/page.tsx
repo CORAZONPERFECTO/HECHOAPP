@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Plus, Grid3X3, Edit, Printer, FileText } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { MatrixGeneratorModal } from "@/components/projects/matrix-generator-modal";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 export default function AdminProjectDetailPage() {
     const params = useParams();
@@ -27,6 +30,107 @@ export default function AdminProjectDetailPage() {
 
     // Modal para ver foto de evidencia
     const [viewingPhoto, setViewingPhoto] = useState<{ url: string, name: string, technician: string, date: any } | null>(null);
+
+    // Matrix Generator State
+    const [showMatrixModal, setShowMatrixModal] = useState(false);
+
+    const handleUpdateZoneNotes = async (zoneId: string, notes: string) => {
+        try {
+            await updateDoc(doc(db, "projectZones", zoneId), { notes });
+        } catch (error) {
+            console.error("Error updating notes:", error);
+        }
+    };
+
+    const handlePrintReport = () => {
+        window.print();
+    };
+
+    const handleDeleteProject = async () => {
+        if (!confirm("¿Estás seguro de eliminar este proyecto y todas sus zonas? Esta acción no se puede deshacer.")) return;
+        try {
+            const batch = writeBatch(db);
+            // Delete zones
+            zones.forEach(z => {
+                batch.delete(doc(db, "projectZones", z.id));
+            });
+            // Delete project
+            batch.delete(doc(db, "projects", projectId));
+            await batch.commit();
+            router.push("/projects");
+        } catch (error) {
+            console.error("Error eliminando proyecto:", error);
+            alert("Error al eliminar el proyecto.");
+        }
+    };
+
+    const handleDeleteZone = async (zoneId: string, zoneName: string) => {
+        if (!confirm(`¿Eliminar la zona "${zoneName}"? Se perderá el avance de esta zona.`)) return;
+        try {
+            await deleteDoc(doc(db, "projectZones", zoneId));
+        } catch (error) {
+            console.error("Error eliminando zona:", error);
+            alert("Error al eliminar zona.");
+        }
+    };
+
+    const handleGenerateMatrix = async (generatedZones: { id: string; name: string; areas: { id: string; name: string }[] }[]) => {
+        if (!project) return;
+        try {
+            const batch = writeBatch(db);
+            let addedTalleres = 0;
+
+            generatedZones.forEach(gz => {
+                let zoneTalleres = 0;
+                // Reconstruct full areas with talleres from the base areas
+                const newAreas = gz.areas.map((areaInfo, index) => {
+                    // Extract template from zones[0] corresponding area
+                    const baseArea = zones[0]?.areas[index];
+                    const talleres: ProjectTaller[] = baseArea ? baseArea.talleres.map(t => ({
+                        ...t,
+                        id: crypto.randomUUID(),
+                        status: 'PENDING',
+                        completedAt: null as any,
+                        evidencePhotoUrl: undefined,
+                        assignedToTecnicoId: undefined,
+                        assignedToTecnicoName: undefined
+                    })) : [];
+
+                    zoneTalleres += talleres.length;
+
+                    return {
+                        id: areaInfo.id,
+                        name: areaInfo.name,
+                        talleres
+                    };
+                });
+
+                addedTalleres += zoneTalleres;
+
+                const zoneRecord: ProjectZone = {
+                    id: gz.id,
+                    projectId: projectId,
+                    name: gz.name,
+                    areas: newAreas as ProjectArea[],
+                    progressPercentage: 0,
+                    totalTalleres: zoneTalleres,
+                    completedTalleres: 0
+                };
+
+                batch.set(doc(db, "projectZones", gz.id), zoneRecord);
+            });
+
+            // Update project total talleres
+            batch.update(doc(db, "projects", projectId), {
+                totalTalleres: (project.totalTalleres || 0) + addedTalleres
+            });
+
+            await batch.commit();
+        } catch (error) {
+            console.error("Error generando matriz:", error);
+            alert("Error al agregar las nuevas zonas.");
+        }
+    };
 
     useEffect(() => {
         if (!projectId) return;
@@ -75,10 +179,19 @@ export default function AdminProjectDetailPage() {
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
             <div className="max-w-6xl mx-auto space-y-6">
                 
+                <style dangerouslySetInnerHTML={{__html: `
+                    @media print {
+                        body { background-color: white !important; }
+                        .no-print { display: none !important; }
+                        .print-break-inside-avoid { break-inside: avoid; }
+                        .print-shadow-none { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+                    }
+                `}} />
+                
                 {/* Header Superior */}
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                     <div className="flex items-center gap-4">
-                        <Button variant="ghost" onClick={() => router.push("/projects")} className="bg-white shadow-sm hover:bg-gray-50">
+                        <Button variant="ghost" onClick={() => router.push("/projects")} className="bg-white shadow-sm hover:bg-gray-50 no-print">
                             <ArrowLeft className="mr-2 h-4 w-4 text-blue-600" />
                             Volver
                         </Button>
@@ -96,11 +209,19 @@ export default function AdminProjectDetailPage() {
                             </p>
                         </div>
                     </div>
+                    <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0 no-print">
+                        <Button variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={handlePrintReport}>
+                            <Printer className="h-4 w-4 mr-2" /> Informe Final
+                        </Button>
+                        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleDeleteProject}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar Proyecto
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Tarjetas de Resumen KPI */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="border-t-4 border-t-blue-500 shadow-sm">
+                    <Card className="border-t-4 border-t-blue-500 shadow-sm print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -117,7 +238,7 @@ export default function AdminProjectDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-t-4 border-t-purple-500 shadow-sm">
+                    <Card className="border-t-4 border-t-purple-500 shadow-sm print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -133,7 +254,7 @@ export default function AdminProjectDetailPage() {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-t-4 border-t-emerald-500 shadow-sm">
+                    <Card className="border-t-4 border-t-emerald-500 shadow-sm print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -153,7 +274,22 @@ export default function AdminProjectDetailPage() {
                 </div>
 
                 {/* Detalle de Zonas y Áreas */}
-                <h2 className="text-xl font-bold text-gray-800 mt-8 mb-4 border-b pb-2">Estructura y Seguimiento de Zonas</h2>
+                <div className="flex justify-between items-center mt-8 mb-4 border-b pb-2">
+                    <h2 className="text-xl font-bold text-gray-800">Estructura y Seguimiento de Zonas</h2>
+                    {zones.length > 0 && (
+                        <div className="flex gap-2 no-print">
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                onClick={() => setShowMatrixModal(true)}
+                            >
+                                <Grid3X3 className="h-4 w-4 mr-2" />
+                                Agregar Zonas (Matriz)
+                            </Button>
+                        </div>
+                    )}
+                </div>
                 <div className="space-y-4">
                     {zones.length === 0 ? (
                         <div className="bg-white rounded-xl p-12 text-center border shadow-sm">
@@ -161,7 +297,7 @@ export default function AdminProjectDetailPage() {
                         </div>
                     ) : (
                         zones.map((zone) => (
-                            <Card key={zone.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow border-gray-200">
+                            <Card key={zone.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow border-gray-200 print-shadow-none print-break-inside-avoid">
                                 {/* Zone Header (Click to expand) */}
                                 <div 
                                     className={`p-5 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
@@ -173,6 +309,11 @@ export default function AdminProjectDetailPage() {
                                             <span className="text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
                                                 {zone.areas.length} Áreas
                                             </span>
+                                            {zone.notes && (
+                                                <span className="text-xs font-semibold px-2 py-1 bg-amber-100 text-amber-700 rounded-md flex items-center gap-1">
+                                                    <FileText className="h-3 w-3" /> Con Notas
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-2">
                                             <div className="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -186,14 +327,48 @@ export default function AdminProjectDetailPage() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 no-print">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteZone(zone.id, zone.name);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
                                         {expandedZone === zone.id ? <ChevronDown className="h-6 w-6 text-gray-400" /> : <ChevronRight className="h-6 w-6 text-gray-400" />}
                                     </div>
                                 </div>
 
                                 {/* Areas Accordion */}
-                                {expandedZone === zone.id && (
-                                    <div className="border-t border-gray-100 bg-slate-50/50 pb-2">
+                                {(expandedZone === zone.id || typeof window !== 'undefined' && window.matchMedia('print').matches) && (
+                                    <div className="border-t border-gray-100 bg-slate-50/50 pb-4">
+                                        {/* Zone Notes Editor */}
+                                        <div className="mx-4 mt-4 p-4 bg-white rounded-lg border border-amber-100 shadow-sm">
+                                            <Label className="text-amber-800 font-semibold mb-2 flex items-center gap-2">
+                                                <FileText className="h-4 w-4" /> Notas / Materiales de la Zona
+                                            </Label>
+                                            <Textarea 
+                                                className="min-h-[80px] bg-amber-50/30 border-amber-200 focus-visible:ring-amber-500 resize-y no-print"
+                                                placeholder="Ej. Falta tubería de cobre de 3/8, el cliente no ha pagado la cuota..."
+                                                defaultValue={zone.notes || ""}
+                                                onBlur={(e) => {
+                                                    if (e.target.value !== zone.notes) {
+                                                        handleUpdateZoneNotes(zone.id, e.target.value);
+                                                    }
+                                                }}
+                                            />
+                                            {/* Vista solo para imprimir */}
+                                            {zone.notes && (
+                                                <p className="hidden print:block text-sm text-gray-700 mt-2 p-2 bg-amber-50 rounded border border-amber-100">
+                                                    {zone.notes}
+                                                </p>
+                                            )}
+                                        </div>
+
                                         {zone.areas.map((area) => {
                                             const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
                                             const areaTotal = area.talleres.length;
@@ -266,7 +441,7 @@ export default function AdminProjectDetailPage() {
                                                                                         <Button 
                                                                                             variant="outline" 
                                                                                             size="sm" 
-                                                                                            className="h-7 text-xs bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                                                                            className="h-7 text-xs bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print"
                                                                                             onClick={() => setViewingPhoto({
                                                                                                 url: taller.evidencePhotoUrl!,
                                                                                                 name: taller.name,
@@ -278,7 +453,7 @@ export default function AdminProjectDetailPage() {
                                                                                             Ver Evidencia
                                                                                         </Button>
                                                                                     ) : (
-                                                                                        <span className="text-xs text-gray-400 italic">Sin foto</span>
+                                                                                        <span className="text-xs text-gray-400 italic no-print">Sin foto</span>
                                                                                     )}
                                                                                 </div>
                                                                             ) : (
@@ -326,6 +501,14 @@ export default function AdminProjectDetailPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Modal Matrix Generator */}
+            <MatrixGeneratorModal 
+                open={showMatrixModal}
+                onOpenChange={setShowMatrixModal}
+                baseAreas={zones[0]?.areas || []}
+                onGenerate={handleGenerateMatrix}
+            />
         </div>
     );
 }

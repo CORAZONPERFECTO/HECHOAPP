@@ -533,7 +533,7 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe el diagnóstico..."
                                     value={ticket.diagnosis || ""}
-                                    onChange={(e) => setTicket({ ...ticket, diagnosis: e.target.value })}
+                                    onChange={(e) => setTicket(prev => prev ? { ...prev, diagnosis: e.target.value } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
@@ -550,7 +550,7 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe la solución ampliada..."
                                     value={ticket.solution || ""}
-                                    onChange={(e) => setTicket({ ...ticket, solution: e.target.value })}
+                                    onChange={(e) => setTicket(prev => prev ? { ...prev, solution: e.target.value } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
@@ -567,11 +567,17 @@ export default function TechnicianTicketPage() {
                                 <VoiceTextarea
                                     placeholder="Dicta o escribe las recomendaciones para el cliente..."
                                     value={ticket.recommendations || ""}
-                                    onChange={(e) => setTicket({ ...ticket, recommendations: e.target.value })}
+                                    onChange={(e) => setTicket(prev => prev ? { ...prev, recommendations: e.target.value } : null)}
                                     className="min-h-[100px]"
                                 />
                             </CardContent>
                         </Card>
+                        <div className="flex justify-center mt-4">
+                            <Button onClick={handleSave} disabled={saving} className="w-full max-w-sm bg-slate-800 hover:bg-slate-900 text-white shadow-md">
+                                {saving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                Guardar Borrador de Textos
+                            </Button>
+                        </div>
                     </TabsContent>
 
                     {/* Herramientas Tab */}
@@ -595,7 +601,7 @@ export default function TechnicianTicketPage() {
                                     <VoiceInput 
                                         placeholder="Ej. Juan Pérez" 
                                         value={ticket.clientSignatureName || ""}
-                                        onChange={(e) => setTicket({ ...ticket, clientSignatureName: e.target.value })}
+                                        onChange={(e) => setTicket(prev => prev ? { ...prev, clientSignatureName: e.target.value } : null)}
                                         className="h-12 text-lg font-medium"
                                     />
                                     <p className="text-xs text-gray-500">Dicta o escribe el nombre de la persona que aprueba el trabajo.</p>
@@ -612,13 +618,32 @@ export default function TechnicianTicketPage() {
 
                         <Button
                             className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
-                            onClick={() => {
+                            onClick={async () => {
                                 if (!ticket.clientSignatureName || ticket.clientSignatureName.trim() === "") {
                                     alert("⚠️ El Nombre Legible de quien recibe es obligatorio para poder cerrar el servicio.");
                                     return;
                                 }
                                 if (!ticket.equipmentId) {
-                                    alert("Este ticket no tiene un equipo asignado. Por favor registre el equipo primero o contacte soporte.");
+                                    // Direct closure without intervention form
+                                    const confirmClose = window.confirm("Este ticket no tiene un equipo asignado. ¿Desea finalizarlo de todos modos?");
+                                    if (!confirmClose) return;
+
+                                    try {
+                                        setSaving(true);
+                                        // Complete Ticket
+                                        await updateDoc(doc(db, "tickets", ticket.id!), {
+                                            status: 'COMPLETED',
+                                            closedAt: serverTimestamp(),
+                                            interventionId: "NOT_APPLICABLE"
+                                        });
+                                        fetchTicket();
+                                        alert("Servicio finalizado.");
+                                    } catch (err) {
+                                        console.error("Error finalizing:", err);
+                                        alert("Error al finalizar el servicio.");
+                                    } finally {
+                                        setSaving(false);
+                                    }
                                     return;
                                 }
                                 setIsInterventionOpen(true);
@@ -626,7 +651,7 @@ export default function TechnicianTicketPage() {
                             disabled={saving || ticket.status === 'COMPLETED'}
                         >
                             <CheckCircle className="mr-2 h-5 w-5" />
-                            Finalizar y Crear RIT
+                            {ticket.equipmentId ? "Finalizar y Crear RIT" : "Finalizar Servicio"}
                         </Button>
                     </TabsContent>
                 </Tabs>

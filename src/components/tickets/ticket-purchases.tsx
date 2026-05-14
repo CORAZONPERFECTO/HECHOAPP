@@ -108,12 +108,21 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
         if (!file) return;
         setAnalyzing(true);
         try {
+            // Compress the image before sending to Server Action to prevent Vercel 413 Payload Too Large / timeout
+            const { compressImage } = await import("@/lib/image-utils");
+            let compressedFile: Blob;
+            try {
+                compressedFile = await compressImage(file);
+            } catch (err) {
+                console.warn("Failed to compress, using original", err);
+                compressedFile = file;
+            }
+
             // Import Server Action dynamically or use regular import if safe
-            // Ideally should be imported at top: import { analyzeReceiptAction } from "@/app/actions/analyze-receipt";
             const { analyzeReceiptAction } = await import("@/app/actions/analyze-receipt");
 
             const reqData = new FormData();
-            reqData.append("file", file);
+            reqData.append("file", compressedFile, file.name);
 
             const result = await analyzeReceiptAction(reqData);
 
@@ -233,10 +242,10 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
             const purchaseParams = {
                 ticketId,
-                ticketNumber,
+                ticketNumber: ticketNumber || null,
                 providerName: formData.providerName || "Proveedor General",
-                rnc: formData.rnc,
-                ncf: formData.ncf,
+                rnc: formData.rnc || null,
+                ncf: formData.ncf || null,
                 date: new Date() as any,
                 subtotal: effectiveSubtotal,
                 tax: formData.tax || 0,
@@ -287,9 +296,9 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 targetLocationId: ""
             });
             if (isOnline) loadData(); // Reload if online, otherwise we did optimistic update
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error guardando compra");
+            alert(`Error guardando compra: ${error.message || "Verifica los datos."}`);
         } finally {
             setSaving(false);
         }

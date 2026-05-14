@@ -25,6 +25,7 @@ export interface ProjectZone {
     progressPercentage: number;
     totalTalleres: number;
     completedTalleres: number;
+    notes?: string; // Observaciones o solicitud de materiales
 }
 
 export interface ProjectTaller {
