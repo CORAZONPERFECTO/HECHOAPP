@@ -73,14 +73,7 @@ export function LocationInput({
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        // Auto-extract if user types/pastes a full block of text containing a URL
-        if (val.includes("http")) {
-            const extracted = extractFromWhatsApp(val);
-            onChange(extracted);
-        } else {
-            onChange(val);
-        }
+        onChange(e.target.value);
     };
 
     const handleGetGps = () => {
@@ -188,17 +181,17 @@ export function LocationInput({
             )}
 
             {/* Preview: show if it's a URL */}
-            {value && value.startsWith("http") && (
-                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-md px-3 py-1.5">
+            {value && extractFromWhatsApp(value).startsWith("http") && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-md px-3 py-1.5 mt-2">
                     <MapPin className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                    <span className="text-xs text-green-700 truncate">Link de Maps detectado ✅</span>
+                    <span className="text-xs text-green-700 truncate">Link detectado ✅</span>
                     <a
-                        href={value}
+                        href={extractFromWhatsApp(value)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="ml-auto text-xs text-blue-600 hover:underline whitespace-nowrap"
+                        className="ml-auto text-xs text-blue-600 hover:underline whitespace-nowrap font-semibold"
                     >
-                        Verificar →
+                        Abrir Link →
                     </a>
                 </div>
             )}

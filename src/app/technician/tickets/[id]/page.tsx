@@ -269,8 +269,8 @@ export default function TechnicianTicketPage() {
                                 </div>
                                 <a
                                     href={
-                                        ticket.locationUrl && ticket.locationUrl.startsWith('http')
-                                            ? ticket.locationUrl
+                                        ticket.locationUrl && ticket.locationUrl.match(/https?:\/\/[^\s]+/)
+                                            ? ticket.locationUrl.match(/https?:\/\/[^\s]+/)?.[0]
                                             : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ticket.locationName + " " + ticket.clientName)}`
                                     }
                                     target="_blank"
