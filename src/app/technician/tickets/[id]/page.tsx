@@ -414,7 +414,7 @@ export default function TechnicianTicketPage() {
                                                 if (!prev) return prev;
                                                 return {
                                                     ...prev,
-                                                    materialsChecklist: prev.materialsChecklist.map(item => item.id === id ? { ...item, checked } : item)
+                                                    materialsChecklist: (prev.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item)
                                                 };
                                             });
                                         }}
