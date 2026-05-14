@@ -605,12 +605,23 @@ export default function TicketDetailPage() {
                                     <p>Asegúrate de haber completado la checklist y subido todas las fotos antes de solicitar la firma.</p>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>Firma del Cliente</Label>
-                                    <SignaturePad
-                                        value={ticket.clientSignature}
-                                        onChange={(sig) => setTicket({ ...ticket, clientSignature: sig })}
-                                    />
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Nombre de quien recibe</Label>
+                                        <Input
+                                            value={ticket.clientSignatureName || ""}
+                                            onChange={(e) => setTicket({ ...ticket, clientSignatureName: e.target.value })}
+                                            placeholder="Ej. Juan Pérez"
+                                            className="h-10"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Firma del Cliente</Label>
+                                        <SignaturePad
+                                            value={ticket.clientSignature}
+                                            onChange={(sig) => setTicket({ ...ticket, clientSignature: sig })}
+                                        />
+                                    </div>
                                 </div>
 
                                 <Button className="w-full h-12 text-lg" size="lg">

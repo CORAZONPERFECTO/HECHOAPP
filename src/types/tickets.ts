@@ -65,6 +65,7 @@ export interface Ticket {
     solution?: string;
     recommendations?: string;
     clientSignature?: string;
+    clientSignatureName?: string; // Legible name of the person who signed
     allowGalleryUpload?: boolean;
     equipmentId?: string; // ID of the equipment being serviced
     interventionId?: string; // ID of the RIT Intervention created

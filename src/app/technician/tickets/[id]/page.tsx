@@ -8,6 +8,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
+import { VoiceInput } from "@/components/ui/voice-input";
 import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -155,6 +156,7 @@ export default function TechnicianTicketPage() {
                 solution: ticket.solution || "",
                 recommendations: ticket.recommendations || "",
                 clientSignature: ticket.clientSignature || "",
+                clientSignatureName: ticket.clientSignatureName || "",
                 updatedAt: serverTimestamp()
             };
 
@@ -585,19 +587,36 @@ export default function TechnicianTicketPage() {
                     <TabsContent value="cierre" className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Firma de Conformidad</CardTitle>
+                                <CardTitle className="text-base">Datos de Cierre y Conformidad</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <SignaturePad
-                                    value={ticket.clientSignature || ""}
-                                    onChange={(val) => setTicket({ ...ticket, clientSignature: val })}
-                                />
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label className="font-semibold">Nombre legible de quien recibe *</Label>
+                                    <VoiceInput 
+                                        placeholder="Ej. Juan Pérez" 
+                                        value={ticket.clientSignatureName || ""}
+                                        onChange={(e) => setTicket({ ...ticket, clientSignatureName: e.target.value })}
+                                        className="h-12 text-lg font-medium"
+                                    />
+                                    <p className="text-xs text-gray-500">Dicta o escribe el nombre de la persona que aprueba el trabajo.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="font-semibold">Firma de Conformidad</Label>
+                                    <SignaturePad
+                                        value={ticket.clientSignature || ""}
+                                        onChange={(val) => setTicket({ ...ticket, clientSignature: val })}
+                                    />
+                                </div>
                             </CardContent>
                         </Card>
 
                         <Button
                             className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
                             onClick={() => {
+                                if (!ticket.clientSignatureName || ticket.clientSignatureName.trim() === "") {
+                                    alert("⚠️ El Nombre Legible de quien recibe es obligatorio para poder cerrar el servicio.");
+                                    return;
+                                }
                                 if (!ticket.equipmentId) {
                                     alert("Este ticket no tiene un equipo asignado. Por favor registre el equipo primero o contacte soporte.");
                                     return;
