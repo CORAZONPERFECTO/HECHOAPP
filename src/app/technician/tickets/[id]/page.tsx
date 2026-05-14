@@ -28,7 +28,7 @@ import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { StartServiceCard } from "@/components/technician/start-service-card";
 
-// FORZAR ACTUALIZACION VERCEL - VERSION 3.0 TABS, MATERIALES Y HERRAMIENTAS
+// FORZAR ACTUALIZACION VERCEL - VERSION 3.1 TABS, MATERIALES Y HERRAMIENTAS, CIERRE
 export default function TechnicianTicketPage() {
     const params = useParams();
     const id = params?.id as string;
