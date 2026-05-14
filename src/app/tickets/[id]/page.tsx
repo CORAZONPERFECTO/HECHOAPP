@@ -191,7 +191,7 @@ export default function TicketDetailPage() {
                     )}
 
                     {/* SUPER USER DELETE BUTTON */}
-                    {currentUserEmail.toLowerCase() === 'lcaa27@gmail.com' && (
+                    {currentUserRole === 'ADMIN' && (
                         <Button
                             variant="destructive"
                             size="sm"

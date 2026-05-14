@@ -11,9 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { TokenGenerator } from "@/components/tickets/token-generator";
 import { DispatchOrderModal } from "@/components/tickets/dispatch-order-modal";
-import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter, TrendingUp, AlertCircle } from "lucide-react";
+import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter, TrendingUp, AlertCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { deleteDoc, doc, collection, query, onSnapshot } from "firebase/firestore";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
 import { TicketKanban } from "@/components/tickets/ticket-kanban";
 import { TicketCalendar } from "@/components/tickets/ticket-calendar";
@@ -200,6 +201,30 @@ export default function TicketsPage() {
         {
             header: "SLA",
             cell: (item: Ticket) => <SLAIndicator ticket={item} />,
+        },
+        {
+            header: "",
+            id: "actions",
+            cell: (item: Ticket) => (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                    onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`¿Eliminar ticket ${item.ticketNumber}?`)) {
+                            try {
+                                await deleteDoc(doc(db, "tickets", item.id));
+                            } catch (error) {
+                                console.error("Error deleting:", error);
+                                alert("No se pudo eliminar.");
+                            }
+                        }
+                    }}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            ),
         },
     ];
 
