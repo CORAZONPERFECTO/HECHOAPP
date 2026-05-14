@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { collection, query, orderBy, onSnapshot, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, Timestamp, getDoc, doc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { Ticket } from "@/types/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { DispatchOrderModal } from "@/components/tickets/dispatch-order-modal";
 import { Plus, ArrowLeft, LayoutGrid, Calendar as CalendarIcon, List, Map as MapIcon, ShieldCheck, Filter, TrendingUp, AlertCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deleteDoc, doc, collection, query, onSnapshot } from "firebase/firestore";
 import { TicketStatusBadge } from "@/components/tickets/ticket-status-badge";
 import { TicketKanban } from "@/components/tickets/ticket-kanban";
 import { TicketCalendar } from "@/components/tickets/ticket-calendar";
@@ -33,8 +32,23 @@ export default function TicketsPage() {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [activeView, setActiveView] = useState("list");
     const [dateFilter, setDateFilter] = useState<DateFilterType>("ALL");
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
     const router = useRouter();
     const { toast } = useToast();
+
+    useEffect(() => {
+        const unsub = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    setCurrentUserRole(userDoc.data().rol || null);
+                }
+            } else {
+                setCurrentUserRole(null);
+            }
+        });
+        return () => unsub();
+    }, []);
 
     useEffect(() => {
         const q = query(collection(db, "tickets")); // Removed orderBy to allow pending serverTimestamps to render immediately
@@ -205,26 +219,29 @@ export default function TicketsPage() {
         {
             header: "",
             id: "actions",
-            cell: (item: Ticket) => (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
-                    onClick={async (e) => {
-                        e.stopPropagation();
-                        if (confirm(`¿Eliminar ticket ${item.ticketNumber}?`)) {
-                            try {
-                                await deleteDoc(doc(db, "tickets", item.id));
-                            } catch (error) {
-                                console.error("Error deleting:", error);
-                                alert("No se pudo eliminar.");
+            cell: (item: Ticket) => {
+                if (currentUserRole !== 'ADMIN' && currentUserRole !== 'GERENTE' && currentUserRole !== 'GERENTE_TICKETS') return null;
+                return (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm(`¿Eliminar ticket ${item.ticketNumber}?`)) {
+                                try {
+                                    await deleteDoc(doc(db, "tickets", item.id));
+                                } catch (error) {
+                                    console.error("Error deleting:", error);
+                                    alert("No se pudo eliminar.");
+                                }
                             }
-                        }
-                    }}
-                >
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            ),
+                        }}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                );
+            },
         },
     ];
 
