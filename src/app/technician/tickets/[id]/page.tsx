@@ -355,14 +355,12 @@ export default function TechnicianTicketPage() {
                                 </p>
                                 <ChecklistRenderer
                                     items={ticket.materialsChecklist || []}
-                                    onItemChange={(id, checked) => {
-                                        setTicket(prev => {
-                                            if (!prev) return prev;
-                                            return {
-                                                ...prev,
-                                                materialsChecklist: (prev.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item)
-                                            };
-                                        });
+                                    onItemChange={async (id, checked) => {
+                                        const newMaterials = (ticket.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item);
+                                        setTicket(prev => prev ? { ...prev, materialsChecklist: newMaterials } : null);
+                                        try {
+                                            await updateDoc(doc(db, "tickets", ticket.id!), { materialsChecklist: newMaterials });
+                                        } catch (err) { console.error("Error saving checklist:", err); }
                                     }}
                                 />
                                 <div className="flex gap-2">
@@ -390,14 +388,12 @@ export default function TechnicianTicketPage() {
                             <CardContent>
                                 <ChecklistRenderer
                                     items={ticket.checklist || []}
-                                    onItemChange={(id, checked) => {
-                                        setTicket(prev => {
-                                            if (!prev) return prev;
-                                            return {
-                                                ...prev,
-                                                checklist: prev.checklist.map(item => item.id === id ? { ...item, checked } : item)
-                                            };
-                                        });
+                                    onItemChange={async (id, checked) => {
+                                        const newChecklist = ticket.checklist.map(item => item.id === id ? { ...item, checked } : item);
+                                        setTicket(prev => prev ? { ...prev, checklist: newChecklist } : null);
+                                        try {
+                                            await updateDoc(doc(db, "tickets", ticket.id!), { checklist: newChecklist });
+                                        } catch (err) { console.error("Error saving checklist:", err); }
                                     }}
                                     readOnly={false}
                                 />
@@ -413,14 +409,12 @@ export default function TechnicianTicketPage() {
                                 ) : (
                                     <ChecklistRenderer
                                         items={ticket.materialsChecklist}
-                                        onItemChange={(id, checked) => {
-                                            setTicket(prev => {
-                                                if (!prev) return prev;
-                                                return {
-                                                    ...prev,
-                                                    materialsChecklist: (prev.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item)
-                                                };
-                                            });
+                                        onItemChange={async (id, checked) => {
+                                            const newMaterials = (ticket.materialsChecklist || []).map(item => item.id === id ? { ...item, checked } : item);
+                                            setTicket(prev => prev ? { ...prev, materialsChecklist: newMaterials } : null);
+                                            try {
+                                                await updateDoc(doc(db, "tickets", ticket.id!), { materialsChecklist: newMaterials });
+                                            } catch (err) { console.error("Error saving materials:", err); }
                                         }}
                                         readOnly={false}
                                     />
@@ -660,9 +654,6 @@ export default function TechnicianTicketPage() {
                                 }
                                 if (!ticket.equipmentId) {
                                     // Direct closure without intervention form
-                                    const confirmClose = window.confirm("Este ticket no tiene un equipo asignado. ¿Desea finalizarlo de todos modos?");
-                                    if (!confirmClose) return;
-
                                     try {
                                         setSaving(true);
                                         // Complete Ticket
