@@ -242,10 +242,10 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
             const purchaseParams = {
                 ticketId,
-                ticketNumber: ticketNumber || null,
+                ticketNumber: ticketNumber || undefined,
                 providerName: formData.providerName || "Proveedor General",
-                rnc: formData.rnc || null,
-                ncf: formData.ncf || null,
+                rnc: formData.rnc || undefined,
+                ncf: formData.ncf || undefined,
                 date: new Date() as any,
                 subtotal: effectiveSubtotal,
                 tax: formData.tax || 0,
