@@ -210,7 +210,7 @@ export default function TicketsPage() {
         },
         {
             header: "Estado",
-            cell: (item: Ticket) => <TicketStatusBadge status={item.status} />,
+            cell: (item: Ticket) => <TicketStatusBadge status={item.status} ticket={item} />,
         },
         {
             header: "SLA",

@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { Ticket } from "@/types/schema";
 import { Badge } from "@/components/ui/badge";
 import { SyncStatus } from "@/components/shared/sync-status";
-import { Clock, User, CheckCircle, Wrench, MoreVertical, X } from "lucide-react";
+import { Clock, User, CheckCircle, Wrench, MoreVertical, X, AlertTriangle } from "lucide-react";
 
 interface TicketCardProps {
     ticketId: string;
@@ -52,6 +52,20 @@ export function TicketCardRefactored({ ticketId, initialData, onClick }: TicketC
         URGENT: "bg-red-100 text-red-800 border-red-200",
     };
 
+    let hasStagnantPart = false;
+    if (ticket.status === 'WAITING_PARTS' && ticket.dismantledParts && ticket.dismantledParts.length > 0) {
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+        hasStagnantPart = ticket.dismantledParts.some(part => {
+            if (!part.dismantledAt) return false;
+            const partDate = typeof (part.dismantledAt as any).toDate === 'function' 
+                ? (part.dismantledAt as any).toDate() 
+                : new Date((part.dismantledAt as any).seconds * 1000);
+            return partDate < threeDaysAgo;
+        });
+    }
+
     return (
         // 2. Container Queries: Definimos @container y container-type: inline-size
         <div className="@container w-full relative" onClick={onClick}>
@@ -82,6 +96,12 @@ export function TicketCardRefactored({ ticketId, initialData, onClick }: TicketC
                                 SLA: {new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()}
                             </span>
                         </div>
+                        {hasStagnantPart && (
+                            <div className="flex items-center gap-1.5 mt-2 text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md border border-red-200 animate-pulse w-fit">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                <span>Pieza +3 días en Taller</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Descripción con texto adaptativo / clamp */}
