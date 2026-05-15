@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
+import { TicketTimeline } from "@/components/tickets/ticket-timeline";
+import { TicketDismantlingTab } from "@/components/tickets/ticket-dismantling-tab";
 import { StartServiceCard } from "@/components/technician/start-service-card";
 
 // FORZAR ACTUALIZACION VERCEL - VERSION 3.1 TABS, MATERIALES Y HERRAMIENTAS, CIERRE
@@ -255,9 +257,11 @@ export default function TechnicianTicketPage() {
                                 { value: "info", label: "Info", icon: <Info className="h-4 w-4" /> },
                                 { value: "checklist", label: "Checklist", icon: <ListChecks className="h-4 w-4" /> },
                                 { value: "fotos", label: "Fotos", icon: <Camera className="h-4 w-4" /> },
+                                { value: "desmontaje", label: "Piezas", icon: <Cpu className="h-4 w-4" /> },
                                 { value: "reporte", label: "Reporte", icon: <FileText className="h-4 w-4" /> },
                                 { value: "compras", label: "Compras", icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "herramientas", label: "Herramientas", icon: <Wrench className="h-4 w-4" /> },
+                                { value: "historial", label: "Historial", icon: <History className="h-4 w-4" /> },
                                 { value: "cierre", label: "Cierre", icon: <CheckCircle className="h-4 w-4" /> },
                             ] as const).map(tab => (
                                 <TabsTrigger
@@ -590,6 +594,34 @@ export default function TechnicianTicketPage() {
                             currentUser={{ id: user.uid, name: user.displayName || user.email || "Técnico" }}
                             events={ticketEvents}
                         />
+                    </TabsContent>
+
+                    {/* Desmontaje Tab */}
+                    <TabsContent value="desmontaje" className="space-y-4">
+                        <TicketDismantlingTab
+                            ticket={ticket}
+                            setTicket={setTicket}
+                            onSave={handleSave}
+                            currentUserId={user.uid}
+                            currentUserName={user.displayName || user.email || "Técnico"}
+                        />
+                    </TabsContent>
+
+                    {/* Historial Tab */}
+                    <TabsContent value="historial" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Historial del Ticket</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <TicketTimeline 
+                                    events={ticketEvents}
+                                    ticketId={ticket.id}
+                                    currentUserId={user.uid}
+                                    currentUserName={user.displayName || user.email || "Técnico"}
+                                />
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {/* Cierre Tab */}

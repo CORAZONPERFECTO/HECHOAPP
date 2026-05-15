@@ -8,6 +8,19 @@ export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type ApprovalRequestType = 'MATERIAL_PURCHASE' | 'PRICE_CHANGE' | 'SCOPE_CHANGE' | 'OVERTIME' | 'OTHER';
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+export interface DismantledPart {
+    id: string;
+    referenceNumber: string;
+    referencePhotoUrl?: string;
+    frontPhotoUrl?: string;
+    backPhotoUrl?: string;
+    wiringPhotos?: string[]; // Multiple photos of wiring
+    platePhotoUrl?: string; // Model/Serial plate
+    dismantledAt: Timestamp;
+    dismantledBy: string; // technicianId
+    dismantledByName: string;
+}
+
 export interface TicketEvent {
     id: string;
     ticketId: string;
@@ -56,6 +69,7 @@ export interface Ticket {
     checklist: ChecklistItem[];
     materialsChecklist?: ChecklistItem[];
     photos: TicketPhoto[];
+    dismantledParts?: DismantledPart[];
     technicianId?: string;
     technicianName?: string;
     tecnicoAsignadoId?: string;
