@@ -135,7 +135,6 @@ export function CentroCostosTab() {
                                     type="AFTER"
                                     photos={receiptPhotos.map(url => ({ id: '1', url, type: 'AFTER', label: 'Comprobante', createdAt: new Date() as any }))}
                                     onChange={(photos) => setReceiptPhotos(photos.map(p => p.url))}
-                                    allowMultiple={false}
                                 />
                             </div>
 
