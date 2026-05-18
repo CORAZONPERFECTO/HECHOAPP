@@ -7,3 +7,4 @@ export * from './finance';
 export * from './tickets';
 export * from './reports';
 export * from './hvac';
+export * from './logistics';

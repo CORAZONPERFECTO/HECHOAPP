@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download, ExternalLink, Image as ImageIcon, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CentroCostosTab } from "@/components/finance/centro-costos-tab";
 
 // Interfaz extendida para mostrar los datos en la tabla
 interface PurchaseWithClient extends Purchase {
@@ -22,6 +24,7 @@ export default function GastosPage() {
     const [purchases, setPurchases] = useState<PurchaseWithClient[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState("centro-costos");
 
     useEffect(() => {
         fetchPurchases();
@@ -118,8 +121,19 @@ export default function GastosPage() {
                 </Button>
             </div>
 
-            <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-4 bg-white border">
+                    <TabsTrigger value="centro-costos">Centro de Costos (OPEX)</TabsTrigger>
+                    <TabsTrigger value="tickets">Compras de Tickets (Técnicos)</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="centro-costos">
+                    <CentroCostosTab />
+                </TabsContent>
+
+                <TabsContent value="tickets">
+                    <Card className="border-slate-200 shadow-sm rounded-xl overflow-hidden">
+                        <div className="overflow-x-auto">
                     <Table>
                         <TableHeader className="bg-slate-50">
                             <TableRow>
@@ -213,6 +227,8 @@ export default function GastosPage() {
                     </Table>
                 </div>
             </Card>
+            </TabsContent>
+        </Tabs>
 
             <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
                 <DialogContent className="sm:max-w-3xl border-0 p-0 overflow-hidden bg-black/95">

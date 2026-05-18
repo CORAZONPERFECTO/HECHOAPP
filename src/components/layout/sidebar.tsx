@@ -26,6 +26,7 @@ import { doc, getDoc } from "firebase/firestore";
 const adminMenuItems = [
     { label: "Dashboard", icon: LayoutDashboard, href: "/", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS", "TECNICO"] },
     { label: "Proyectos", icon: Building2, href: "/projects", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS"] },
+    { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "GERENTE"] },
     { label: "Torre Tickets", icon: Ticket, href: "/tickets", roles: ["ADMIN", "SUPERVISOR", "GERENTE", "GERENTE_TICKETS"] },
     { label: "Facturas", icon: Files, href: "/income/invoices", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Recurrentes", icon: Repeat, href: "/income/recurring", roles: ["ADMIN", "SUPERVISOR"] },
@@ -44,6 +45,7 @@ const adminMenuItems = [
     { label: "Ubicación", icon: MapPin, href: "/admin/tracking", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Diagnóstico IA", icon: BrainCircuit, href: "/resources?tab=errors", roles: ["ADMIN", "SUPERVISOR", "TECNICO", "CONTRATISTA"] },
     { label: "Control Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
+    { label: "Tareas Logísticas", icon: Truck, href: "/admin/logistics", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },
 ];
 

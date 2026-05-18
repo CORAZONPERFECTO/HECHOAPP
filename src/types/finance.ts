@@ -253,3 +253,20 @@ export interface Receipt {
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
+
+export type ExpenseCategory = 'FLOTILLA' | 'NOMINA' | 'GASTOS_FIJOS' | 'OTROS';
+
+export interface Expense {
+    id?: string;
+    category: ExpenseCategory;
+    subcategory: string;
+    amount: number;
+    description: string;
+    date: Timestamp;
+    receiptUrl?: string;
+    mileage?: number;
+    vehicleId?: string;
+    employeeId?: string;
+    createdBy: string;
+    createdAt: Timestamp;
+}
