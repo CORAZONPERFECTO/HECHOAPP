@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DollarSign, TrendingUp, TrendingDown, BrainCircuit, Loader2, AlertTriangle, ArrowUpRight } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 
 export default function DashboardFinancieroPage() {
     const [loading, setLoading] = useState(true);
@@ -280,8 +279,8 @@ export default function DashboardFinancieroPage() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="prose prose-purple max-w-none text-gray-700 bg-purple-50/30 p-6 rounded-lg border border-purple-100">
-                                <ReactMarkdown>{aiReport}</ReactMarkdown>
+                            <div className="prose prose-purple max-w-none text-gray-700 bg-purple-50/30 p-6 rounded-lg border border-purple-100 whitespace-pre-wrap">
+                                {aiReport}
                             </div>
                             <Button variant="outline" onClick={() => setAiReport(null)} className="text-gray-500">
                                 Ocultar Reporte
