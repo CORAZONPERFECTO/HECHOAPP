@@ -288,10 +288,11 @@ export function useOfflineSync() {
         areaId: string;
         tallerId: string;
         blockedReason: string;
+        blockedByContractor?: string;
         userId: string;
         userName: string;
     }) => {
-        const { projectId, zoneId, areaId, tallerId, blockedReason, userId, userName } = data;
+        const { projectId, zoneId, areaId, tallerId, blockedReason, blockedByContractor, userId, userName } = data;
 
         await runTransaction(db, async (transaction) => {
             const zoneRef = doc(db, "projectZones", zoneId);
@@ -310,6 +311,8 @@ export function useOfflineSync() {
                         if (t.id === tallerId) {
                             t.status = 'BLOCKED';
                             t.blockedReason = blockedReason;
+                            t.blockedByContractor = blockedByContractor || undefined;
+                            t.blockedAt = serverTimestamp() as any;
                             t.assignedToTecnicoId = userId;
                             t.assignedToTecnicoName = userName;
                             tallerEncontrado = true;
@@ -376,6 +379,7 @@ export function useOfflineSync() {
         areaId: string;
         tallerId: string;
         blockedReason: string;
+        blockedByContractor?: string;
         userId: string;
         userName: string;
     }) => {

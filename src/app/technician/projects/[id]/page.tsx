@@ -58,6 +58,8 @@ export default function TechnicianProjectDetailPage() {
     const [selectedBlockTaller, setSelectedBlockTaller] = useState<{zoneId: string, areaId: string, taller: ProjectTaller} | null>(null);
     const [blockedReason, setBlockedReason] = useState("");
     const [blocking, setBlocking] = useState(false);
+    const [blockedByContractor, setBlockedByContractor] = useState("");
+    const [customContractor, setCustomContractor] = useState("");
 
     const groupedZones = useMemo(() => {
         const groups: Record<string, ProjectZone[]> = {};
@@ -213,7 +215,7 @@ export default function TechnicianProjectDetailPage() {
         }
     };
 
-    const handleBlockTallerLocal = async (zoneId: string, areaId: string, tallerId: string, reason: string) => {
+    const handleBlockTallerLocal = async (zoneId: string, areaId: string, tallerId: string, reason: string, contractor?: string) => {
         const user = auth.currentUser;
         if (!user) return;
 
@@ -230,6 +232,8 @@ export default function TechnicianProjectDetailPage() {
                             ...t,
                             status: 'BLOCKED' as const,
                             blockedReason: reason,
+                            blockedByContractor: contractor || undefined,
+                            blockedAt: new Date(),
                             assignedToTecnicoId: user.uid,
                             assignedToTecnicoName: user.displayName || user.email || "Técnico"
                         };
@@ -303,12 +307,18 @@ export default function TechnicianProjectDetailPage() {
             return;
         }
 
+        const contractorValue = blockedByContractor === "Otro" ? customContractor.trim() : blockedByContractor;
+        if (!contractorValue) {
+            alert("Debes seleccionar o escribir el contratista responsable.");
+            return;
+        }
+
         setBlocking(true);
         try {
             const { zoneId, areaId, taller } = selectedBlockTaller;
 
             // 1. Guardar localmente
-            await handleBlockTallerLocal(zoneId, areaId, taller.id, blockedReason);
+            await handleBlockTallerLocal(zoneId, areaId, taller.id, blockedReason, contractorValue);
 
             // 2. Encolar en background sync
             await queueProjectTallerBlock({
@@ -317,6 +327,7 @@ export default function TechnicianProjectDetailPage() {
                 areaId,
                 tallerId: taller.id,
                 blockedReason: blockedReason,
+                blockedByContractor: contractorValue,
                 userId: user.uid,
                 userName: user.displayName || user.email || "Técnico"
             });
@@ -324,6 +335,8 @@ export default function TechnicianProjectDetailPage() {
             // Limpieza
             setSelectedBlockTaller(null);
             setBlockedReason("");
+            setBlockedByContractor("");
+            setCustomContractor("");
         } catch (error) {
             console.error("Error bloqueando taller:", error);
             alert("Error al registrar el bloqueo.");
@@ -608,23 +621,64 @@ export default function TechnicianProjectDetailPage() {
                     </DialogHeader>
                     
                     <div className="py-2 space-y-3">
-                        <p className="text-xs text-slate-500">
-                            Describe detalladamente la razón por la cual este hito no puede continuar:
-                        </p>
+                        <div>
+                            <label className="text-xs font-semibold text-slate-700 block mb-1">
+                                Contratista / Responsable del Bloqueo:
+                            </label>
+                            <select
+                                value={blockedByContractor}
+                                onChange={(e) => setBlockedByContractor(e.target.value)}
+                                className="w-full text-xs rounded-lg border border-slate-200 p-2 focus:outline-none focus:ring-1 focus:ring-slate-400 bg-white"
+                            >
+                                <option value="">-- Seleccionar Contratista --</option>
+                                <option value="Albañilería">Albañilería</option>
+                                <option value="Electricidad">Electricidad</option>
+                                <option value="Plomería">Plomería</option>
+                                <option value="Pintura">Pintura</option>
+                                <option value="Estructuras / Drywall">Estructuras / Drywall</option>
+                                <option value="Vidriería / Carpintería">Vidriería / Carpintería</option>
+                                <option value="Propietario / Cliente">Propietario / Cliente</option>
+                                <option value="Otro">Otro (Especificar)</option>
+                            </select>
+                        </div>
 
-                        <Textarea 
-                            value={blockedReason}
-                            onChange={(e) => setBlockedReason(e.target.value)}
-                            placeholder="Ej: Falta de materiales, sin acceso al apartamento, tuberías rotas..."
-                            className="text-xs min-h-[90px] border-slate-200 focus-visible:ring-slate-400"
-                        />
+                        {blockedByContractor === "Otro" && (
+                            <div>
+                                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                                    Especificar Contratista:
+                                </label>
+                                <input
+                                    type="text"
+                                    value={customContractor}
+                                    onChange={(e) => setCustomContractor(e.target.value)}
+                                    placeholder="Nombre del contratista responsable"
+                                    className="w-full text-xs rounded-lg border border-slate-200 p-2 focus:outline-none focus:ring-1 focus:ring-slate-400 bg-white"
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="text-xs font-semibold text-slate-700 block mb-1">
+                                Razón del Bloqueo:
+                            </label>
+                            <Textarea 
+                                value={blockedReason}
+                                onChange={(e) => setBlockedReason(e.target.value)}
+                                placeholder="Ej: Falta de materiales, sin acceso al apartamento, tuberías rotas..."
+                                className="text-xs min-h-[90px] border-slate-200 focus-visible:ring-slate-400"
+                            />
+                        </div>
                     </div>
 
                     <DialogFooter className="flex-row gap-2 justify-end pt-2 border-t border-slate-100">
                         <Button variant="outline" onClick={() => setSelectedBlockTaller(null)} disabled={blocking} className="flex-1 text-slate-700 text-xs">
                             Cancelar
                         </Button>
-                        <Button onClick={confirmBlock} disabled={!blockedReason.trim() || blocking} className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold">
+                        <Button 
+                            onClick={confirmBlock} 
+                            disabled={!blockedReason.trim() || !blockedByContractor || (blockedByContractor === "Otro" && !customContractor.trim()) || blocking} 
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                        >
                             {blocking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <ShieldAlert className="h-3.5 w-3.5 mr-2" />}
                             Registrar Bloqueo
                         </Button>

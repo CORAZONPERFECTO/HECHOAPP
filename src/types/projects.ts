@@ -46,6 +46,9 @@ export interface ProjectTaller {
     
     // History or blockers
     blockedReason?: string;
+    blockedByContractor?: string; // e.g. "Albañilería", "Electricidad", etc.
+    blockedAt?: Timestamp | Date;
+    blockReportedBy?: string;
 }
 
 export interface Project {
@@ -88,3 +91,16 @@ export const DEFAULT_TALLERES_TEMPLATES: ProjectTallerTemplate[] = [
     { id: 't12', name: 'Liberación de Gas / Carga de Refrigerante', orderIndex: 12, estimatedMinutes: 60 },
     { id: 't13', name: 'Prueba de Arranque y Termometría', orderIndex: 13, estimatedMinutes: 60 },
 ];
+
+export interface BlockReportAudit {
+    id: string;
+    projectId: string;
+    projectName: string;
+    contractor: string;
+    exportedAt: Timestamp | Date;
+    exportedBy: string; // user name or email
+    blockedItemsCount: number;
+    details: string; // list of zones/apartments involved
+    notified: boolean;
+    notes?: string;
+}

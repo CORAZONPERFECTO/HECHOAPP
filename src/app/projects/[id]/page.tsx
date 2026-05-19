@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus, DEFAULT_TALLERES_TEMPLATES } from "@/types/projects";
+import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus, DEFAULT_TALLERES_TEMPLATES, BlockReportAudit } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle, Edit, Plus, Pencil, Building2 } from "lucide-react";
@@ -25,6 +25,7 @@ export default function AdminProjectDetailPage() {
     const [project, setProject] = useState<Project | null>(null);
     const [zones, setZones] = useState<ProjectZone[]>([]);
     const [loading, setLoading] = useState(true);
+    const [audits, setAudits] = useState<BlockReportAudit[]>([]);
 
     const [expandedZone, setExpandedZone] = useState<string | null>(null);
     const [expandedArea, setExpandedArea] = useState<string | null>(null);
@@ -52,6 +53,164 @@ export default function AdminProjectDetailPage() {
     const [editClientName, setEditClientName] = useState("");
     const [editStatus, setEditStatus] = useState<ProjectStatus>('PLANNING');
     const [editEstimatedDate, setEditEstimatedDate] = useState("");
+
+    useEffect(() => {
+        if (!projectId) return;
+        const q = query(collection(db, "blockReportAudits"), where("projectId", "==", projectId));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const list: BlockReportAudit[] = [];
+            snapshot.forEach((doc) => {
+                list.push({ id: doc.id, ...doc.data() } as BlockReportAudit);
+            });
+            list.sort((a, b) => {
+                const dateA = (a.exportedAt as any)?.toDate ? (a.exportedAt as any).toDate() : new Date(a.exportedAt as any);
+                const dateB = (b.exportedAt as any)?.toDate ? (b.exportedAt as any).toDate() : new Date(b.exportedAt as any);
+                return dateB - dateA;
+            });
+            setAudits(list);
+        });
+        return () => unsubscribe();
+    }, [projectId]);
+
+    const blockedTalleres = useMemo(() => {
+        const list: { zoneName: string; areaName: string; taller: ProjectTaller; zoneId: string; areaId: string }[] = [];
+        zones.forEach(z => {
+            z.areas.forEach(a => {
+                a.talleres.forEach(t => {
+                    if (t.status === 'BLOCKED') {
+                        list.push({
+                            zoneName: z.name,
+                            areaName: a.name,
+                            taller: t,
+                            zoneId: z.id,
+                            areaId: a.id
+                        });
+                    }
+                });
+            });
+        });
+        return list;
+    }, [zones]);
+
+    const handlePrintContractorReport = async (contractor: string, items: typeof blockedTalleres) => {
+        try {
+            const { auth } = await import("@/lib/firebase");
+            const user = auth.currentUser;
+            const auditData = {
+                projectId,
+                projectName: project?.name || "Proyecto",
+                contractor,
+                exportedAt: serverTimestamp(),
+                exportedBy: user?.displayName || user?.email || "Administrador",
+                blockedItemsCount: items.length,
+                details: items.map(i => `${i.zoneName} - ${i.areaName}: ${i.taller.name}`).join("\n"),
+                notified: true
+            };
+            
+            await addDoc(collection(db, "blockReportAudits"), auditData);
+            
+            const printWindow = window.open("", "_blank");
+            if (printWindow) {
+                const dateStr = new Date().toLocaleDateString('es-ES', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>Reporte de Bloqueo - ${contractor}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 40px; color: #333; line-height: 1.5; }
+                            .header { border-bottom: 2px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
+                            .title { font-size: 24px; font-weight: bold; color: #0f172a; }
+                            .subtitle { font-size: 14px; color: #64748b; margin-top: 5px; }
+                            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; rounded: 8px; border: 1px solid #e2e8f0; }
+                            .meta-item { font-size: 13px; }
+                            .meta-item strong { color: #0f172a; }
+                            .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            .table th { background: #0f172a; color: white; padding: 12px; text-align: left; font-size: 13px; }
+                            .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+                            .table tr:nth-child(even) { background: #f8fafc; }
+                            .reason-box { background: #fef2f2; border-left: 4px solid #ef4444; padding: 8px; font-size: 12px; color: #991b1b; margin-top: 5px; rounded-r: 4px; }
+                            .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #64748b; text-align: center; }
+                            .signature-area { display: flex; justify-content: space-between; margin-top: 80px; }
+                            .signature-line { border-top: 1px solid #94a3b8; width: 200px; text-align: center; padding-top: 10px; font-size: 12px; }
+                            @media print {
+                                body { padding: 20px; }
+                                button { display: none; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div style="display: flex; justify-content: space-between; align-items: center;" class="no-print">
+                            <button onclick="window.print()" style="background: #0f172a; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-bottom: 20px;">Imprimir Reporte</button>
+                        </div>
+                        <div class="header">
+                            <div class="title">INFORME DE HITOS BLOQUEADOS</div>
+                            <div class="subtitle">CONTRATISTA RESPONSABLE: ${contractor.toUpperCase()}</div>
+                        </div>
+                        
+                        <div class="meta-grid">
+                            <div class="meta-item"><strong>Proyecto:</strong> ${project?.name || ""}</div>
+                            <div class="meta-item"><strong>Cliente:</strong> ${project?.clientName || ""}</div>
+                            <div class="meta-item"><strong>Fecha de Emisión:</strong> ${dateStr}</div>
+                            <div class="meta-item"><strong>Emitido Por:</strong> ${user?.displayName || user?.email || ""}</div>
+                        </div>
+
+                        <p style="font-size: 14px; margin-bottom: 20px;">
+                            Por medio de la presente, se notifica formalmente al contratista de <strong>${contractor}</strong> los siguientes hitos/áreas bloqueados en la obra que impiden el avance de la instalación de climatización:
+                        </p>
+
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Zona / Apto</th>
+                                    <th style="width: 25%;">Área</th>
+                                    <th style="width: 25%;">Hito Bloqueado</th>
+                                    <th style="width: 25%;">Detalle / Razón</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(item => `
+                                    <tr>
+                                        <td><strong>${item.zoneName}</strong></td>
+                                        <td>${item.areaName}</td>
+                                        <td>${item.taller.name}</td>
+                                        <td>
+                                            <div class="reason-box">
+                                                ${item.taller.blockedReason || "Sin especificar"}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+
+                        <div class="signature-area">
+                            <div class="signature-line">
+                                Reportado Por (HECHO)
+                            </div>
+                            <div class="signature-line">
+                                Recibido Por (${contractor})
+                            </div>
+                        </div>
+
+                        <div class="footer">
+                            Este documento es una constancia de bloqueo generada por el sistema HECHOAPP el ${dateStr}.
+                        </div>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+        } catch (error) {
+            console.error("Error printing contractor report:", error);
+        }
+    };
 
     useEffect(() => {
         const fetchTechnicians = async () => {
@@ -855,6 +1014,99 @@ export default function AdminProjectDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
+                {/* Panel de Bloqueos y Auditoría de Contratistas */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 print:hidden">
+                    {/* Hitos Bloqueados */}
+                    <Card className="lg:col-span-2 border-l-4 border-l-red-650 shadow-sm rounded-xl bg-white">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-red-600" />
+                                Hitos Bloqueados por Contratistas Externos
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {blockedTalleres.length === 0 ? (
+                                <p className="text-xs text-slate-500 italic">No hay hitos bloqueados actualmente en este proyecto.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {/* Group by contractor */}
+                                    {Object.entries(
+                                        blockedTalleres.reduce((acc, curr) => {
+                                            const contractor = curr.taller.blockedByContractor || "No especificado";
+                                            if (!acc[contractor]) acc[contractor] = [];
+                                            acc[contractor].push(curr);
+                                            return acc;
+                                        }, {} as Record<string, typeof blockedTalleres>)
+                                    ).map(([contractor, items]) => (
+                                        <div key={contractor} className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 space-y-2">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-red-950 bg-red-100/50 px-2 py-0.5 rounded">
+                                                    {contractor} ({items.length})
+                                                </span>
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline" 
+                                                    className="h-7 text-[10px] font-bold border-slate-200 text-slate-800 bg-white hover:bg-slate-100"
+                                                    onClick={() => handlePrintContractorReport(contractor, items)}
+                                                >
+                                                    <FileText className="h-3 w-3 mr-1" /> Notificar y Auditar
+                                                </Button>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {items.map((item, idx) => (
+                                                    <div key={idx} className="text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-100">
+                                                        <div className="flex justify-between font-semibold text-slate-700">
+                                                            <span>{item.zoneName} &bull; {item.areaName} &bull; {item.taller.name}</span>
+                                                        </div>
+                                                        <p className="mt-1 text-red-800 bg-red-50/30 p-1 rounded border border-red-100/50">
+                                                            <strong>Razón:</strong> {item.taller.blockedReason || "Sin especificar"}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Historial de Auditoría de Reportes */}
+                    <Card className="border-l-4 border-l-slate-600 shadow-sm rounded-xl bg-white">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-slate-600" />
+                                Historial de Reportes Enviados
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {audits.length === 0 ? (
+                                <p className="text-xs text-slate-500 italic">No se han registrado envíos de reportes aún.</p>
+                            ) : (
+                                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                                    {audits.map((audit) => {
+                                        const date = (audit.exportedAt as any)?.toDate ? (audit.exportedAt as any).toDate() : new Date(audit.exportedAt as any);
+                                        return (
+                                            <div key={audit.id} className="text-[10px] border border-slate-100 rounded-lg p-2.5 bg-slate-50/50">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <span className="font-bold text-slate-800">{audit.contractor}</span>
+                                                    <span className="text-[9px] text-slate-500">{format(date, "dd MMM, HH:mm", { locale: es })}</span>
+                                                </div>
+                                                <p className="text-[9px] text-slate-600">
+                                                    <strong>Hitos reportados:</strong> {audit.blockedItemsCount}
+                                                </p>
+                                                <p className="text-[9px] text-slate-600 mt-0.5">
+                                                    <strong>Emitido por:</strong> {audit.exportedBy}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
                      {/* Detalle de Zonas y Áreas */}
                 <div className="flex justify-between items-center mt-8 mb-4 border-b border-slate-200 pb-3">
                     <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">Estructura y Avance por Zonas</h2>
@@ -1133,6 +1385,22 @@ export default function AdminProjectDetailPage() {
                                                                                                                     <p className="text-[9px] text-slate-400 mt-0.5">
                                                                                                                         {format((taller.completedAt as any).toDate ? (taller.completedAt as any).toDate() : new Date(taller.completedAt as any), "dd MMM, HH:mm", { locale: es })}
                                                                                                                     </p>
+                                                                                                                )}
+                                                                                                                {isBlocked && (
+                                                                                                                    <div className="mt-1 space-y-0.5 text-[9px] text-red-800 bg-red-50/50 rounded p-1.5 border border-red-100 max-w-sm">
+                                                                                                                        <p>
+                                                                                                                            <strong className="font-semibold">Responsable:</strong> {taller.blockedByContractor || "No especificado"}
+                                                                                                                        </p>
+                                                                                                                        <p>
+                                                                                                                            <strong className="font-semibold">Razón:</strong> {taller.blockedReason || "Sin razón especificada"}
+                                                                                                                        </p>
+                                                                                                                        <p className="text-[8px] text-slate-400">
+                                                                                                                            Reportado por {taller.assignedToTecnicoName || "Técnico"}
+                                                                                                                            {taller.blockedAt && (
+                                                                                                                                <> el {format((taller.blockedAt as any).toDate ? (taller.blockedAt as any).toDate() : new Date(taller.blockedAt as any), "dd MMM, HH:mm", { locale: es })}</>
+                                                                                                                            )}
+                                                                                                                        </p>
+                                                                                                                    </div>
                                                                                                                 )}
                                                                                                             </div>
                                                                                                         </div>
