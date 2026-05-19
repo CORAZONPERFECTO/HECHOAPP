@@ -10,16 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InstallAppButton } from "@/components/shared/install-app-button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
-    Car, AlertTriangle, Droplet, Building2, Truck
+    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { TicketCardRefactored } from "@/components/tickets/ticket-card-refactored";
 
 export function MyDayView() {
+    const { isOnline, isSyncing, pendingOperations, syncQueue, retryOperation, discardOperation } = useOfflineSync();
+    const [isQueueOpen, setIsQueueOpen] = useState(false);
+    
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<string>("");
@@ -363,6 +369,47 @@ export function MyDayView() {
             )}
 
             <div className="max-w-7xl mx-auto py-8 space-y-6">
+                {/* Banner de Sincronización */}
+                {syncQueue.length > 0 && (
+                    <div 
+                        onClick={() => setIsQueueOpen(true)}
+                        className={`cursor-pointer max-w-lg mx-auto p-4 rounded-xl border flex items-center justify-between shadow-sm transition-all duration-200 hover:shadow-md ${
+                            syncQueue.some(op => op.status === 'CONFLICT' || op.status === 'FAILED')
+                                ? 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100/85'
+                                : isSyncing 
+                                    ? 'bg-blue-50 border-blue-200 text-blue-900 hover:bg-blue-100/85'
+                                    : 'bg-slate-50 border-slate-200 text-slate-900 hover:bg-slate-100/85'
+                        }`}
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0">
+                                {syncQueue.some(op => op.status === 'CONFLICT' || op.status === 'FAILED') ? (
+                                    <AlertTriangle className="h-5 w-5 text-amber-600 animate-bounce" />
+                                ) : isSyncing ? (
+                                    <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
+                                ) : (
+                                    <WifiOff className="h-5 w-5 text-slate-600" />
+                                )}
+                            </div>
+                            <div className="text-left">
+                                <p className="text-sm font-semibold">
+                                    {syncQueue.some(op => op.status === 'CONFLICT' || op.status === 'FAILED')
+                                        ? 'Problema de Sincronización'
+                                        : isSyncing 
+                                            ? 'Sincronizando cambios...'
+                                            : 'Cambios pendientes sin conexión'}
+                                </p>
+                                <p className="text-xs opacity-80 mt-0.5">
+                                    {syncQueue.length} {syncQueue.length === 1 ? 'operación pendiente' : 'operaciones pendientes'} en cola
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-xs font-bold underline px-2 py-1 bg-white/50 rounded hover:bg-white/80 transition-colors">
+                            Ver detalles
+                        </div>
+                    </div>
+                )}
+
                 {/* Titles */}
                 <div className="text-center mb-8 space-y-5">
                     <div>
@@ -515,6 +562,100 @@ export function MyDayView() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Modal de Control de Cola de Sincronización */}
+            <Dialog open={isQueueOpen} onOpenChange={setIsQueueOpen}>
+                <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-6 bg-white rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-base font-bold text-slate-900 flex items-center justify-between">
+                            <span>Cola de Sincronización Local</span>
+                            <Badge variant={isOnline ? "outline" : "secondary"} className={isOnline ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-slate-700 bg-slate-100"}>
+                                {isOnline ? 'Online' : 'Offline'}
+                            </Badge>
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="text-xs text-slate-500 mb-2">
+                        {isOnline 
+                            ? 'Tienes conexión de red. Los cambios se sincronizarán automáticamente de fondo.' 
+                            : 'Estás operando en modo desconectado. Los cambios se guardan localmente hasta recuperar la señal.'}
+                    </div>
+                    
+                    <ScrollArea className="flex-1 max-h-[400px] pr-2 overflow-y-auto mt-2">
+                        {syncQueue.length === 0 ? (
+                            <div className="text-center py-8 text-slate-400 text-xs">
+                                No hay operaciones pendientes en la cola.
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {syncQueue.map((op) => {
+                                    let badgeColor = "bg-slate-100 text-slate-700 border-slate-200";
+                                    if (op.status === 'CONFLICT') badgeColor = "bg-rose-50 text-rose-800 border-rose-200";
+                                    else if (op.status === 'FAILED') badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
+                                    else if (op.status === 'RETRYING') badgeColor = "bg-blue-50 text-blue-800 border-blue-200 animate-pulse";
+
+                                    let opLabel = "Operación";
+                                    if (op.type === 'UPDATE_TICKET') opLabel = `Actualizar Ticket #${op.data.ticketNumber || op.data.id?.substring(0, 6)}`;
+                                    else if (op.type === 'UPLOAD_PHOTO') opLabel = `Subir Foto (${op.data.filename || 'Foto'})`;
+                                    else if (op.type === 'CREATE_PURCHASE') opLabel = "Registrar Compra";
+
+                                    return (
+                                        <div key={op.id} className="border border-slate-100 rounded-lg p-3 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left">
+                                            <div className="flex justify-between items-start mb-1.5 flex-wrap gap-2">
+                                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${badgeColor}`}>
+                                                    {op.status === 'PENDING' ? 'Pendiente' : 
+                                                     op.status === 'RETRYING' ? 'Sincronizando...' : 
+                                                     op.status === 'CONFLICT' ? 'Conflicto' : 'Fallido'}
+                                                </Badge>
+                                                <span className="text-[10px] text-slate-400">
+                                                    {new Date(op.timestamp).toLocaleTimeString()}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs font-semibold text-slate-800 mb-1">
+                                                {opLabel}
+                                            </div>
+                                            {op.error && (
+                                                <div className="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 rounded p-2 mb-2 leading-relaxed">
+                                                    <strong>Error:</strong> {op.error}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 justify-end mt-2 pt-1 border-t border-slate-100">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => discardOperation(op.id)}
+                                                    className="h-7 text-[10px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 flex items-center gap-1"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                    Descartar
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => retryOperation(op.id)}
+                                                    disabled={isSyncing}
+                                                    className="h-7 text-[10px] bg-slate-900 text-white hover:bg-slate-800 px-2.5 py-1 flex items-center gap-1"
+                                                >
+                                                    <RefreshCw className={`h-3 w-3 ${isSyncing && op.status === 'RETRYING' ? 'animate-spin' : ''}`} />
+                                                    Reintentar
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </ScrollArea>
+                    <div className="mt-4 pt-3 border-t flex justify-end">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsQueueOpen(false)}
+                            className="text-xs h-8"
+                        >
+                            Cerrar
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

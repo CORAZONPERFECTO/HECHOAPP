@@ -253,7 +253,7 @@ export default function TicketsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+        <div className="min-h-screen bg-background p-4 md:p-8">
             <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -275,7 +275,7 @@ export default function TicketsPage() {
                 </div>
 
                 {/* Filters Section */}
-                <div className="flex flex-col xl:flex-row xl:items-center gap-4 bg-white p-3 md:p-4 rounded-xl border shadow-sm">
+                <div className="flex flex-col xl:flex-row xl:items-center gap-4 bg-white p-3 md:p-4 rounded-lg border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <div className="flex items-center gap-2 mb-1 xl:mb-0 flex-shrink-0">
                         <Filter className="h-4 w-4 text-gray-500" />
                         <span className="text-sm font-medium text-gray-700">Filtros:</span>
@@ -336,7 +336,7 @@ export default function TicketsPage() {
 
                 {loading ? (
                     <div className="text-center py-16">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                         <p className="text-gray-500">Cargando tickets...</p>
                     </div>
                 ) : errorMsg ? (
@@ -369,7 +369,7 @@ export default function TicketsPage() {
                                 </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="list">
+                            <TabsContent value="list" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
                                 <DataTable
                                     data={filteredTickets}
                                     columns={columns}
@@ -379,15 +379,15 @@ export default function TicketsPage() {
                                 />
                             </TabsContent>
 
-                            <TabsContent value="kanban">
+                            <TabsContent value="kanban" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
                                 <TicketKanban tickets={filteredTickets} onTicketClick={handleTicketClick} />
                             </TabsContent>
 
-                            <TabsContent value="calendar">
+                            <TabsContent value="calendar" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
                                 <TicketCalendar tickets={filteredTickets} onTicketClick={handleTicketClick} />
                             </TabsContent>
 
-                            <TabsContent value="map">
+                            <TabsContent value="map" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
                                 <TicketMap tickets={filteredTickets} onTicketClick={handleTicketClick} />
                             </TabsContent>
                         </Tabs>

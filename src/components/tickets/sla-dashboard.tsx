@@ -199,14 +199,15 @@ export function SLADashboard({ className }: SLADashboardProps) {
         <div className={`space-y-6 ${className || ''}`}>
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Dashboard SLA</h2>
-                    <p className="text-sm text-gray-500">Monitoreo de cumplimiento y rendimiento</p>
+                    <h2 className="text-xl font-bold text-slate-900">Dashboard SLA</h2>
+                    <p className="text-xs text-slate-500">Monitoreo de cumplimiento y rendimiento de tiempos de respuesta</p>
                 </div>
                 <div className="flex gap-2">
                     <Button
                         variant={timeRange === 'today' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setTimeRange('today')}
+                        className="text-xs h-8"
                     >
                         Hoy
                     </Button>
@@ -214,6 +215,7 @@ export function SLADashboard({ className }: SLADashboardProps) {
                         variant={timeRange === 'week' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setTimeRange('week')}
+                        className="text-xs h-8"
                     >
                         Semana
                     </Button>
@@ -221,6 +223,7 @@ export function SLADashboard({ className }: SLADashboardProps) {
                         variant={timeRange === 'month' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setTimeRange('month')}
+                        className="text-xs h-8"
                     >
                         Mes
                     </Button>
@@ -228,143 +231,151 @@ export function SLADashboard({ className }: SLADashboardProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-l-4 border-l-green-500">
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Tasa de Cumplimiento
+                        <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                            <span>Tasa de Cumplimiento</span>
+                            <div className="p-1 bg-emerald-50 text-emerald-700 rounded">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-green-600">
+                        <div className="text-2xl font-bold text-emerald-700">
                             {metrics.complianceRate.toFixed(1)}%
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-slate-400 mt-1">
                             {metrics.onTimeCount} tickets a tiempo
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-yellow-500">
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                            <AlertTriangle className="h-4 w-4" />
-                            En Riesgo
+                        <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                            <span>En Riesgo</span>
+                            <div className="p-1 bg-amber-50 text-amber-700 rounded">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-yellow-600">
+                        <div className="text-2xl font-bold text-amber-700">
                             {metrics.atRiskCount}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-slate-400 mt-1">
                             Próximos a vencer
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-red-500">
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            Vencidos
+                        <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                            <span>Vencidos</span>
+                            <div className="p-1 bg-rose-50 text-rose-700 rounded">
+                                <Clock className="h-3.5 w-3.5" />
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-red-600">
+                        <div className="text-2xl font-bold text-rose-700">
                             {metrics.overdueCount}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Requieren atención inmediata
+                        <p className="text-xs text-slate-400 mt-1">
+                            Atención inmediata requerida
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-blue-500">
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4" />
-                            Tiempo de Respuesta
+                        <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                            <span>Tiempo Respuesta</span>
+                            <div className="p-1 bg-blue-50 text-blue-900 rounded">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                            </div>
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-blue-600">
+                        <div className="text-2xl font-bold text-blue-900">
                             {metrics.averageResponseTime.toFixed(1)}h
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                            Promedio de primera respuesta
+                        <p className="text-xs text-slate-400 mt-1">
+                            Promedio primera respuesta
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
             {atRiskTickets.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <AlertTriangle className="h-4.5 w-4.5 text-amber-700" />
                             Tickets Críticos ({atRiskTickets.length})
                         </CardTitle>
-                        <CardDescription>
-                            Tickets que requieren atención prioritaria
+                        <CardDescription className="text-xs text-slate-500">
+                            Tickets con riesgo de incumplimiento de acuerdo de servicio (SLA)
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
+                    <CardContent className="pt-0">
+                        <div className="space-y-2">
                             {atRiskTickets.map(({ ticket, sla, urgency }) => {
                                 const priorityColors: Record<TicketPriority, string> = {
-                                    LOW: "bg-green-100 text-green-800",
-                                    MEDIUM: "bg-yellow-100 text-yellow-800",
-                                    HIGH: "bg-orange-100 text-orange-800",
-                                    URGENT: "bg-red-100 text-red-800"
+                                    LOW: "bg-slate-100 text-slate-700 border-slate-200",
+                                    MEDIUM: "bg-amber-50 text-amber-800 border-amber-200",
+                                    HIGH: "bg-orange-50 text-orange-800 border-orange-200",
+                                    URGENT: "bg-rose-50 text-rose-800 border-rose-200"
                                 };
 
                                 return (
                                     <Link
                                         key={ticket.id}
                                         href={`/tickets/${ticket.id}`}
-                                        className="block p-4 border rounded-lg hover:bg-slate-50 transition-colors"
+                                        className="block p-3 border border-slate-100 rounded hover:bg-slate-50/50 transition-colors"
                                     >
                                         <div className="flex items-start justify-between">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-semibold text-gray-900">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                    <span className="font-semibold text-xs text-slate-900">
                                                         {ticket.ticketNumber || ticket.id.slice(0, 6)}
                                                     </span>
-                                                    <Badge className={`text-xs ${priorityColors[ticket.priority]}`}>
+                                                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${priorityColors[ticket.priority]}`}>
                                                         {ticket.priority}
                                                     </Badge>
                                                     {urgency === 3 && (
-                                                        <Badge variant="destructive" className="text-xs">
+                                                        <Badge variant="destructive" className="text-[10px] bg-rose-600 px-1.5 py-0">
                                                             VENCIDO
                                                         </Badge>
                                                     )}
                                                     {urgency === 1 && (
-                                                        <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-300">
+                                                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-300 px-1.5 py-0">
                                                             EN RIESGO
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-gray-700 font-medium">{ticket.clientName}</p>
-                                                <p className="text-xs text-gray-500 line-clamp-1">{ticket.description}</p>
-                                                <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                                                <p className="text-xs text-slate-700 font-medium truncate">{ticket.clientName}</p>
+                                                <p className="text-[11px] text-slate-400 truncate">{ticket.description}</p>
+                                                <div className="flex items-center gap-4 mt-1.5 text-[10px] text-slate-400">
                                                     <span className="flex items-center gap-1">
-                                                        <User className="h-3 w-3" />
+                                                        <User className="h-3 w-3 text-slate-500" />
                                                         {ticket.technicianName || 'Sin asignar'}
                                                     </span>
                                                     <span className="flex items-center gap-1">
-                                                        <Calendar className="h-3 w-3" />
+                                                        <Calendar className="h-3 w-3 text-slate-500" />
                                                         {ticket.createdAt?.toDate().toLocaleDateString()}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-medium text-gray-900">
+                                            <div className="text-right flex-shrink-0 pl-2">
+                                                <div className="text-xs font-bold text-slate-900">
                                                     {sla.resolutionHoursRemaining > 0
                                                         ? `${sla.resolutionHoursRemaining.toFixed(1)}h`
                                                         : 'Vencido'
                                                     }
                                                 </div>
-                                                <div className="text-xs text-gray-500">restantes</div>
+                                                <div className="text-[10px] text-slate-400">restantes</div>
                                             </div>
                                         </div>
                                     </Link>
@@ -376,49 +387,49 @@ export function SLADashboard({ className }: SLADashboardProps) {
             )}
 
             {technicianPerformance.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-blue-600" />
-                            Performance por Técnico
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <TrendingUp className="h-4.5 w-4.5 text-blue-900" />
+                            Rendimiento por Técnico
                         </CardTitle>
-                        <CardDescription>
-                            Rendimiento y cumplimiento de SLA
+                        <CardDescription className="text-xs text-slate-500">
+                            Cumplimiento de acuerdos de nivel de servicio (SLA) por operador
                         </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
+                    <CardContent className="pt-0">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {technicianPerformance.map(tech => (
                                 <div
                                     key={tech.technicianId}
-                                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50"
+                                    className="flex items-center justify-between p-3 border border-slate-100 rounded hover:bg-slate-50/50 transition-colors"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 text-blue-600 font-semibold">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-50 text-blue-900 text-xs font-bold flex-shrink-0">
                                             {tech.technicianName.charAt(0).toUpperCase()}
                                         </div>
-                                        <div>
-                                            <p className="font-medium text-gray-900">{tech.technicianName}</p>
-                                            <p className="text-xs text-gray-500">
-                                                {tech.activeTickets} activos · {tech.ticketsCompleted} completados
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-slate-900 truncate">{tech.technicianName}</p>
+                                            <p className="text-[10px] text-slate-400">
+                                                {tech.activeTickets} act. · {tech.ticketsCompleted} comp.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-6 text-sm">
-                                        <div className="text-center">
-                                            <div className="font-semibold text-blue-600">
+                                    <div className="flex items-center gap-4 text-xs flex-shrink-0">
+                                        <div className="text-right">
+                                            <div className="font-bold text-blue-900">
                                                 {tech.averageResponseTime.toFixed(1)}h
                                             </div>
-                                            <div className="text-xs text-gray-500">Resp. Prom.</div>
+                                            <div className="text-[10px] text-slate-400">Resp. Prom.</div>
                                         </div>
-                                        <div className="text-center">
-                                            <div className={`font-semibold ${tech.slaComplianceRate >= 90 ? 'text-green-600' :
-                                                tech.slaComplianceRate >= 75 ? 'text-yellow-600' :
-                                                    'text-red-600'
+                                        <div className="text-right">
+                                            <div className={`font-bold ${tech.slaComplianceRate >= 90 ? 'text-emerald-700' :
+                                                tech.slaComplianceRate >= 75 ? 'text-amber-700' :
+                                                    'text-rose-700'
                                                 }`}>
                                                 {tech.slaComplianceRate.toFixed(0)}%
                                             </div>
-                                            <div className="text-xs text-gray-500">SLA</div>
+                                            <div className="text-[10px] text-slate-400">SLA</div>
                                         </div>
                                     </div>
                                 </div>

@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Plus, Grid3X3, Edit, Printer, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -84,7 +84,6 @@ export default function AdminProjectDetailPage() {
                 let zoneTalleres = 0;
                 // Reconstruct full areas with talleres from the base areas
                 const newAreas = gz.areas.map((areaInfo, index) => {
-                    // Extract template from zones[0] corresponding area
                     const baseArea = zones[0]?.areas[index];
                     const talleres: ProjectTaller[] = baseArea ? baseArea.talleres.map(t => ({
                         ...t,
@@ -146,7 +145,6 @@ export default function AdminProjectDetailPage() {
         const qZones = query(collection(db, "projectZones"), where("projectId", "==", projectId));
         const unsubZones = onSnapshot(qZones, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProjectZone));
-            // Ordenar por nombre
             setZones(data.sort((a, b) => a.name.localeCompare(b.name)));
             setLoading(false);
         });
@@ -160,8 +158,8 @@ export default function AdminProjectDetailPage() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-                <p className="text-gray-500 font-medium">Cargando detalles del proyecto...</p>
+                <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
+                <p className="text-slate-500 font-medium text-xs">Cargando detalles del proyecto...</p>
             </div>
         );
     }
@@ -169,8 +167,8 @@ export default function AdminProjectDetailPage() {
     if (!project) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-                <p className="text-xl text-gray-500 font-medium">Proyecto no encontrado (404).</p>
-                <Button onClick={() => router.push("/projects")} variant="outline">Volver a Proyectos</Button>
+                <p className="text-sm text-slate-500 font-medium">Proyecto no encontrado.</p>
+                <Button onClick={() => router.push("/projects")} variant="outline" className="text-xs">Volver a Proyectos</Button>
             </div>
         );
     }
@@ -188,85 +186,85 @@ export default function AdminProjectDetailPage() {
                     }
                 `}} />
                 
-                {/* Header Superior */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                {/* Header Superior - Classic Navy */}
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <Button variant="ghost" onClick={() => router.push("/projects")} className="bg-white shadow-sm hover:bg-gray-50 no-print">
-                            <ArrowLeft className="mr-2 h-4 w-4 text-blue-600" />
+                        <Button variant="ghost" onClick={() => router.push("/projects")} className="bg-slate-50 border border-slate-200 shadow-sm hover:bg-slate-100 no-print text-xs">
+                            <ArrowLeft className="mr-2 h-4 w-4 text-slate-900" />
                             Volver
                         </Button>
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">{project.name}</h1>
-                            <p className="text-gray-500 flex items-center gap-2 mt-1">
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                                    project.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                    project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-yellow-100 text-yellow-700'
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{project.name}</h1>
+                            <p className="text-slate-500 text-xs flex items-center gap-2 mt-1.5 font-semibold">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                                    project.status === 'COMPLETED' ? 'bg-green-50 text-green-800 border border-green-100' :
+                                    project.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-900 border border-blue-100' :
+                                    'bg-amber-50 text-amber-900 border border-amber-100'
                                 }`}>
-                                    {project.status.replace('_', ' ')}
+                                    {project.status === 'IN_PROGRESS' ? 'En Curso' : project.status === 'COMPLETED' ? 'Completado' : 'Planificación'}
                                 </span>
-                                • Cliente: {project.clientName}
+                                <span>• Cliente: {project.clientName}</span>
                             </p>
                         </div>
                     </div>
-                    <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0 no-print">
-                        <Button variant="outline" className="text-emerald-700 border-emerald-200 hover:bg-emerald-50" onClick={handlePrintReport}>
+                    <div className="flex flex-row gap-2 no-print shrink-0">
+                        <Button variant="outline" className="text-slate-700 border-slate-200 hover:bg-slate-50 text-xs font-semibold" onClick={handlePrintReport}>
                             <Printer className="h-4 w-4 mr-2" /> Informe Final
                         </Button>
-                        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={handleDeleteProject}>
-                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar Proyecto
+                        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 text-xs font-semibold" onClick={handleDeleteProject}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                         </Button>
                     </div>
                 </div>
 
-                {/* Tarjetas de Resumen KPI */}
+                {/* Tarjetas de Resumen KPI - Classic Navy */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="border-t-4 border-t-blue-500 shadow-sm print-shadow-none print-break-inside-avoid">
+                    <Card className="border-t-4 border-t-slate-900 shadow-sm rounded-xl bg-white print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Avance Global</p>
-                                    <h2 className="text-4xl font-black text-gray-900 mt-2">{project.progressPercentage?.toFixed(1) || 0}%</h2>
+                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Avance Global</p>
+                                    <h2 className="text-3xl font-black text-slate-900 mt-2">{(project.progressPercentage || 0).toFixed(1)}%</h2>
                                 </div>
-                                <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                                    <CheckCircle2 className="h-6 w-6" />
+                                <div className="p-2.5 bg-slate-100 rounded-lg text-slate-900">
+                                    <CheckCircle2 className="h-5 w-5" />
                                 </div>
                             </div>
-                            <div className="w-full bg-gray-100 rounded-full h-2 mt-4">
-                                <div className="bg-blue-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${project.progressPercentage || 0}%` }}></div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-5 overflow-hidden">
+                                <div className="bg-slate-900 h-full rounded-full transition-all duration-1000" style={{ width: `${project.progressPercentage || 0}%` }}></div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-t-4 border-t-purple-500 shadow-sm print-shadow-none print-break-inside-avoid">
+                    <Card className="border-t-4 border-t-blue-900 shadow-sm rounded-xl bg-white print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Hitos Completados</p>
-                                    <h2 className="text-4xl font-black text-gray-900 mt-2">
-                                        {project.completedTalleres || 0} <span className="text-xl text-gray-400 font-normal">/ {project.totalTalleres || 0}</span>
+                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Hitos Completados</p>
+                                    <h2 className="text-3xl font-black text-slate-900 mt-2">
+                                        {project.completedTalleres || 0} <span className="text-base text-slate-400 font-normal">/ {project.totalTalleres || 0}</span>
                                     </h2>
                                 </div>
-                                <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-                                    <CheckCircle2 className="h-6 w-6" />
+                                <div className="p-2.5 bg-blue-50 rounded-lg text-blue-900">
+                                    <CheckCircle2 className="h-5 w-5" />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <Card className="border-t-4 border-t-emerald-500 shadow-sm print-shadow-none print-break-inside-avoid">
+                    <Card className="border-t-4 border-t-slate-400 shadow-sm rounded-xl bg-white print-shadow-none print-break-inside-avoid">
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Estimación (ETA)</p>
-                                    <h2 className="text-xl font-bold text-gray-900 mt-3">
+                                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Estimación (ETA)</p>
+                                    <h2 className="text-sm font-bold text-slate-900 mt-3 leading-tight">
                                         {project.estimatedCompletionDate 
                                             ? format((project.estimatedCompletionDate as any).toDate ? (project.estimatedCompletionDate as any).toDate() : new Date(project.estimatedCompletionDate as any), "dd 'de' MMMM, yyyy", { locale: es })
                                             : "Calculando..."}
                                     </h2>
                                 </div>
-                                <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
-                                    <Calendar className="h-6 w-6" />
+                                <div className="p-2.5 bg-slate-100 rounded-lg text-slate-500">
+                                    <Calendar className="h-5 w-5" />
                                 </div>
                             </div>
                         </CardContent>
@@ -274,14 +272,14 @@ export default function AdminProjectDetailPage() {
                 </div>
 
                 {/* Detalle de Zonas y Áreas */}
-                <div className="flex justify-between items-center mt-8 mb-4 border-b pb-2">
-                    <h2 className="text-xl font-bold text-gray-800">Estructura y Seguimiento de Zonas</h2>
+                <div className="flex justify-between items-center mt-8 mb-4 border-b border-slate-200 pb-3">
+                    <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">Estructura y Avance por Zonas</h2>
                     {zones.length > 0 && (
                         <div className="flex gap-2 no-print">
                             <Button 
                                 size="sm" 
                                 variant="outline" 
-                                className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                className="bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold"
                                 onClick={() => setShowMatrixModal(true)}
                             >
                                 <Grid3X3 className="h-4 w-4 mr-2" />
@@ -290,39 +288,40 @@ export default function AdminProjectDetailPage() {
                         </div>
                     )}
                 </div>
+
                 <div className="space-y-4">
                     {zones.length === 0 ? (
-                        <div className="bg-white rounded-xl p-12 text-center border shadow-sm">
-                            <p className="text-gray-500">Este proyecto aún no tiene zonas creadas.</p>
+                        <div className="bg-white rounded-xl p-12 text-center border border-slate-200 shadow-sm">
+                            <p className="text-slate-500 text-xs font-semibold">Este proyecto aún no tiene zonas creadas.</p>
                         </div>
                     ) : (
                         zones.map((zone) => (
-                            <Card key={zone.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow border-gray-200 print-shadow-none print-break-inside-avoid">
+                            <Card key={zone.id} className="overflow-hidden border-slate-200 shadow-sm hover:border-slate-300 transition-colors bg-white rounded-xl print-shadow-none print-break-inside-avoid">
                                 {/* Zone Header (Click to expand) */}
                                 <div 
-                                    className={`p-5 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-blue-50/50' : 'hover:bg-gray-50'}`}
+                                    className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-slate-50/50' : 'hover:bg-slate-50'}`}
                                     onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
                                 >
                                     <div className="flex-1">
                                         <div className="flex items-center gap-3">
-                                            <h3 className="text-lg font-bold text-gray-900">{zone.name}</h3>
-                                            <span className="text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
+                                            <h3 className="text-sm font-bold text-slate-900">{zone.name}</h3>
+                                            <span className="text-[10px] font-extrabold px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 uppercase tracking-wider">
                                                 {zone.areas.length} Áreas
                                             </span>
                                             {zone.notes && (
-                                                <span className="text-xs font-semibold px-2 py-1 bg-amber-100 text-amber-700 rounded-md flex items-center gap-1">
-                                                    <FileText className="h-3 w-3" /> Con Notas
+                                                <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-100 uppercase tracking-wider flex items-center gap-1">
+                                                    <FileText className="h-3 w-3" /> Notas
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <div className="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <div className="w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                 <div 
-                                                    className="h-full bg-blue-500 transition-all duration-1000"
+                                                    className="h-full bg-slate-900 transition-all duration-1000"
                                                     style={{ width: `${zone.progressPercentage || 0}%` }}
                                                 />
                                             </div>
-                                            <p className="text-xs font-medium text-gray-500">
+                                            <p className="text-[10px] font-semibold text-slate-500">
                                                 {zone.completedTalleres} / {zone.totalTalleres} completados ({zone.progressPercentage?.toFixed(0) || 0}%)
                                             </p>
                                         </div>
@@ -339,21 +338,21 @@ export default function AdminProjectDetailPage() {
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
-                                        {expandedZone === zone.id ? <ChevronDown className="h-6 w-6 text-gray-400" /> : <ChevronRight className="h-6 w-6 text-gray-400" />}
+                                        {expandedZone === zone.id ? <ChevronDown className="h-5 w-5 text-slate-400" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
                                     </div>
                                 </div>
 
                                 {/* Areas Accordion */}
                                 {(expandedZone === zone.id || typeof window !== 'undefined' && window.matchMedia('print').matches) && (
-                                    <div className="border-t border-gray-100 bg-slate-50/50 pb-4">
+                                    <div className="border-t border-slate-100 bg-slate-50/20 pb-4">
                                         {/* Zone Notes Editor */}
-                                        <div className="mx-4 mt-4 p-4 bg-white rounded-lg border border-amber-100 shadow-sm">
-                                            <Label className="text-amber-800 font-semibold mb-2 flex items-center gap-2">
-                                                <FileText className="h-4 w-4" /> Notas / Materiales de la Zona
+                                        <div className="mx-4 mt-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                            <Label className="text-slate-800 font-bold mb-2 flex items-center gap-2 text-xs uppercase tracking-wider">
+                                                <FileText className="h-4 w-4 text-slate-500" /> Notas / Materiales de la Zona
                                             </Label>
                                             <Textarea 
-                                                className="min-h-[80px] bg-amber-50/30 border-amber-200 focus-visible:ring-amber-500 resize-y no-print"
-                                                placeholder="Ej. Falta tubería de cobre de 3/8, el cliente no ha pagado la cuota..."
+                                                className="min-h-[70px] bg-slate-50/50 border-slate-200 focus-visible:ring-slate-400 text-xs no-print"
+                                                placeholder="Notas de materiales o avance específicos para esta zona..."
                                                 defaultValue={zone.notes || ""}
                                                 onBlur={(e) => {
                                                     if (e.target.value !== zone.notes) {
@@ -361,9 +360,8 @@ export default function AdminProjectDetailPage() {
                                                     }
                                                 }}
                                             />
-                                            {/* Vista solo para imprimir */}
                                             {zone.notes && (
-                                                <p className="hidden print:block text-sm text-gray-700 mt-2 p-2 bg-amber-50 rounded border border-amber-100">
+                                                <p className="hidden print:block text-xs text-slate-700 mt-2 p-2 bg-slate-50 rounded border border-slate-200">
                                                     {zone.notes}
                                                 </p>
                                             )}
@@ -376,90 +374,122 @@ export default function AdminProjectDetailPage() {
                                             const isAllCompleted = areaCompleted === areaTotal && areaTotal > 0;
 
                                             return (
-                                                <div key={area.id} className="border-b border-gray-100 last:border-0 mx-4 mt-2 bg-white rounded-lg shadow-sm overflow-hidden">
+                                                <div key={area.id} className="border border-slate-200 last:border-0 mx-4 mt-3 bg-white rounded-xl shadow-sm overflow-hidden">
                                                     {/* Area Header */}
                                                     <div 
-                                                        className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                                        className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                                                         onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-2.5 h-2.5 rounded-full shadow-inner ${isAllCompleted ? 'bg-green-500' : 'bg-yellow-400'}`} />
-                                                            <span className="font-semibold text-gray-800">{area.name}</span>
+                                                            <div className={`w-2 h-2 rounded-full ${isAllCompleted ? 'bg-green-500' : 'bg-amber-400'}`} />
+                                                            <span className="font-bold text-slate-900 text-xs">{area.name}</span>
                                                         </div>
                                                         <div className="flex items-center gap-3">
-                                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${isAllCompleted ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                                {areaCompleted}/{areaTotal} Hitos
+                                                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
+                                                                isAllCompleted 
+                                                                    ? 'bg-green-50 text-green-800 border-green-100' 
+                                                                    : 'bg-amber-50 text-amber-800 border-amber-100'
+                                                            }`}>
+                                                                {areaCompleted}/{areaTotal} Completados
                                                             </span>
-                                                            {isAreaExpanded ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                                                            {isAreaExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                                                         </div>
                                                     </div>
 
                                                     {/* Talleres List (Admin View) */}
                                                     {isAreaExpanded && (
-                                                        <div className="bg-slate-50 p-4 border-t border-gray-100 space-y-2">
+                                                        <div className="bg-slate-50/50 p-4 border-t border-slate-100 space-y-2">
                                                             {area.talleres.length === 0 ? (
-                                                                <p className="text-xs text-gray-400 italic">No hay hitos (talleres) definidos en esta área.</p>
+                                                                <p className="text-xs text-slate-400 italic">No hay hitos definidos en esta área.</p>
                                                             ) : (
                                                                 area.talleres.sort((a,b) => a.orderIndex - b.orderIndex).map((taller) => {
                                                                     const isCompleted = taller.status === 'COMPLETED';
+                                                                    const isBlocked = taller.status === 'BLOCKED';
                                                                     return (
                                                                         <div 
                                                                             key={taller.id} 
-                                                                            className={`flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg border ${
-                                                                                isCompleted ? 'bg-white border-green-200' : 'bg-white border-gray-200'
+                                                                            className={`flex flex-col p-3 rounded-lg border ${
+                                                                                isCompleted ? 'bg-white border-green-200' : 
+                                                                                isBlocked ? 'bg-red-50/20 border-red-200' :
+                                                                                'bg-white border-slate-200'
                                                                             }`}
                                                                         >
-                                                                            <div className="flex items-center gap-3 mb-2 md:mb-0">
-                                                                                <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                                                                                    isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'
-                                                                                }`}>
-                                                                                    {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                                                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                                                                <div className="flex items-center gap-3">
+                                                                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                                                                                        isCompleted ? 'bg-green-600 text-white' : 
+                                                                                        isBlocked ? 'bg-red-600 text-white' :
+                                                                                        'bg-slate-100 text-slate-400'
+                                                                                    }`}>
+                                                                                        {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : 
+                                                                                         isBlocked ? <ShieldAlert className="h-4 w-4" /> :
+                                                                                         <Clock className="h-4 w-4" />}
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <span className={`text-xs font-semibold ${
+                                                                                            isCompleted ? 'text-slate-800' : 
+                                                                                            isBlocked ? 'text-red-950' : 
+                                                                                            'text-slate-700'
+                                                                                        }`}>
+                                                                                            {taller.name}
+                                                                                        </span>
+                                                                                        {isCompleted && taller.completedAt && (
+                                                                                            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                                                                                                <CheckCircle2 className="h-3 w-3" />
+                                                                                                {format((taller.completedAt as any).toDate ? (taller.completedAt as any).toDate() : new Date(taller.completedAt as any), "dd MMM yyyy, HH:mm", { locale: es })}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div>
-                                                                                    <span className={`text-sm font-medium ${isCompleted ? 'text-gray-800' : 'text-gray-600'}`}>
-                                                                                        {taller.name}
-                                                                                    </span>
-                                                                                    {isCompleted && taller.completedAt && (
-                                                                                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                                                                                            <CheckCircle2 className="h-3 w-3" />
-                                                                                            {format((taller.completedAt as any).toDate ? (taller.completedAt as any).toDate() : new Date(taller.completedAt as any), "dd MMM yyyy, HH:mm", { locale: es })}
-                                                                                        </p>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                            
-                                                                            {/* Technician Info & Evidence Photo */}
-                                                                            {isCompleted ? (
-                                                                                <div className="flex items-center gap-4 pl-9 md:pl-0">
+                                                                                
+                                                                                {/* Technician Info & Evidence Photo */}
+                                                                                <div className="flex items-center gap-2 pl-9 md:pl-0 shrink-0">
                                                                                     {taller.assignedToTecnicoName && (
-                                                                                        <div className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                                                                                        <div className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border font-semibold ${
+                                                                                            isBlocked ? 'text-red-700 bg-red-50 border-red-100' : 'text-slate-700 bg-slate-50 border-slate-200'
+                                                                                        }`}>
                                                                                             <User className="h-3 w-3" />
                                                                                             {taller.assignedToTecnicoName}
                                                                                         </div>
                                                                                     )}
-                                                                                    {taller.evidencePhotoUrl ? (
-                                                                                        <Button 
-                                                                                            variant="outline" 
-                                                                                            size="sm" 
-                                                                                            className="h-7 text-xs bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print"
-                                                                                            onClick={() => setViewingPhoto({
-                                                                                                url: taller.evidencePhotoUrl!,
-                                                                                                name: taller.name,
-                                                                                                technician: taller.assignedToTecnicoName || "Técnico Desconocido",
-                                                                                                date: taller.completedAt
-                                                                                            })}
-                                                                                        >
-                                                                                            <ImageIcon className="h-3 w-3 mr-1.5" />
-                                                                                            Ver Evidencia
-                                                                                        </Button>
-                                                                                    ) : (
-                                                                                        <span className="text-xs text-gray-400 italic no-print">Sin foto</span>
+                                                                                    {isCompleted && (
+                                                                                        taller.evidencePhotoUrl ? (
+                                                                                            <Button 
+                                                                                                variant="outline" 
+                                                                                                size="sm" 
+                                                                                                className="h-6 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print font-bold"
+                                                                                                onClick={() => setViewingPhoto({
+                                                                                                    url: taller.evidencePhotoUrl!,
+                                                                                                    name: taller.name,
+                                                                                                    technician: taller.assignedToTecnicoName || "Técnico Desconocido",
+                                                                                                    date: taller.completedAt
+                                                                                                })}
+                                                                                            >
+                                                                                                <ImageIcon className="h-3.5 w-3.5 mr-1" />
+                                                                                                Ver Evidencia
+                                                                                            </Button>
+                                                                                        ) : (
+                                                                                            <span className="text-xs text-slate-400 italic no-print">Sin foto</span>
+                                                                                        )
+                                                                                    )}
+                                                                                    {isBlocked && (
+                                                                                        <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                                                                                            Bloqueado
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {!isCompleted && !isBlocked && (
+                                                                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                                                                                            Pendiente
+                                                                                        </span>
                                                                                     )}
                                                                                 </div>
-                                                                            ) : (
-                                                                                <span className="text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded border border-yellow-100 pl-9 md:pl-0 w-fit">
-                                                                                    Pendiente
-                                                                                </span>
+                                                                            </div>
+
+                                                                            {isBlocked && taller.blockedReason && (
+                                                                                <div className="mt-2 ml-9 p-2.5 bg-red-50/50 border border-red-100 rounded-md text-xs text-red-950 font-medium">
+                                                                                    <span className="font-extrabold text-red-900 block mb-0.5">Reporte de Bloqueo:</span>
+                                                                                    {taller.blockedReason}
+                                                                                </div>
                                                                             )}
                                                                         </div>
                                                                     );
@@ -480,22 +510,22 @@ export default function AdminProjectDetailPage() {
 
             {/* Photo Viewer Modal */}
             <Dialog open={!!viewingPhoto} onOpenChange={(open) => !open && setViewingPhoto(null)}>
-                <DialogContent className="sm:max-w-2xl bg-black/95 text-white border-gray-800">
+                <DialogContent className="sm:max-w-2xl bg-slate-900 text-white border-slate-800">
                     <DialogHeader>
-                        <DialogTitle className="text-white">Evidencia: {viewingPhoto?.name}</DialogTitle>
+                        <DialogTitle className="text-white text-sm font-bold">Evidencia: {viewingPhoto?.name}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm text-gray-400">
-                            <span className="flex items-center gap-1"><User className="h-4 w-4" /> {viewingPhoto?.technician}</span>
-                            <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 
-                                {viewingPhoto?.date ? format((viewingPhoto.date as any).toDate ? (viewingPhoto.date as any).toDate() : new Date(viewingPhoto.date as any), "dd MMM yyyy, HH:mm") : "Fecha desconocida"}
+                        <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
+                            <span className="flex items-center gap-1 font-semibold"><User className="h-3.5 w-3.5" /> {viewingPhoto?.technician}</span>
+                            <span className="flex items-center gap-1 font-semibold"><Clock className="h-3.5 w-3.5" /> 
+                                {viewingPhoto?.date ? format((viewingPhoto.date as any).toDate ? (viewingPhoto.date as any).toDate() : new Date(viewingPhoto.date as any), "dd MMM yyyy, HH:mm", { locale: es }) : "Fecha desconocida"}
                             </span>
                         </div>
                         {viewingPhoto?.url && (
                             <img 
                                 src={viewingPhoto.url} 
                                 alt="Evidencia de tarea" 
-                                className="w-full h-auto max-h-[70vh] object-contain rounded-md"
+                                className="w-full h-auto max-h-[65vh] object-contain rounded-lg border border-slate-800 shadow"
                             />
                         )}
                     </div>

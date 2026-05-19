@@ -1,16 +1,19 @@
 // Offline Storage using IndexedDB for ticket data and LocalStorage for sync queue
 import { ServiceTicket } from "@/types/service";
 import { Purchase } from "@/types/purchase";
+import { Project, ProjectZone } from "@/types/projects";
 
 const DB_NAME = 'TechnicianOfflineDB';
-const DB_VERSION = 2; // Incremented version
+const DB_VERSION = 3; // Incremented version
 const TICKET_STORE = 'tickets';
 const PURCHASES_STORE = 'purchases';
+const PROJECTS_STORE = 'projects';
+const PROJECT_ZONES_STORE = 'projectZones';
 const SYNC_QUEUE_KEY = 'syncQueue';
 
 interface SyncOperation {
     id: string;
-    type: 'UPDATE_TICKET' | 'UPLOAD_PHOTO' | 'CREATE_PURCHASE';
+    type: 'UPDATE_TICKET' | 'UPLOAD_PHOTO' | 'CREATE_PURCHASE' | 'COMPLETE_PROJECT_TALLER' | 'BLOCK_PROJECT_TALLER';
     data: any;
     timestamp: number;
     retries: number;
@@ -37,6 +40,14 @@ export const initDB = (): Promise<IDBDatabase> => {
             // Create purchases store
             if (!db.objectStoreNames.contains(PURCHASES_STORE)) {
                 db.createObjectStore(PURCHASES_STORE, { keyPath: 'id' });
+            }
+            // Create projects store
+            if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
+                db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
+            }
+            // Create projectZones store
+            if (!db.objectStoreNames.contains(PROJECT_ZONES_STORE)) {
+                db.createObjectStore(PROJECT_ZONES_STORE, { keyPath: 'id' });
             }
         };
     });
@@ -96,6 +107,68 @@ export const getPurchaseOffline = async (purchaseId: string): Promise<Purchase |
         const request = store.get(purchaseId);
 
         request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+};
+
+// Save Project to IndexedDB
+export const saveProjectOffline = async (project: Project): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PROJECTS_STORE], 'readwrite');
+        const store = transaction.objectStore(PROJECTS_STORE);
+        const request = store.put(project);
+
+        request.onsuccess = () => {
+            console.log('✅ Project saved offline:', project.id);
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+// Get Project from IndexedDB
+export const getProjectOffline = async (projectId: string): Promise<Project | undefined> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PROJECTS_STORE], 'readonly');
+        const store = transaction.objectStore(PROJECTS_STORE);
+        const request = store.get(projectId);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+};
+
+// Save Project Zone to IndexedDB
+export const saveProjectZoneOffline = async (zone: ProjectZone): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PROJECT_ZONES_STORE], 'readwrite');
+        const store = transaction.objectStore(PROJECT_ZONES_STORE);
+        const request = store.put(zone);
+
+        request.onsuccess = () => {
+            console.log('✅ Project zone saved offline:', zone.id);
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+// Get Project Zones from IndexedDB
+export const getProjectZonesOffline = async (projectId: string): Promise<ProjectZone[]> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([PROJECT_ZONES_STORE], 'readonly');
+        const store = transaction.objectStore(PROJECT_ZONES_STORE);
+        const request = store.getAll();
+
+        request.onsuccess = () => {
+            const allZones = request.result as ProjectZone[];
+            const filtered = allZones.filter(z => z.projectId === projectId);
+            resolve(filtered);
+        };
         request.onerror = () => reject(request.error);
     });
 };

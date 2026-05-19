@@ -9,61 +9,66 @@ interface AnalyticsChartsProps {
     serviceTypes: ServiceTypeAnalysis[];
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const COLORS = ['#1e3a8a', '#1d4ed8', '#0284c7', '#475569', '#0f766e', '#64748b', '#94a3b8', '#38bdf8'];
 
 export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) {
     return (
         <div className="space-y-6">
             {/* Trends Chart */}
-            <Card>
+            <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                 <CardHeader>
-                    <CardTitle>Tendencia de Tickets (Últimos 6 Meses)</CardTitle>
-                    <CardDescription>Evolución mensual de creación y cierre de tickets</CardDescription>
+                    <CardTitle className="text-sm font-bold text-slate-900">Tendencia de Tickets (Últimos 6 Meses)</CardTitle>
+                    <CardDescription className="text-xs text-slate-500">Evolución mensual de creación y cierre de tickets</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={trends}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis
                                 dataKey="month"
-                                stroke="#6b7280"
-                                style={{ fontSize: 12 }}
+                                stroke="#94a3b8"
+                                style={{ fontSize: 11 }}
                             />
                             <YAxis
-                                stroke="#6b7280"
-                                style={{ fontSize: 12 }}
+                                stroke="#94a3b8"
+                                style={{ fontSize: 11 }}
                             />
                             <Tooltip
                                 contentStyle={{
                                     backgroundColor: '#fff',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '0.5rem'
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '0.375rem',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+                                    fontSize: 12
                                 }}
                             />
-                            <Legend />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
                             <Line
                                 type="monotone"
                                 dataKey="total"
-                                stroke="#3b82f6"
+                                stroke="#1e3a8a"
                                 strokeWidth={2}
                                 name="Total Tickets"
-                                dot={{ fill: '#3b82f6', r: 4 }}
+                                dot={{ fill: '#1e3a8a', r: 4 }}
+                                activeDot={{ r: 6 }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="completed"
-                                stroke="#10b981"
+                                stroke="#0f766e"
                                 strokeWidth={2}
                                 name="Completados"
-                                dot={{ fill: '#10b981', r: 4 }}
+                                dot={{ fill: '#0f766e', r: 4 }}
+                                activeDot={{ r: 6 }}
                             />
                             <Line
                                 type="monotone"
                                 dataKey="cancelled"
-                                stroke="#ef4444"
+                                stroke="#be123c"
                                 strokeWidth={2}
                                 name="Cancelados"
-                                dot={{ fill: '#ef4444', r: 4 }}
+                                dot={{ fill: '#be123c', r: 4 }}
+                                activeDot={{ r: 6 }}
                             />
                         </LineChart>
                     </ResponsiveContainer>
@@ -72,10 +77,10 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
 
             {/* Service Types Distribution */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader>
-                        <CardTitle>Distribución por Tipo de Servicio</CardTitle>
-                        <CardDescription>Proporción de tickets por categoría</CardDescription>
+                        <CardTitle className="text-sm font-bold text-slate-900">Distribución por Tipo de Servicio</CardTitle>
+                        <CardDescription className="text-xs text-slate-500">Proporción de tickets por categoría</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
@@ -85,54 +90,64 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
                                     cx="50%"
                                     cy="50%"
                                     labelLine={false}
-                                    label={(props: any) => `${props.serviceType.substring(0, 12)}: ${props.percentage.toFixed(0)}%`}
+                                    label={(props: any) => `${props.serviceType.substring(0, 10)}: ${props.percentage.toFixed(0)}%`}
                                     outerRadius={80}
                                     fill="#8884d8"
                                     dataKey="count"
+                                    style={{ fontSize: 10, fontWeight: 500 }}
                                 >
                                     {serviceTypes.slice(0, 8).map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#fff',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '0.375rem',
+                                        fontSize: 12
+                                    }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                     <CardHeader>
-                        <CardTitle>Costo Promedio por Tipo</CardTitle>
-                        <CardDescription>Análisis de rentabilidad por servicio</CardDescription>
+                        <CardTitle className="text-sm font-bold text-slate-900">Costo Promedio por Tipo</CardTitle>
+                        <CardDescription className="text-xs text-slate-500">Análisis de rentabilidad por servicio</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={serviceTypes.slice(0, 8)}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                                 <XAxis
                                     dataKey="serviceType"
-                                    stroke="#6b7280"
-                                    style={{ fontSize: 10 }}
+                                    stroke="#94a3b8"
+                                    style={{ fontSize: 9 }}
                                     angle={-45}
                                     textAnchor="end"
                                     height={80}
                                 />
                                 <YAxis
-                                    stroke="#6b7280"
-                                    style={{ fontSize: 12 }}
+                                    stroke="#94a3b8"
+                                    style={{ fontSize: 11 }}
                                 />
                                 <Tooltip
                                     formatter={(value: any) => `$${Number(value || 0).toFixed(2)}`}
                                     contentStyle={{
                                         backgroundColor: '#fff',
-                                        border: '1px solid #e5e7eb',
-                                        borderRadius: '0.5rem'
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '0.375rem',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                        fontSize: 12
                                     }}
                                 />
                                 <Bar
                                     dataKey="avgCost"
-                                    fill="#3b82f6"
-                                    radius={[8, 8, 0, 0]}
+                                    fill="#1e3a8a"
+                                    radius={[4, 4, 0, 0]}
                                     name="Costo Promedio"
                                 />
                             </BarChart>
@@ -142,37 +157,39 @@ export function AnalyticsCharts({ trends, serviceTypes }: AnalyticsChartsProps) 
             </div>
 
             {/* Resolution Time Trend */}
-            <Card>
+            <Card className="border border-slate-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
                 <CardHeader>
-                    <CardTitle>Tiempo de Resolución Promedio</CardTitle>
-                    <CardDescription>Eficiencia de resolución de tickets en horas</CardDescription>
+                    <CardTitle className="text-sm font-bold text-slate-900">Tiempo de Resolución Promedio</CardTitle>
+                    <CardDescription className="text-xs text-slate-500">Eficiencia de resolución de tickets en horas</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={trends}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis
                                 dataKey="month"
-                                stroke="#6b7280"
-                                style={{ fontSize: 12 }}
+                                stroke="#94a3b8"
+                                style={{ fontSize: 11 }}
                             />
                             <YAxis
-                                stroke="#6b7280"
-                                style={{ fontSize: 12 }}
-                                label={{ value: 'Horas', angle: -90, position: 'insideLeft' }}
+                                stroke="#94a3b8"
+                                style={{ fontSize: 11 }}
+                                label={{ value: 'Horas', angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#94a3b8' } }}
                             />
                             <Tooltip
                                 formatter={(value: any) => `${Number(value || 0).toFixed(1)}h`}
                                 contentStyle={{
                                     backgroundColor: '#fff',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '0.5rem'
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '0.375rem',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                    fontSize: 12
                                 }}
                             />
                             <Bar
                                 dataKey="avgResolutionTime"
-                                fill="#8b5cf6"
-                                radius={[8, 8, 0, 0]}
+                                fill="#475569"
+                                radius={[4, 4, 0, 0]}
                                 name="Tiempo Promedio"
                             />
                         </BarChart>

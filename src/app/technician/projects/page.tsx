@@ -1,24 +1,47 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, query, onSnapshot, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Project } from "@/types/projects";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Loader2, Calendar, HardHat } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Building2, Loader2, HardHat } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { initDB, saveProjectOffline } from "@/lib/offline-storage";
 
 export default function TechnicianProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
+    const isOnline = useOnlineStatus();
 
     useEffect(() => {
-        // En un futuro se podría filtrar solo por proyectos asignados al técnico.
-        // Por ahora, mostrar todos los proyectos "IN_PROGRESS" o "PLANNING".
-        // Para evitar el error de índice de Firestore, filtramos por status en la BD 
-        // y ordenamos por fecha en la memoria del cliente.
+        if (!isOnline) {
+            // Cargar localmente de IndexedDB si está offline
+            initDB().then((database) => {
+                const transaction = database.transaction(['projects'], 'readonly');
+                const store = transaction.objectStore('projects');
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const localProjects = request.result as Project[];
+                    // Filtrar activos y ordenar
+                    const filtered = localProjects.filter(p => ["PLANNING", "IN_PROGRESS"].includes(p.status));
+                    filtered.sort((a, b) => {
+                        const dateA = (a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0;
+                        const dateB = (b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0;
+                        return dateB - dateA;
+                    });
+                    setProjects(filtered);
+                    setLoading(false);
+                };
+            }).catch(err => {
+                console.error("Error reading projects offline:", err);
+                setLoading(false);
+            });
+            return;
+        }
+
+        // Si está online, usar onSnapshot
         const q = query(
             collection(db, "projects"), 
             where("status", "in", ["PLANNING", "IN_PROGRESS"])
@@ -35,33 +58,56 @@ export default function TechnicianProjectsPage() {
             
             setProjects(data);
             setLoading(false);
+
+            // Caching offline
+            data.forEach(p => {
+                const projectCopy = {
+                    ...p,
+                    createdAt: (p.createdAt as any)?.toDate ? (p.createdAt as any).toDate() : p.createdAt,
+                    updatedAt: (p.updatedAt as any)?.toDate ? (p.updatedAt as any).toDate() : p.updatedAt,
+                    estimatedCompletionDate: (p.estimatedCompletionDate as any)?.toDate ? (p.estimatedCompletionDate as any).toDate() : p.estimatedCompletionDate,
+                    startDate: (p.startDate as any)?.toDate ? (p.startDate as any).toDate() : p.startDate,
+                };
+                saveProjectOffline(projectCopy);
+            });
+        }, (error) => {
+            console.error("Firestore onSnapshot error, falling back to local:", error);
         });
+
         return () => unsubscribe();
-    }, []);
+    }, [isOnline]);
 
     return (
-        <div className="space-y-6 pb-24 max-w-lg mx-auto">
-            <div className="bg-gradient-to-r from-blue-700 to-blue-900 p-6 rounded-2xl text-white shadow-xl">
+        <div className="space-y-6 pb-24 max-w-lg mx-auto px-4 pt-4">
+            {/* Header Módulo Estilo Classic Navy */}
+            <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                        <HardHat className="h-6 w-6 text-white" />
+                    <div className="p-2 bg-slate-100 text-slate-900 rounded-lg">
+                        <HardHat className="h-5 w-5 text-blue-900" />
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">Mis Proyectos</h1>
+                    <h1 className="text-xl font-bold text-slate-900 tracking-tight">Obras Asignadas</h1>
                 </div>
-                <p className="text-blue-100 text-sm">Selecciona una obra para ver tus áreas y avanzar los talleres asignados.</p>
+                <p className="text-slate-500 text-xs">
+                    Selecciona una obra para revisar las zonas de trabajo y registrar tu avance.
+                </p>
+                {!isOnline && (
+                    <div className="mt-3 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded px-2.5 py-1 w-fit uppercase">
+                        Modo Offline Activo
+                    </div>
+                )}
             </div>
 
             {loading ? (
                 <div className="flex justify-center p-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-800" />
                 </div>
             ) : projects.length === 0 ? (
-                <Card className="border-dashed border-2">
-                    <CardContent className="flex flex-col items-center justify-center p-12 text-center text-gray-500 space-y-4">
-                        <Building2 className="h-12 w-12 text-gray-300" />
+                <Card className="border-dashed border-2 border-slate-200">
+                    <CardContent className="flex flex-col items-center justify-center p-12 text-center text-slate-400 space-y-4">
+                        <Building2 className="h-10 w-10 text-slate-300" />
                         <div>
-                            <h3 className="text-lg font-medium text-gray-900">No hay proyectos activos</h3>
-                            <p className="text-sm">Por el momento no tienes obras o proyectos en ejecución.</p>
+                            <h3 className="text-sm font-semibold text-slate-800">No hay proyectos activos</h3>
+                            <p className="text-xs text-slate-500">Por el momento no tienes obras asignadas en ejecución.</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -69,35 +115,46 @@ export default function TechnicianProjectsPage() {
                 <div className="grid grid-cols-1 gap-4">
                     {projects.map((project) => (
                         <Link href={`/technician/projects/${project.id}`} key={project.id}>
-                            <Card className="hover:border-blue-300 transition-colors cursor-pointer relative overflow-hidden shadow-sm">
-                                {/* Progress bar background indicator */}
-                                <div 
-                                    className="absolute bottom-0 left-0 h-1.5 bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-1000"
-                                    style={{ width: `${project.progressPercentage || 0}%` }}
-                                />
+                            <Card className="hover:border-slate-400 border border-slate-200 transition-all cursor-pointer relative overflow-hidden shadow-sm hover:shadow bg-white">
+                                {/* Border top indicator */}
+                                <div className="absolute top-0 left-0 w-full h-1 bg-slate-200" />
                                 
-                                <CardContent className="p-5 flex flex-col gap-3">
+                                <CardContent className="p-5 flex flex-col gap-3 pt-6">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h3 className="text-lg font-bold text-gray-900 line-clamp-1">{project.name}</h3>
-                                            <p className="text-sm text-gray-500 line-clamp-1">{project.location || 'Sin ubicación'}</p>
+                                            <h3 className="text-base font-bold text-slate-900 line-clamp-1">{project.name}</h3>
+                                            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{project.location || 'Sin ubicación'}</p>
                                         </div>
-                                        <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase shrink-0 ${
-                                            project.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-yellow-100 text-yellow-700'
+                                        <div className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase shrink-0 tracking-wider ${
+                                            project.status === 'IN_PROGRESS' 
+                                                ? 'bg-blue-50 text-blue-900 border border-blue-100' 
+                                                : 'bg-amber-50 text-amber-900 border border-amber-100'
                                         }`}>
-                                            {project.status === 'IN_PROGRESS' ? 'EN CURSO' : 'PLANIFICACIÓN'}
+                                            {project.status === 'IN_PROGRESS' ? 'En Curso' : 'Planificación'}
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-gray-100">
-                                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                                            <span className="font-bold text-gray-900">{project.progressPercentage?.toFixed(0) || 0}%</span>
-                                            <span className="text-xs text-gray-400">completado</span>
+                                    {/* Barra de progreso minimalista */}
+                                    <div className="space-y-1 mt-1">
+                                        <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                            <span className="font-semibold">Progreso General</span>
+                                            <span className="font-bold text-slate-900">{(project.progressPercentage || 0).toFixed(0)}%</span>
                                         </div>
-                                        <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-md border">
-                                            {project.completedTalleres || 0} / {project.totalTalleres || 0} hitos
+                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-slate-900 transition-all duration-500"
+                                                style={{ width: `${project.progressPercentage || 0}%` }}
+                                            />
                                         </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-2 pt-3 border-t border-slate-100 text-xs text-slate-600">
+                                        <span className="text-[11px] text-slate-500">
+                                            Hitos: <strong className="text-slate-800 font-semibold">{project.completedTalleres || 0}</strong> de {project.totalTalleres || 0}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                            {project.clientName || 'Cliente General'}
+                                        </span>
                                     </div>
                                 </CardContent>
                             </Card>

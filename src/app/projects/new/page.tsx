@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy, Grid3X3 } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy, Grid3X3, X } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { DEFAULT_TALLERES_TEMPLATES, ProjectTallerTemplate, ProjectZone, ProjectArea, ProjectTaller, Project } from "@/types/projects";
 import { MatrixGeneratorModal } from "@/components/projects/matrix-generator-modal";
@@ -33,7 +33,6 @@ export default function NewProjectPage() {
     );
 
     // Step 3: Zones & Areas
-    // Simple state: an array of zones, each with an array of areas
     const [zones, setZones] = useState<{ id: string; name: string; areas: { id: string; name: string }[] }[]>([
         { id: crypto.randomUUID(), name: "Bloque A / Nivel 1", areas: [{ id: crypto.randomUUID(), name: "Habitación Principal" }] }
     ]);
@@ -87,7 +86,6 @@ export default function NewProjectPage() {
 
         const newZones = [...zones];
         
-        // Match the last sequence of digits in the name
         const match = zoneToClone.name.match(/(\d+)(?!.*\d)/);
         let baseName = zoneToClone.name;
         let startNumber = 1;
@@ -136,16 +134,13 @@ export default function NewProjectPage() {
             
             let totalProjectTalleres = 0;
 
-            // Prepare Zones, Areas, and Talleres for batch writing
-            const zonesData = zones.map((z, zIndex) => {
+            zones.forEach((z) => {
                 const zoneId = crypto.randomUUID();
-                
                 let zoneTotalTalleres = 0;
                 
-                const areasData = z.areas.map((a, aIndex) => {
+                const areasData = z.areas.map((a) => {
                     const areaId = crypto.randomUUID();
-                    // Each area gets a fresh copy of the active templates as "Talleres"
-                    const talleres: ProjectTaller[] = templates.map((t, tIndex) => ({
+                    const talleres: ProjectTaller[] = templates.map((t) => ({
                         id: crypto.randomUUID(),
                         templateId: t.id,
                         name: t.name,
@@ -174,15 +169,10 @@ export default function NewProjectPage() {
                     completedTalleres: 0
                 };
                 
-                // We'll store zones inside a subcollection or as top-level doc. 
-                // Using top-level `projectZones` collection makes queries easier.
                 const zoneRef = doc(db, "projectZones", zoneId);
                 batch.set(zoneRef, zoneRecord);
-                
-                return zoneRecord;
             });
 
-            // Master Project Record
             const newProject: Project = {
                 id: projectRef.id,
                 name: projectData.name,
@@ -212,89 +202,93 @@ export default function NewProjectPage() {
     };
 
     return (
-        <div className="space-y-6 pb-24 max-w-4xl mx-auto">
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" asChild>
+        <div className="space-y-6 pb-24 max-w-4xl mx-auto px-4 py-6">
+            {/* Header / Navigation */}
+            <div className="flex items-center justify-between bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+                <Button variant="ghost" size="sm" asChild className="text-slate-600 hover:text-slate-900">
                     <Link href="/projects">
                         <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                     </Link>
                 </Button>
                 <div className="flex gap-2">
                     {step > 1 && (
-                        <Button variant="outline" onClick={() => setStep(step - 1 as any)}>
+                        <Button variant="outline" size="sm" onClick={() => setStep(step - 1 as any)} className="text-xs font-semibold border-slate-200 hover:bg-slate-50">
                             Atrás
                         </Button>
                     )}
                     {step < 3 ? (
-                        <Button onClick={() => setStep(step + 1 as any)} className="bg-blue-600">
-                            Siguiente <ChevronRight className="ml-2 h-4 w-4" />
+                        <Button size="sm" onClick={() => setStep(step + 1 as any)} className="bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold">
+                            Siguiente <ChevronRight className="ml-1.5 h-4 w-4" />
                         </Button>
                     ) : (
-                        <Button onClick={handleSaveProject} disabled={loading} className="bg-gradient-to-r from-blue-600 to-purple-600">
-                            {loading ? "Creando..." : "Crear Proyecto"} <Save className="ml-2 h-4 w-4" />
+                        <Button size="sm" onClick={handleSaveProject} disabled={loading} className="bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold">
+                            {loading ? "Creando..." : "Crear Proyecto"} <Save className="ml-1.5 h-4 w-4" />
                         </Button>
                     )}
                 </div>
             </div>
 
             {/* Stepper Progress */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex flex-col items-center gap-2">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>1</div>
-                    <span className="text-xs font-medium text-gray-500">Datos Base</span>
+            <div className="flex items-center justify-between px-6 py-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="flex flex-col items-center gap-1.5 py-1.5">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${step >= 1 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>1</div>
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Datos Base</span>
                 </div>
-                <div className={`flex-1 h-1 mx-4 rounded ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                <div className="flex flex-col items-center gap-2">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>2</div>
-                    <span className="text-xs font-medium text-gray-500">Configurar Hitos</span>
+                <div className={`flex-1 h-0.5 mx-4 ${step >= 2 ? 'bg-slate-900' : 'bg-slate-100'}`} />
+                <div className="flex flex-col items-center gap-1.5 py-1.5">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${step >= 2 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>2</div>
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Configurar Hitos</span>
                 </div>
-                <div className={`flex-1 h-1 mx-4 rounded ${step >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-                <div className="flex flex-col items-center gap-2">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>3</div>
-                    <span className="text-xs font-medium text-gray-500">Zonas y Áreas</span>
+                <div className={`flex-1 h-0.5 mx-4 ${step >= 3 ? 'bg-slate-900' : 'bg-slate-100'}`} />
+                <div className="flex flex-col items-center gap-1.5 py-1.5">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${step >= 3 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}>3</div>
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Zonas y Áreas</span>
                 </div>
             </div>
 
             {step === 1 && (
-                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <CardHeader>
-                        <CardTitle>Datos Base del Proyecto</CardTitle>
-                        <CardDescription>Información general sobre la obra o proyecto.</CardDescription>
+                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-slate-200 rounded-xl shadow-sm">
+                    <CardHeader className="border-b border-slate-100 pb-4">
+                        <CardTitle className="text-base font-bold text-slate-950">Datos Base del Proyecto</CardTitle>
+                        <CardDescription className="text-xs text-slate-500">Ingresa la información general sobre la obra o proyecto.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Nombre del Proyecto *</Label>
+                    <CardContent className="space-y-4 pt-5">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider">Nombre del Proyecto *</Label>
                             <Input 
                                 value={projectData.name} 
                                 onChange={e => setProjectData({...projectData, name: e.target.value})}
                                 placeholder="Ej. Torre Bella Vista"
-                                className="text-lg font-medium"
+                                className="font-semibold text-sm border-slate-200 focus-visible:ring-slate-400 h-9"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Cliente / Desarrolladora</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cliente / Desarrolladora</Label>
                                 <Input 
                                     value={projectData.clientName} 
                                     onChange={e => setProjectData({...projectData, clientName: e.target.value})}
                                     placeholder="Constructora ABC"
+                                    className="text-xs border-slate-200 focus-visible:ring-slate-400 h-9"
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Ubicación / Dirección</Label>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider">Ubicación / Dirección</Label>
                                 <Input 
                                     value={projectData.location} 
                                     onChange={e => setProjectData({...projectData, location: e.target.value})}
                                     placeholder="Av. Principal #123"
+                                    className="text-xs border-slate-200 focus-visible:ring-slate-400 h-9"
                                 />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Descripción Breve</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider">Descripción Breve</Label>
                             <Textarea 
                                 value={projectData.description} 
                                 onChange={e => setProjectData({...projectData, description: e.target.value})}
                                 placeholder="Instalación de sistemas VRF para torre residencial de 10 niveles."
+                                className="text-xs border-slate-200 focus-visible:ring-slate-400 min-h-[80px]"
                             />
                         </div>
                     </CardContent>
@@ -302,48 +296,48 @@ export default function NewProjectPage() {
             )}
 
             {step === 2 && (
-                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <CardHeader className="flex flex-row items-start justify-between">
+                <Card className="animate-in fade-in slide-in-from-bottom-4 duration-300 border-slate-200 rounded-xl shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4">
                         <div>
-                            <CardTitle>Configurar Plantilla de Hitos (Talleres)</CardTitle>
-                            <CardDescription>
-                                Esta es la lista de talleres estándar que se le asignará automáticamente a cada área (habitación, sala) que crees. Puedes agregar, editar o borrar según la naturaleza de este proyecto.
+                            <CardTitle className="text-base font-bold text-slate-950">Configurar Plantilla de Hitos (Talleres)</CardTitle>
+                            <CardDescription className="text-[11px] text-slate-500 mt-1">
+                                Esta es la lista de talleres estándar que se le asignará automáticamente a cada área. Puedes agregar, editar o borrar hitos.
                             </CardDescription>
                         </div>
-                        <Button onClick={handleAddTemplate} variant="outline" size="sm">
-                            <Plus className="h-4 w-4 mr-2" /> Agregar Hito
+                        <Button onClick={handleAddTemplate} variant="outline" size="sm" className="text-xs font-semibold border-slate-200 hover:bg-slate-50 shrink-0">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Agregar Hito
                         </Button>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-3 pt-5">
                         {templates.map((template, index) => (
-                            <div key={template.id} className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border group">
-                                <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
-                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
+                            <div key={template.id} className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200 group transition-colors">
+                                <GripVertical className="h-4 w-4 text-slate-400 cursor-move" />
+                                <div className="h-7 w-7 rounded-full bg-slate-200 flex items-center justify-center text-slate-900 font-bold text-xs shrink-0">
                                     {index + 1}
                                 </div>
-                                <div className="flex-1 space-y-1">
+                                <div className="flex-1">
                                     <Input 
                                         value={template.name}
                                         onChange={(e) => handleUpdateTemplate(template.id, 'name', e.target.value)}
-                                        className="h-8 border-transparent hover:border-gray-300 focus:border-blue-500 bg-transparent font-medium"
+                                        className="h-8 border-transparent hover:border-slate-300 focus:border-slate-400 bg-transparent text-xs font-semibold"
                                     />
                                 </div>
-                                <div className="w-32">
-                                    <Label className="text-[10px] text-gray-500">Mins. Estimados</Label>
+                                <div className="w-24">
                                     <Input 
                                         type="number"
                                         value={template.estimatedMinutes || ''}
                                         onChange={(e) => handleUpdateTemplate(template.id, 'estimatedMinutes', parseInt(e.target.value))}
-                                        className="h-8"
+                                        className="h-8 text-xs text-right border-slate-200"
+                                        placeholder="Minutos"
                                     />
                                 </div>
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="h-8 w-8 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
                                     onClick={() => handleRemoveTemplate(template.id)}
                                 >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                         ))}
@@ -352,34 +346,35 @@ export default function NewProjectPage() {
             )}
 
             {step === 3 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-blue-50 p-4 rounded-lg border border-blue-100 gap-4">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-100 p-4 rounded-xl border border-slate-200 gap-4">
                         <div>
-                            <h3 className="font-semibold text-blue-900">Estructura del Proyecto</h3>
-                            <p className="text-sm text-blue-700">Define las Zonas (Ej. Apartamentos) y sus Áreas (Ej. Habitaciones). Cada área recibirá la plantilla de {templates.length} hitos automáticamente.</p>
+                            <h3 className="font-bold text-slate-900 text-sm">Estructura del Proyecto</h3>
+                            <p className="text-xs text-slate-500 mt-1">Define las Zonas (Ej. Apartamentos) y sus Áreas (Ej. Habitaciones). Cada área recibirá la plantilla de {templates.length} hitos automáticamente.</p>
                         </div>
-                        <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
                             <Button 
                                 onClick={() => {
                                     setMatrixBaseZone(zones[0] || { id: "", name: "", areas: [] });
                                     setShowMatrixModal(true);
                                 }} 
                                 variant="outline" 
-                                className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 flex-1 md:flex-none"
+                                size="sm"
+                                className="bg-white text-slate-800 border-slate-200 hover:bg-slate-50 flex-1 md:flex-none text-xs font-semibold"
                             >
-                                <Grid3X3 className="h-4 w-4 mr-2" /> Generar Matriz
+                                <Grid3X3 className="h-3.5 w-3.5 mr-1" /> Generar Matriz
                             </Button>
-                            <Button onClick={handleAddZone} className="bg-blue-600 hover:bg-blue-700 flex-1 md:flex-none">
-                                <Plus className="h-4 w-4 mr-2" /> Agregar Zona
+                            <Button size="sm" onClick={handleAddZone} className="bg-slate-950 hover:bg-slate-800 text-white flex-1 md:flex-none text-xs font-semibold">
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Agregar Zona
                             </Button>
                         </div>
                     </div>
 
                     {zones.map((zone, zIndex) => (
-                        <Card key={zone.id} className="border-blue-200 shadow-sm">
-                            <CardHeader className="bg-slate-50 border-b py-3 flex flex-row items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className="h-6 w-6 rounded bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                        <Card key={zone.id} className="border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+                            <CardHeader className="bg-slate-50/50 border-b border-slate-200 py-3 px-4 flex flex-row items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="h-6 w-6 rounded bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
                                         Z{zIndex + 1}
                                     </div>
                                     <Input 
@@ -389,39 +384,39 @@ export default function NewProjectPage() {
                                             newZones[zIndex].name = e.target.value;
                                             setZones(newZones);
                                         }}
-                                        className="font-bold text-lg h-9 w-1/2 border-transparent hover:border-gray-300 focus:border-blue-500"
-                                        placeholder="Nombre de la Zona (Ej. Bloque A - Apto 202)"
+                                        className="font-bold text-sm h-8 w-1/2 border-transparent hover:border-slate-300 focus:border-slate-400 bg-transparent"
+                                        placeholder="Nombre de la Zona (Ej. Apto 101)"
                                     />
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <Button 
                                         variant="outline" 
                                         size="sm"
-                                        className="text-blue-600 hover:bg-blue-50 border-blue-200 bg-white"
+                                        className="text-slate-800 hover:bg-slate-100 border-slate-200 bg-white text-xs font-semibold h-8"
                                         onClick={() => handleDuplicateZone(zone.id)}
                                         title="Duplicar Zona y sus áreas"
                                     >
-                                        <Copy className="h-4 w-4 mr-2" />
+                                        <Copy className="h-3.5 w-3.5 mr-1.5" />
                                         Clonar
                                     </Button>
                                     <Button 
                                         variant="ghost" 
                                         size="sm"
-                                        className="text-red-500 hover:bg-red-50"
+                                        className="text-red-600 hover:bg-red-50 text-xs font-semibold h-8"
                                         onClick={() => setZones(zones.filter(z => z.id !== zone.id))}
                                     >
-                                        Eliminar Zona
+                                        Eliminar
                                     </Button>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-4 space-y-3">
+                            <CardContent className="p-4 space-y-4">
                                 {zone.areas.length === 0 && (
-                                    <p className="text-sm text-gray-500 text-center py-4 border-dashed border-2 rounded">No hay áreas definidas en esta zona.</p>
+                                    <p className="text-xs text-slate-400 text-center py-4 border-dashed border border-slate-200 rounded-lg bg-slate-50/50">No hay áreas definidas en esta zona.</p>
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {zone.areas.map((area, aIndex) => (
-                                        <div key={area.id} className="flex items-center gap-2 p-2 border rounded-md bg-white">
-                                            <Settings2 className="h-4 w-4 text-gray-400" />
+                                        <div key={area.id} className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg bg-white">
+                                            <Settings2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                                             <Input 
                                                 value={area.name}
                                                 onChange={(e) => {
@@ -429,29 +424,30 @@ export default function NewProjectPage() {
                                                     newZones[zIndex].areas[aIndex].name = e.target.value;
                                                     setZones(newZones);
                                                 }}
-                                                className="h-8 border-none shadow-none focus-visible:ring-1"
-                                                placeholder="Nombre del Área (Ej. Hab. Principal)"
+                                                className="h-7 border-none shadow-none focus-visible:ring-1 focus-visible:ring-slate-400 text-xs"
+                                                placeholder="Ej. Habitación Principal"
                                             />
                                             <Button 
                                                 variant="ghost" 
                                                 size="icon"
-                                                className="h-6 w-6 text-gray-400 hover:text-red-500"
+                                                className="h-6 w-6 text-slate-400 hover:text-red-500 shrink-0"
                                                 onClick={() => {
                                                     const newZones = [...zones];
                                                     newZones[zIndex].areas = newZones[zIndex].areas.filter(a => a.id !== area.id);
                                                     setZones(newZones);
                                                 }}
                                             >
-                                                <X className="h-3 w-3" />
+                                                <X className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     ))}
                                     <Button 
                                         variant="outline" 
-                                        className="border-dashed h-auto py-2 flex items-center gap-2 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50"
+                                        size="sm"
+                                        className="border-dashed border-slate-200 h-9 flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-900 hover:border-slate-400 hover:bg-slate-50 font-bold"
                                         onClick={() => handleAddArea(zone.id)}
                                     >
-                                        <Plus className="h-4 w-4" /> Agregar Área
+                                        <Plus className="h-3.5 w-3.5" /> Agregar Área
                                     </Button>
                                 </div>
                             </CardContent>
@@ -459,6 +455,7 @@ export default function NewProjectPage() {
                     ))}
                 </div>
             )}
+            
             {/* Modal Matrix Generator */}
             <MatrixGeneratorModal 
                 open={showMatrixModal}
@@ -469,14 +466,5 @@ export default function NewProjectPage() {
                 }}
             />
         </div>
-    );
-}
-
-function X({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M18 6 6 18" />
-            <path d="m6 6 18 18" />
-        </svg>
     );
 }

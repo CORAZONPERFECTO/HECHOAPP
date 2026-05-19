@@ -14,11 +14,12 @@ import {
     savePurchaseOffline,
     getPurchaseOffline
 } from '@/lib/offline-storage';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, uploadString } from 'firebase/storage';
 import { registerPurchase } from "@/lib/purchase-service";
 import { Purchase } from "@/types/purchase";
+import { Project, ProjectZone } from '@/types/projects';
 
 export function useOfflineSync() {
     const isOnline = useOnlineStatus();
@@ -100,8 +101,10 @@ export function useOfflineSync() {
                     await syncPhotoUpload(operation.data as { ticketId: string; blob: Blob; type: string; location?: string; filename: string });
                 } else if (operation.type === 'CREATE_PURCHASE') {
                     await syncPurchaseCreation(operation.data as any);
-                    // Keeping 'any' strictly for Purchase params here as its a complex object 
-                    // and we haven't exported specific "PurchaseCreationParams", but we've narrowed the scope significantly.
+                } else if (operation.type === 'COMPLETE_PROJECT_TALLER') {
+                    await syncProjectTallerCompletion(operation.data as any);
+                } else if (operation.type === 'BLOCK_PROJECT_TALLER') {
+                    await syncProjectTallerBlock(operation.data as any);
                 }
 
                 // Remove from queue after successful sync
@@ -200,6 +203,131 @@ export function useOfflineSync() {
         }
     };
 
+    const syncProjectTallerCompletion = async (data: {
+        projectId: string;
+        zoneId: string;
+        areaId: string;
+        tallerId: string;
+        evidencePhotoBase64?: string;
+        userId: string;
+        userName: string;
+    }) => {
+        const { projectId, zoneId, areaId, tallerId, evidencePhotoBase64, userId, userName } = data;
+        let finalPhotoUrl = "";
+
+        if (evidencePhotoBase64) {
+            // Upload Base64 image to Firebase Storage
+            const storageRef = ref(storage, `projects/${projectId}/${zoneId}_${tallerId}_${Date.now()}.jpg`);
+            await uploadString(storageRef, evidencePhotoBase64, 'data_url');
+            finalPhotoUrl = await getDownloadURL(storageRef);
+        }
+
+        // Run transaction to update zone and project status & progress
+        await runTransaction(db, async (transaction) => {
+            const projectRef = doc(db, "projects", projectId);
+            const zoneRef = doc(db, "projectZones", zoneId);
+            
+            const projectDoc = await transaction.get(projectRef);
+            const zoneDoc = await transaction.get(zoneRef);
+            
+            if (!projectDoc.exists() || !zoneDoc.exists()) {
+                throw new Error("Documentos no encontrados");
+            }
+            
+            const zoneData = zoneDoc.data() as ProjectZone;
+            const projectData = projectDoc.data() as Project;
+
+            let tallerEncontrado = false;
+            for (let a of zoneData.areas) {
+                if (a.id === areaId) {
+                    for (let t of a.talleres) {
+                        if (t.id === tallerId && t.status !== 'COMPLETED') {
+                            t.status = 'COMPLETED';
+                            t.completedAt = serverTimestamp() as any;
+                            if (finalPhotoUrl) {
+                                t.evidencePhotoUrl = finalPhotoUrl;
+                            }
+                            t.assignedToTecnicoId = userId;
+                            t.assignedToTecnicoName = userName;
+                            t.blockedReason = undefined; // Limpiar bloqueo
+                            tallerEncontrado = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!tallerEncontrado) {
+                return;
+            }
+
+            // Recalcular completados en la zona
+            const completedCount = zoneData.areas.reduce(
+                (acc, a) => acc + a.talleres.filter(t => t.status === 'COMPLETED').length,
+                0
+            );
+            zoneData.completedTalleres = completedCount;
+            zoneData.progressPercentage = zoneData.totalTalleres > 0 ? (completedCount / zoneData.totalTalleres) * 100 : 0;
+
+            const newProjectCompleted = projectData.completedTalleres + 1;
+            const newProjectProgress = projectData.totalTalleres > 0 ? (newProjectCompleted / projectData.totalTalleres) * 100 : 0;
+
+            transaction.update(zoneRef, zoneData as any);
+            transaction.update(projectRef, {
+                completedTalleres: newProjectCompleted,
+                progressPercentage: newProjectProgress,
+                status: projectData.status === 'PLANNING' ? 'IN_PROGRESS' : projectData.status
+            });
+        });
+        console.log(`✅ Synced milestone completion: ${tallerId} in project ${projectId}`);
+    };
+
+    const syncProjectTallerBlock = async (data: {
+        projectId: string;
+        zoneId: string;
+        areaId: string;
+        tallerId: string;
+        blockedReason: string;
+        userId: string;
+        userName: string;
+    }) => {
+        const { projectId, zoneId, areaId, tallerId, blockedReason, userId, userName } = data;
+
+        await runTransaction(db, async (transaction) => {
+            const zoneRef = doc(db, "projectZones", zoneId);
+            const zoneDoc = await transaction.get(zoneRef);
+            
+            if (!zoneDoc.exists()) {
+                throw new Error("Zona no encontrada");
+            }
+            
+            const zoneData = zoneDoc.data() as ProjectZone;
+
+            let tallerEncontrado = false;
+            for (let a of zoneData.areas) {
+                if (a.id === areaId) {
+                    for (let t of a.talleres) {
+                        if (t.id === tallerId) {
+                            t.status = 'BLOCKED';
+                            t.blockedReason = blockedReason;
+                            t.assignedToTecnicoId = userId;
+                            t.assignedToTecnicoName = userName;
+                            tallerEncontrado = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!tallerEncontrado) {
+                return;
+            }
+
+            transaction.update(zoneRef, zoneData as any);
+        });
+        console.log(`✅ Synced milestone block: ${tallerId} in project ${projectId}`);
+    };
+
     const queuePurchaseCreation = useCallback(async (params: any, purchaseDisplay: Purchase) => {
         // 1. Save UI representation offline
         await savePurchaseOffline(purchaseDisplay);
@@ -207,7 +335,7 @@ export function useOfflineSync() {
         // 2. Add to sync queue with full params
         addToSyncQueue({
             type: 'CREATE_PURCHASE',
-            data: params // { ...purchaseData, userId, addToInventory ... }
+            data: params
         });
 
         refreshQueue();
@@ -223,6 +351,38 @@ export function useOfflineSync() {
             data: { id: ticketId, ...updates }
         });
 
+        refreshQueue();
+    }, [refreshQueue]);
+
+    const queueProjectTallerCompletion = useCallback(async (params: {
+        projectId: string;
+        zoneId: string;
+        areaId: string;
+        tallerId: string;
+        evidencePhotoBase64?: string;
+        userId: string;
+        userName: string;
+    }) => {
+        addToSyncQueue({
+            type: 'COMPLETE_PROJECT_TALLER',
+            data: params
+        });
+        refreshQueue();
+    }, [refreshQueue]);
+
+    const queueProjectTallerBlock = useCallback(async (params: {
+        projectId: string;
+        zoneId: string;
+        areaId: string;
+        tallerId: string;
+        blockedReason: string;
+        userId: string;
+        userName: string;
+    }) => {
+        addToSyncQueue({
+            type: 'BLOCK_PROJECT_TALLER',
+            data: params
+        });
         refreshQueue();
     }, [refreshQueue]);
 
@@ -256,6 +416,8 @@ export function useOfflineSync() {
         saveOffline,
         queuePhotoUpload,
         queuePurchaseCreation,
+        queueProjectTallerCompletion,
+        queueProjectTallerBlock,
         processSyncQueue,
         retryOperation,
         discardOperation

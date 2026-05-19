@@ -4,17 +4,17 @@
 
 @layer base {
   :root {
-    /* Base HSL Values - Deep Blue/Purple Theme */
-    --background: 220 30% 96%; /* Light Blue-Grey */
-    --foreground: 224 71% 4%; /* Dark Navy */
+    /* Base HSL Values - Classic Navy Theme */
+    --background: 210 40% 98%; /* Clean clear background */
+    --foreground: 222.2 47.4% 11.2%; /* Dark Navy Slate */
 
     --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
-    --primary: 262 83% 58%; /* Vivid Purple */
+    --primary: 221.2 83.2% 43.3%; /* Classic Navy Blue */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -23,7 +23,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 262 83% 58%;
+    --accent: 221.2 83.2% 43.3%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,9 +31,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
+    --ring: 221.2 83.2% 43.3%;
 
-    --radius: 0.75rem; /* rounded-xl by default */
+    --radius: 0.5rem; /* Sleek, professional rounded corners */
   }
 
   .dark {
@@ -46,7 +46,7 @@
     --popover: 224 71% 8%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 262 83% 58%;
+    --primary: 221.2 83.2% 53.3%; /* Navy primary for dark mode */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
@@ -55,7 +55,7 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 262 83% 58%;
+    --accent: 221.2 83.2% 53.3%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -63,7 +63,7 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 262 83% 58%;
+    --ring: 221.2 83.2% 53.3%;
   }
 }
 
