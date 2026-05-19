@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc } from "firebase/firestore";
+import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
+import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle, Edit } from "lucide-react";
 import Link from "next/link";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MatrixGeneratorModal } from "@/components/projects/matrix-generator-modal";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export default function AdminProjectDetailPage() {
     const params = useParams();
@@ -33,6 +34,181 @@ export default function AdminProjectDetailPage() {
 
     // Matrix Generator State
     const [showMatrixModal, setShowMatrixModal] = useState(false);
+
+    // Technicians list state
+    const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+
+    // Edit project state
+    const [isEditingProject, setIsEditingProject] = useState(false);
+    const [editProjectName, setEditProjectName] = useState("");
+    const [editClientName, setEditClientName] = useState("");
+    const [editStatus, setEditStatus] = useState<ProjectStatus>('PLANNING');
+    const [editEstimatedDate, setEditEstimatedDate] = useState("");
+
+    useEffect(() => {
+        const fetchTechnicians = async () => {
+            try {
+                const usersSnap = await getDocs(collection(db, "users"));
+                const techs = usersSnap.docs
+                    .filter(doc => doc.data().role === "TECNICO")
+                    .map(doc => ({
+                        id: doc.id,
+                        name: doc.data().name || doc.data().email || "Técnico sin nombre",
+                    }));
+                setTechnicians(techs);
+            } catch (error) {
+                console.error("Error fetching technicians:", error);
+            }
+        };
+        fetchTechnicians();
+    }, []);
+
+    const openEditModal = () => {
+        if (!project) return;
+        setEditProjectName(project.name);
+        setEditClientName(project.clientName || "");
+        setEditStatus(project.status);
+        if (project.estimatedCompletionDate) {
+            const date = (project.estimatedCompletionDate as any).toDate 
+                ? (project.estimatedCompletionDate as any).toDate() 
+                : new Date(project.estimatedCompletionDate as any);
+            setEditEstimatedDate(date.toISOString().split('T')[0]);
+        } else {
+            setEditEstimatedDate("");
+        }
+        setIsEditingProject(true);
+    };
+
+    const handleSaveProject = async () => {
+        try {
+            const projectRef = doc(db, "projects", projectId);
+            const updateData: any = {
+                name: editProjectName,
+                clientName: editClientName,
+                status: editStatus,
+                updatedAt: serverTimestamp()
+            };
+            if (editEstimatedDate) {
+                updateData.estimatedCompletionDate = new Date(editEstimatedDate + "T12:00:00");
+            } else {
+                updateData.estimatedCompletionDate = null;
+            }
+            await updateDoc(projectRef, updateData);
+            setIsEditingProject(false);
+        } catch (error) {
+            console.error("Error updating project:", error);
+            alert("Error al actualizar el proyecto.");
+        }
+    };
+
+    const handleAssignTechnician = async (zoneId: string, areaId: string, tallerId: string, tecnicoId: string) => {
+        try {
+            const zoneRef = doc(db, "projectZones", zoneId);
+            const zoneDoc = await getDoc(zoneRef);
+            if (!zoneDoc.exists()) return;
+            const zoneData = zoneDoc.data() as ProjectZone;
+
+            const tech = technicians.find(t => t.id === tecnicoId);
+            const techName = tech ? tech.name : undefined;
+
+            let updated = false;
+            for (let a of zoneData.areas) {
+                if (a.id === areaId) {
+                    for (let t of a.talleres) {
+                        if (t.id === tallerId) {
+                            if (tecnicoId === "unassigned") {
+                                t.assignedToTecnicoId = undefined;
+                                t.assignedToTecnicoName = undefined;
+                            } else {
+                                t.assignedToTecnicoId = tecnicoId;
+                                t.assignedToTecnicoName = techName;
+                            }
+                            updated = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (updated) {
+                await updateDoc(zoneRef, { areas: zoneData.areas });
+            }
+        } catch (error) {
+            console.error("Error assigning technician:", error);
+            alert("Error al asignar técnico.");
+        }
+    };
+
+    const handleToggleTallerStatus = async (zoneId: string, areaId: string, tallerId: string, newStatus: 'COMPLETED' | 'PENDING') => {
+        try {
+            await runTransaction(db, async (transaction) => {
+                const projectRef = doc(db, "projects", projectId);
+                const zoneRef = doc(db, "projectZones", zoneId);
+                
+                const projectDoc = await transaction.get(projectRef);
+                const zoneDoc = await transaction.get(zoneRef);
+                
+                if (!projectDoc.exists() || !zoneDoc.exists()) {
+                    throw new Error("Documentos no encontrados");
+                }
+                
+                const zoneData = zoneDoc.data() as ProjectZone;
+                const projectData = projectDoc.data() as Project;
+
+                let stateChanged = false;
+                let isCompletedChange = 0;
+
+                for (let a of zoneData.areas) {
+                    if (a.id === areaId) {
+                        for (let t of a.talleres) {
+                            if (t.id === tallerId) {
+                                const oldStatus = t.status;
+                                if (oldStatus === newStatus) return; // No change
+
+                                t.status = newStatus;
+                                if (newStatus === 'COMPLETED') {
+                                    t.completedAt = serverTimestamp() as any;
+                                    t.blockedReason = undefined;
+                                    isCompletedChange = 1;
+                                } else {
+                                    t.completedAt = undefined;
+                                    t.evidencePhotoUrl = undefined;
+                                    t.blockedReason = undefined;
+                                    if (oldStatus === 'COMPLETED') {
+                                        isCompletedChange = -1;
+                                    }
+                                }
+                                stateChanged = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!stateChanged) return;
+
+                // Recalcular completados en la zona
+                const completedCount = zoneData.areas.reduce(
+                    (acc, a) => acc + a.talleres.filter(t => t.status === 'COMPLETED').length,
+                    0
+                );
+                zoneData.completedTalleres = completedCount;
+                zoneData.progressPercentage = zoneData.totalTalleres > 0 ? (completedCount / zoneData.totalTalleres) * 100 : 0;
+
+                const newProjectCompleted = Math.max(0, projectData.completedTalleres + isCompletedChange);
+                const newProjectProgress = projectData.totalTalleres > 0 ? (newProjectCompleted / projectData.totalTalleres) * 100 : 0;
+
+                transaction.update(zoneRef, zoneData as any);
+                transaction.update(projectRef, {
+                    completedTalleres: newProjectCompleted,
+                    progressPercentage: newProjectProgress
+                });
+            });
+        } catch (error) {
+            console.error("Error toggling status:", error);
+            alert("Error al cambiar el estado de la tarea.");
+        }
+    };
 
     const handleUpdateZoneNotes = async (zoneId: string, notes: string) => {
         try {
@@ -199,15 +375,24 @@ export default function AdminProjectDetailPage() {
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
                                     project.status === 'COMPLETED' ? 'bg-green-50 text-green-800 border border-green-100' :
                                     project.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-900 border border-blue-100' :
+                                    project.status === 'ON_HOLD' ? 'bg-yellow-50 text-yellow-900 border border-yellow-100' :
+                                    project.status === 'CANCELLED' ? 'bg-red-50 text-red-900 border border-red-100' :
                                     'bg-amber-50 text-amber-900 border border-amber-100'
                                 }`}>
-                                    {project.status === 'IN_PROGRESS' ? 'En Curso' : project.status === 'COMPLETED' ? 'Completado' : 'Planificación'}
+                                    {project.status === 'IN_PROGRESS' ? 'En Curso' : 
+                                     project.status === 'COMPLETED' ? 'Completado' : 
+                                     project.status === 'ON_HOLD' ? 'En Pausa' :
+                                     project.status === 'CANCELLED' ? 'Cancelado' :
+                                     'Planificación'}
                                 </span>
                                 <span>• Cliente: {project.clientName}</span>
                             </p>
                         </div>
                     </div>
                     <div className="flex flex-row gap-2 no-print shrink-0">
+                        <Button variant="outline" className="text-slate-700 border-slate-200 hover:bg-slate-50 text-xs font-semibold" onClick={openEditModal}>
+                            <Edit className="h-4 w-4 mr-2" /> Editar Proyecto
+                        </Button>
                         <Button variant="outline" className="text-slate-700 border-slate-200 hover:bg-slate-50 text-xs font-semibold" onClick={handlePrintReport}>
                             <Printer className="h-4 w-4 mr-2" /> Informe Final
                         </Button>
@@ -442,22 +627,43 @@ export default function AdminProjectDetailPage() {
                                                                                     </div>
                                                                                 </div>
                                                                                 
-                                                                                {/* Technician Info & Evidence Photo */}
-                                                                                <div className="flex items-center gap-2 pl-9 md:pl-0 shrink-0">
-                                                                                    {taller.assignedToTecnicoName && (
-                                                                                        <div className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border font-semibold ${
-                                                                                            isBlocked ? 'text-red-700 bg-red-50 border-red-100' : 'text-slate-700 bg-slate-50 border-slate-200'
-                                                                                        }`}>
-                                                                                            <User className="h-3 w-3" />
-                                                                                            {taller.assignedToTecnicoName}
-                                                                                        </div>
-                                                                                    )}
+                                                                                {/* Technician Info & Action Controls */}
+                                                                                <div className="flex flex-wrap items-center gap-2 pl-9 md:pl-0 shrink-0">
+                                                                                    {/* Picker de Técnico (Sólo pantalla) */}
+                                                                                    <div className="flex items-center gap-1.5 no-print">
+                                                                                        <User className="h-3.5 w-3.5 text-slate-400" />
+                                                                                        <select
+                                                                                            value={taller.assignedToTecnicoId || "unassigned"}
+                                                                                            onChange={(e) => handleAssignTechnician(zone.id, area.id, taller.id, e.target.value)}
+                                                                                            className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                                                                        >
+                                                                                            <option value="unassigned">Sin Asignar</option>
+                                                                                            {technicians.map(tech => (
+                                                                                                <option key={tech.id} value={tech.id}>
+                                                                                                    {tech.name}
+                                                                                                </option>
+                                                                                            ))}
+                                                                                        </select>
+                                                                                    </div>
+
+                                                                                    {/* Vista Estática del Técnico (Impresión) */}
+                                                                                    <div className="hidden print:flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border border-slate-200 font-semibold text-slate-700 bg-slate-50">
+                                                                                        <User className="h-3 w-3" />
+                                                                                        {taller.assignedToTecnicoName || "Sin Asignar"}
+                                                                                    </div>
+
+                                                                                    {/* Estado en Impresión */}
+                                                                                    <div className="hidden print:block text-[9px] font-bold border px-2 py-0.5 rounded uppercase tracking-wider">
+                                                                                        {isCompleted ? 'Completado' : isBlocked ? 'Bloqueado' : 'Pendiente'}
+                                                                                    </div>
+
+                                                                                    {/* Botón Evidencia */}
                                                                                     {isCompleted && (
                                                                                         taller.evidencePhotoUrl ? (
                                                                                             <Button 
                                                                                                 variant="outline" 
                                                                                                 size="sm" 
-                                                                                                className="h-6 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print font-bold"
+                                                                                                className="h-7 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print font-bold"
                                                                                                 onClick={() => setViewingPhoto({
                                                                                                     url: taller.evidencePhotoUrl!,
                                                                                                     name: taller.name,
@@ -466,22 +672,54 @@ export default function AdminProjectDetailPage() {
                                                                                                 })}
                                                                                             >
                                                                                                 <ImageIcon className="h-3.5 w-3.5 mr-1" />
-                                                                                                Ver Evidencia
+                                                                                                Evidencia
                                                                                             </Button>
                                                                                         ) : (
-                                                                                            <span className="text-xs text-slate-400 italic no-print">Sin foto</span>
+                                                                                            <span className="text-[10px] text-slate-400 italic no-print px-1">Sin foto</span>
                                                                                         )
                                                                                     )}
-                                                                                    {isBlocked && (
-                                                                                        <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                                                                                            Bloqueado
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {!isCompleted && !isBlocked && (
-                                                                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">
-                                                                                            Pendiente
-                                                                                        </span>
-                                                                                    )}
+
+                                                                                    {/* Botones de Control de Estado (Sólo pantalla) */}
+                                                                                    <div className="flex items-center gap-1.5 no-print">
+                                                                                        {isCompleted ? (
+                                                                                            <Button 
+                                                                                                variant="outline" 
+                                                                                                size="sm" 
+                                                                                                className="h-7 text-[10px] bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-medium"
+                                                                                                onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
+                                                                                            >
+                                                                                                Reabrir
+                                                                                            </Button>
+                                                                                        ) : isBlocked ? (
+                                                                                            <>
+                                                                                                <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded uppercase tracking-wider">
+                                                                                                    Bloqueado
+                                                                                                </span>
+                                                                                                <Button 
+                                                                                                    variant="outline" 
+                                                                                                    size="sm" 
+                                                                                                    className="h-7 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold animate-pulse"
+                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
+                                                                                                >
+                                                                                                    Resolver
+                                                                                                </Button>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <span className="text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded uppercase tracking-wider">
+                                                                                                    Pendiente
+                                                                                                </span>
+                                                                                                <Button 
+                                                                                                    variant="outline" 
+                                                                                                    size="sm" 
+                                                                                                    className="h-7 text-[10px] bg-slate-900 text-white border-transparent hover:bg-slate-800 font-bold"
+                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'COMPLETED')}
+                                                                                                >
+                                                                                                    Listo
+                                                                                                </Button>
+                                                                                            </>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
 
@@ -539,6 +777,81 @@ export default function AdminProjectDetailPage() {
                 baseAreas={zones[0]?.areas || []}
                 onGenerate={handleGenerateMatrix}
             />
+
+            {/* Modal Editar Detalles del Proyecto */}
+            <Dialog open={isEditingProject} onOpenChange={setIsEditingProject}>
+                <DialogContent className="sm:max-w-md bg-white text-slate-900 border-slate-200">
+                    <DialogHeader>
+                        <DialogTitle className="text-slate-900 text-sm font-bold uppercase tracking-wider">Editar Detalles del Proyecto</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="projectName" className="text-xs font-bold text-slate-700 uppercase">Nombre del Proyecto</Label>
+                            <Input 
+                                id="projectName" 
+                                value={editProjectName} 
+                                onChange={(e) => setEditProjectName(e.target.value)} 
+                                className="text-xs h-9"
+                                placeholder="Ej: Torre Bella Vista"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="clientName" className="text-xs font-bold text-slate-700 uppercase">Cliente</Label>
+                            <Input 
+                                id="clientName" 
+                                value={editClientName} 
+                                onChange={(e) => setEditClientName(e.target.value)} 
+                                className="text-xs h-9"
+                                placeholder="Ej: Constructora XYZ"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="projectStatus" className="text-xs font-bold text-slate-700 uppercase">Estado del Proyecto</Label>
+                            <select
+                                id="projectStatus"
+                                value={editStatus}
+                                onChange={(e) => setEditStatus(e.target.value as ProjectStatus)}
+                                className="w-full text-xs h-9 bg-white border border-slate-200 rounded px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            >
+                                <option value="PLANNING">Planificación</option>
+                                <option value="IN_PROGRESS">En Desarrollo / En Curso</option>
+                                <option value="ON_HOLD">En Pausa / En Espera</option>
+                                <option value="CANCELLED">Cancelado</option>
+                                <option value="COMPLETED">Completado</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="estimatedDate" className="text-xs font-bold text-slate-700 uppercase">Fecha Estimada de Entrega (ETA)</Label>
+                            <Input 
+                                id="estimatedDate" 
+                                type="date"
+                                value={editEstimatedDate} 
+                                onChange={(e) => setEditEstimatedDate(e.target.value)} 
+                                className="text-xs h-9"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-xs h-9"
+                            onClick={() => setIsEditingProject(false)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="text-xs h-9 bg-slate-900 text-white hover:bg-slate-800"
+                            onClick={handleSaveProject}
+                            disabled={!editProjectName.trim()}
+                        >
+                            Guardar Cambios
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
