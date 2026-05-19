@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, collection, query, where, onSnapshot, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,25 @@ export default function TechnicianProjectDetailPage() {
     const [project, setProject] = useState<Project | null>(null);
     const [zones, setZones] = useState<ProjectZone[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        setUserRole(userDoc.data().role || null);
+                    }
+                } catch (err) {
+                    console.error("Error fetching user role:", err);
+                }
+            } else {
+                setUserRole(null);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     const [expandedZone, setExpandedZone] = useState<string | null>(null);
     const [expandedArea, setExpandedArea] = useState<string | null>(null);
@@ -323,6 +342,24 @@ export default function TechnicianProjectDetailPage() {
 
     return (
         <div className="space-y-4 pb-24 max-w-lg mx-auto">
+            {/* Admin Access Redirect Banner */}
+            {userRole && ['ADMIN', 'SUPERVISOR', 'GERENTE', 'GERENTE_TICKETS'].includes(userRole) && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-xl p-3.5 mx-4 mt-4 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-2">
+                        <ShieldAlert className="h-5 w-5 text-blue-600 shrink-0" />
+                        <div>
+                            <p className="text-xs font-bold">Vista de Técnico (Limitada)</p>
+                            <p className="text-[10px] text-blue-700 font-semibold">Para agregar, modificar o eliminar zonas, áreas e hitos, ve al panel de gestión.</p>
+                        </div>
+                    </div>
+                    <Button size="sm" variant="default" className="bg-blue-600 hover:bg-blue-700 text-[10px] text-white font-bold h-7 shrink-0 ml-2 px-3" asChild>
+                        <Link href={`/projects/${projectId}`}>
+                            Ir a Gestión
+                        </Link>
+                    </Button>
+                </div>
+            )}
+
             {/* Header Sticky Módulo - Classic Navy */}
             <div className="bg-white sticky top-0 z-10 pt-4 pb-3 px-4 shadow-sm border-b border-slate-200">
                 <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2 text-slate-600 hover:text-slate-900">

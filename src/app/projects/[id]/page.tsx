@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus } from "@/types/projects";
+import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus, DEFAULT_TALLERES_TEMPLATES } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle, Edit } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle, Edit, Plus, Pencil, Building2 } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -28,6 +28,14 @@ export default function AdminProjectDetailPage() {
 
     const [expandedZone, setExpandedZone] = useState<string | null>(null);
     const [expandedArea, setExpandedArea] = useState<string | null>(null);
+    const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+    // Generic Admin Dialog State
+    const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+    const [adminDialogType, setAdminDialogType] = useState<'ADD_ZONE' | 'EDIT_ZONE' | 'ADD_AREA' | 'EDIT_AREA' | 'ADD_TALLER' | 'EDIT_TALLER' | null>(null);
+    const [adminDialogTarget, setAdminDialogTarget] = useState<{ zoneId?: string; areaId?: string; tallerId?: string; name?: string }>({});
+    const [adminDialogInput, setAdminDialogInput] = useState("");
+    const [isAdminActionLoading, setIsAdminActionLoading] = useState(false);
 
     // Modal para ver foto de evidencia
     const [viewingPhoto, setViewingPhoto] = useState<{ url: string, name: string, technician: string, date: any } | null>(null);
@@ -241,12 +249,363 @@ export default function AdminProjectDetailPage() {
     };
 
     const handleDeleteZone = async (zoneId: string, zoneName: string) => {
-        if (!confirm(`¿Eliminar la zona "${zoneName}"? Se perderá el avance de esta zona.`)) return;
+        if (!confirm(`¿Eliminar la zona "${zoneName}"? Se perderá el avance de esta zona y no se puede deshacer.`)) return;
         try {
-            await deleteDoc(doc(db, "projectZones", zoneId));
+            await runTransaction(db, async (transaction) => {
+                const projectRef = doc(db, "projects", projectId);
+                const zoneRef = doc(db, "projectZones", zoneId);
+                
+                const projectDoc = await transaction.get(projectRef);
+                const zoneDoc = await transaction.get(zoneRef);
+                
+                if (!zoneDoc.exists()) return;
+                const zoneData = zoneDoc.data() as ProjectZone;
+                
+                const projectData = projectDoc.exists() ? projectDoc.data() as Project : null;
+                
+                const zoneTotal = zoneData.totalTalleres || 0;
+                const zoneCompleted = zoneData.completedTalleres || 0;
+                
+                transaction.delete(zoneRef);
+                
+                if (projectData) {
+                    const newTotal = Math.max(0, (projectData.totalTalleres || 0) - zoneTotal);
+                    const newCompleted = Math.max(0, (projectData.completedTalleres || 0) - zoneCompleted);
+                    const newProgress = newTotal > 0 ? (newCompleted / newTotal) * 100 : 0;
+                    
+                    transaction.update(projectRef, {
+                        totalTalleres: newTotal,
+                        completedTalleres: newCompleted,
+                        progressPercentage: newProgress
+                    });
+                }
+            });
         } catch (error) {
-            console.error("Error eliminando zona:", error);
-            alert("Error al eliminar zona.");
+            console.error("Error deleting zone:", error);
+            alert("Error al eliminar la zona.");
+        }
+    };
+
+    const handleAddZone = async (name: string) => {
+        if (!name.trim()) return;
+        try {
+            const zoneRef = doc(collection(db, "projectZones"));
+            const newZone: ProjectZone = {
+                id: zoneRef.id,
+                projectId,
+                name: name.trim(),
+                areas: [],
+                progressPercentage: 0,
+                totalTalleres: 0,
+                completedTalleres: 0
+            };
+            await updateDoc(doc(db, "projects", projectId), {
+                updatedAt: serverTimestamp()
+            });
+            await updateDoc(zoneRef, newZone as any);
+        } catch (error) {
+            console.error("Error adding zone:", error);
+            alert("Error al agregar la zona.");
+        }
+    };
+
+    const handleRenameZone = async (zoneId: string, newName: string) => {
+        if (!newName.trim()) return;
+        try {
+            await updateDoc(doc(db, "projectZones", zoneId), { name: newName.trim() });
+        } catch (error) {
+            console.error("Error renaming zone:", error);
+            alert("Error al renombrar la zona.");
+        }
+    };
+
+    const handleAddArea = async (zoneId: string, name: string) => {
+        if (!name.trim()) return;
+        try {
+            const zoneRef = doc(db, "projectZones", zoneId);
+            const zoneDoc = await getDoc(zoneRef);
+            if (!zoneDoc.exists()) return;
+            
+            const zoneData = zoneDoc.data() as ProjectZone;
+            const newArea: ProjectArea = {
+                id: crypto.randomUUID(),
+                name: name.trim(),
+                talleres: []
+            };
+            
+            const updatedAreas = [...zoneData.areas, newArea];
+            await updateDoc(zoneRef, { areas: updatedAreas });
+        } catch (error) {
+            console.error("Error adding area:", error);
+            alert("Error al agregar el área.");
+        }
+    };
+
+    const handleRenameArea = async (zoneId: string, areaId: string, newName: string) => {
+        if (!newName.trim()) return;
+        try {
+            const zoneRef = doc(db, "projectZones", zoneId);
+            const zoneDoc = await getDoc(zoneRef);
+            if (!zoneDoc.exists()) return;
+            
+            const zoneData = zoneDoc.data() as ProjectZone;
+            const updatedAreas = zoneData.areas.map(a => {
+                if (a.id === areaId) {
+                    return { ...a, name: newName.trim() };
+                }
+                return a;
+            });
+            
+            await updateDoc(zoneRef, { areas: updatedAreas });
+        } catch (error) {
+            console.error("Error renaming area:", error);
+            alert("Error al renombrar el área.");
+        }
+    };
+
+    const handleDeleteArea = async (zoneId: string, areaId: string, areaName: string) => {
+        if (!confirm(`¿Eliminar el área "${areaName}" y todos sus hitos asociados? Esta acción no se puede deshacer.`)) return;
+        try {
+            await runTransaction(db, async (transaction) => {
+                const projectRef = doc(db, "projects", projectId);
+                const zoneRef = doc(db, "projectZones", zoneId);
+                
+                const projectDoc = await transaction.get(projectRef);
+                const zoneDoc = await transaction.get(zoneRef);
+                
+                if (!zoneDoc.exists() || !projectDoc.exists()) return;
+                const zoneData = zoneDoc.data() as ProjectZone;
+                const projectData = projectDoc.data() as Project;
+                
+                const area = zoneData.areas.find(a => a.id === areaId);
+                if (!area) return;
+                
+                const areaTotal = area.talleres.length;
+                const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
+                
+                const updatedAreas = zoneData.areas.filter(a => a.id !== areaId);
+                
+                const newZoneTotal = Math.max(0, (zoneData.totalTalleres || 0) - areaTotal);
+                const newZoneCompleted = Math.max(0, (zoneData.completedTalleres || 0) - areaCompleted);
+                const newZoneProgress = newZoneTotal > 0 ? (newZoneCompleted / newZoneTotal) * 100 : 0;
+                
+                const newProjectTotal = Math.max(0, (projectData.totalTalleres || 0) - areaTotal);
+                const newProjectCompleted = Math.max(0, (projectData.completedTalleres || 0) - areaCompleted);
+                const newProjectProgress = newProjectTotal > 0 ? (newProjectCompleted / newProjectTotal) * 100 : 0;
+                
+                transaction.update(zoneRef, {
+                    areas: updatedAreas,
+                    totalTalleres: newZoneTotal,
+                    completedTalleres: newZoneCompleted,
+                    progressPercentage: newZoneProgress
+                });
+                
+                transaction.update(projectRef, {
+                    totalTalleres: newProjectTotal,
+                    completedTalleres: newProjectCompleted,
+                    progressPercentage: newProjectProgress
+                });
+            });
+        } catch (error) {
+            console.error("Error deleting area:", error);
+            alert("Error al eliminar el área.");
+        }
+    };
+
+    const handleCreateTaller = async (zoneId: string, areaId: string, name: string) => {
+        if (!name.trim()) return;
+        try {
+            await runTransaction(db, async (transaction) => {
+                const projectRef = doc(db, "projects", projectId);
+                const zoneRef = doc(db, "projectZones", zoneId);
+                
+                const projectDoc = await transaction.get(projectRef);
+                const zoneDoc = await transaction.get(zoneRef);
+                
+                if (!zoneDoc.exists() || !projectDoc.exists()) return;
+                const zoneData = zoneDoc.data() as ProjectZone;
+                const projectData = projectDoc.data() as Project;
+                
+                const area = zoneData.areas.find(a => a.id === areaId);
+                if (!area) return;
+                
+                const newTaller: ProjectTaller = {
+                    id: crypto.randomUUID(),
+                    name: name.trim(),
+                    status: 'PENDING',
+                    orderIndex: area.talleres.length,
+                    evidencePhotoUrl: undefined,
+                    assignedToTecnicoId: undefined,
+                    assignedToTecnicoName: undefined
+                };
+                
+                const updatedAreas = zoneData.areas.map(a => {
+                    if (a.id === areaId) {
+                        return { ...a, talleres: [...a.talleres, newTaller] };
+                    }
+                    return a;
+                });
+                
+                const newZoneTotal = (zoneData.totalTalleres || 0) + 1;
+                const newZoneCompleted = zoneData.completedTalleres || 0;
+                const newZoneProgress = (newZoneCompleted / newZoneTotal) * 100;
+                
+                const newProjectTotal = (projectData.totalTalleres || 0) + 1;
+                const newProjectCompleted = projectData.completedTalleres || 0;
+                const newProjectProgress = (newProjectCompleted / newProjectTotal) * 100;
+                
+                transaction.update(zoneRef, {
+                    areas: updatedAreas,
+                    totalTalleres: newZoneTotal,
+                    completedTalleres: newZoneCompleted,
+                    progressPercentage: newZoneProgress
+                });
+                
+                transaction.update(projectRef, {
+                    totalTalleres: newProjectTotal,
+                    completedTalleres: newProjectCompleted,
+                    progressPercentage: newProjectProgress
+                });
+            });
+        } catch (error) {
+            console.error("Error creating taller:", error);
+            alert("Error al agregar el hito.");
+        }
+    };
+
+    const handleRenameTaller = async (zoneId: string, areaId: string, tallerId: string, newName: string) => {
+        if (!newName.trim()) return;
+        try {
+            const zoneRef = doc(db, "projectZones", zoneId);
+            const zoneDoc = await getDoc(zoneRef);
+            if (!zoneDoc.exists()) return;
+            
+            const zoneData = zoneDoc.data() as ProjectZone;
+            const updatedAreas = zoneData.areas.map(a => {
+                if (a.id === areaId) {
+                    const updatedTalleres = a.talleres.map(t => {
+                        if (t.id === tallerId) {
+                            return { ...t, name: newName.trim() };
+                        }
+                        return t;
+                    });
+                    return { ...a, talleres: updatedTalleres };
+                }
+                return a;
+            });
+            
+            await updateDoc(zoneRef, { areas: updatedAreas });
+        } catch (error) {
+            console.error("Error renaming taller:", error);
+            alert("Error al renombrar el hito.");
+        }
+    };
+
+    const handleDeleteTaller = async (zoneId: string, areaId: string, tallerId: string, tallerName: string) => {
+        if (!confirm(`¿Eliminar el hito "${tallerName}"? Esta acción no se puede deshacer.`)) return;
+        try {
+            await runTransaction(db, async (transaction) => {
+                const projectRef = doc(db, "projects", projectId);
+                const zoneRef = doc(db, "projectZones", zoneId);
+                
+                const projectDoc = await transaction.get(projectRef);
+                const zoneDoc = await transaction.get(zoneRef);
+                
+                if (!zoneDoc.exists() || !projectDoc.exists()) return;
+                const zoneData = zoneDoc.data() as ProjectZone;
+                const projectData = projectDoc.data() as Project;
+                
+                const area = zoneData.areas.find(a => a.id === areaId);
+                if (!area) return;
+                
+                const taller = area.talleres.find(t => t.id === tallerId);
+                if (!taller) return;
+                
+                const wasCompleted = taller.status === 'COMPLETED';
+                const completedChange = wasCompleted ? -1 : 0;
+                
+                const updatedTalleres = area.talleres.filter(t => t.id !== tallerId);
+                
+                const updatedAreas = zoneData.areas.map(a => {
+                    if (a.id === areaId) {
+                        return { ...a, talleres: updatedTalleres };
+                    }
+                    return a;
+                });
+                
+                const newZoneTotal = Math.max(0, (zoneData.totalTalleres || 0) - 1);
+                const newZoneCompleted = Math.max(0, (zoneData.completedTalleres || 0) + completedChange);
+                const newZoneProgress = newZoneTotal > 0 ? (newZoneCompleted / newZoneTotal) * 100 : 0;
+                
+                const newProjectTotal = Math.max(0, (projectData.totalTalleres || 0) - 1);
+                const newProjectCompleted = Math.max(0, (projectData.completedTalleres || 0) + completedChange);
+                const newProjectProgress = newProjectTotal > 0 ? (newProjectCompleted / newProjectTotal) * 100 : 0;
+                
+                transaction.update(zoneRef, {
+                    areas: updatedAreas,
+                    totalTalleres: newZoneTotal,
+                    completedTalleres: newZoneCompleted,
+                    progressPercentage: newZoneProgress
+                });
+                
+                transaction.update(projectRef, {
+                    totalTalleres: newProjectTotal,
+                    completedTalleres: newProjectCompleted,
+                    progressPercentage: newProjectProgress
+                });
+            });
+        } catch (error) {
+            console.error("Error deleting taller:", error);
+            alert("Error al eliminar el hito.");
+        }
+    };
+
+    const openAdminDialog = (type: any, target: any, defaultVal: string = "") => {
+        setAdminDialogType(type);
+        setAdminDialogTarget(target);
+        setAdminDialogInput(defaultVal);
+        setAdminDialogOpen(true);
+    };
+
+    const handleAdminDialogSubmit = async () => {
+        if (!adminDialogInput.trim()) return;
+        setIsAdminActionLoading(true);
+        try {
+            switch (adminDialogType) {
+                case 'ADD_ZONE':
+                    await handleAddZone(adminDialogInput);
+                    break;
+                case 'EDIT_ZONE':
+                    if (adminDialogTarget.zoneId) {
+                        await handleRenameZone(adminDialogTarget.zoneId, adminDialogInput);
+                    }
+                    break;
+                case 'ADD_AREA':
+                    if (adminDialogTarget.zoneId) {
+                        await handleAddArea(adminDialogTarget.zoneId, adminDialogInput);
+                    }
+                    break;
+                case 'EDIT_AREA':
+                    if (adminDialogTarget.zoneId && adminDialogTarget.areaId) {
+                        await handleRenameArea(adminDialogTarget.zoneId, adminDialogTarget.areaId, adminDialogInput);
+                    }
+                    break;
+                case 'ADD_TALLER':
+                    if (adminDialogTarget.zoneId && adminDialogTarget.areaId) {
+                        await handleCreateTaller(adminDialogTarget.zoneId, adminDialogTarget.areaId, adminDialogInput);
+                    }
+                    break;
+                case 'EDIT_TALLER':
+                    if (adminDialogTarget.zoneId && adminDialogTarget.areaId && adminDialogTarget.tallerId) {
+                        await handleRenameTaller(adminDialogTarget.zoneId, adminDialogTarget.areaId, adminDialogTarget.tallerId, adminDialogInput);
+                    }
+                    break;
+            }
+            setAdminDialogOpen(false);
+        } catch (error) {
+            console.error("Error in admin action:", error);
+        } finally {
+            setIsAdminActionLoading(false);
         }
     };
 
@@ -258,18 +617,38 @@ export default function AdminProjectDetailPage() {
 
             generatedZones.forEach(gz => {
                 let zoneTalleres = 0;
-                // Reconstruct full areas with talleres from the base areas
-                const newAreas = gz.areas.map((areaInfo, index) => {
-                    const baseArea = zones[0]?.areas[index];
-                    const talleres: ProjectTaller[] = baseArea ? baseArea.talleres.map(t => ({
-                        ...t,
-                        id: crypto.randomUUID(),
-                        status: 'PENDING',
-                        completedAt: null as any,
-                        evidencePhotoUrl: undefined,
-                        assignedToTecnicoId: undefined,
-                        assignedToTecnicoName: undefined
-                    })) : [];
+                // Reconstruct full areas with talleres from the template or existing matching areas
+                const newAreas = gz.areas.map((areaInfo) => {
+                    let sourceTalleres: ProjectTaller[] = [];
+
+                    // Search in existing zones for an area with the exact name to replicate the workshop steps
+                    for (const zone of zones) {
+                        const matchingArea = zone.areas.find(a => a.name.trim().toLowerCase() === areaInfo.name.trim().toLowerCase());
+                        if (matchingArea && matchingArea.talleres && matchingArea.talleres.length > 0) {
+                            sourceTalleres = matchingArea.talleres;
+                            break;
+                        }
+                    }
+
+                    let talleres: ProjectTaller[] = [];
+                    if (sourceTalleres.length > 0) {
+                        talleres = sourceTalleres.map(t => ({
+                            id: crypto.randomUUID(),
+                            name: t.name,
+                            status: 'PENDING',
+                            orderIndex: t.orderIndex,
+                            templateId: t.templateId || undefined
+                        }));
+                    } else {
+                        // Fallback to default templates
+                        talleres = DEFAULT_TALLERES_TEMPLATES.map(t => ({
+                            id: crypto.randomUUID(),
+                            name: t.name,
+                            status: 'PENDING',
+                            orderIndex: t.orderIndex,
+                            templateId: t.id
+                        }));
+                    }
 
                     zoneTalleres += talleres.length;
 
@@ -330,6 +709,28 @@ export default function AdminProjectDetailPage() {
             unsubZones();
         };
     }, [projectId]);
+
+    const groupedZones = useMemo(() => {
+        const groups: Record<string, ProjectZone[]> = {};
+        zones.forEach(z => {
+            const match = z.name.match(/^([^0-9]+)/);
+            let groupName = match ? match[1].trim().toUpperCase() : "OTROS";
+            
+            if (!groups[groupName]) {
+                groups[groupName] = [];
+            }
+            groups[groupName].push(z);
+        });
+
+        return Object.entries(groups)
+            .map(([name, items]) => ({
+                name,
+                items: items.sort((a, b) => a.name.localeCompare(b.name)),
+                totalTalleres: items.reduce((acc, curr) => acc + curr.totalTalleres, 0),
+                completedTalleres: items.reduce((acc, curr) => acc + curr.completedTalleres, 0),
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [zones]);
 
     if (loading) {
         return (
@@ -454,13 +855,20 @@ export default function AdminProjectDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
-                </div>
-
-                {/* Detalle de Zonas y Áreas */}
+                     {/* Detalle de Zonas y Áreas */}
                 <div className="flex justify-between items-center mt-8 mb-4 border-b border-slate-200 pb-3">
                     <h2 className="text-base font-bold text-slate-900 uppercase tracking-wider">Estructura y Avance por Zonas</h2>
-                    {zones.length > 0 && (
-                        <div className="flex gap-2 no-print">
+                    <div className="flex gap-2 no-print">
+                        <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold"
+                            onClick={() => openAdminDialog('ADD_ZONE', {})}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agregar Zona
+                        </Button>
+                        {zones.length > 0 && (
                             <Button 
                                 size="sm" 
                                 variant="outline" 
@@ -470,278 +878,389 @@ export default function AdminProjectDetailPage() {
                                 <Grid3X3 className="h-4 w-4 mr-2" />
                                 Agregar Zonas (Matriz)
                             </Button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 <div className="space-y-4">
-                    {zones.length === 0 ? (
+                    {groupedZones.length === 0 ? (
                         <div className="bg-white rounded-xl p-12 text-center border border-slate-200 shadow-sm">
                             <p className="text-slate-500 text-xs font-semibold">Este proyecto aún no tiene zonas creadas.</p>
+                            <Button 
+                                size="sm" 
+                                className="mt-4 bg-slate-900 text-white hover:bg-slate-850 text-xs font-bold"
+                                onClick={() => openAdminDialog('ADD_ZONE', {})}
+                            >
+                                <Plus className="h-4 w-4 mr-1.5" /> Agregar Primera Zona
+                            </Button>
                         </div>
                     ) : (
-                        zones.map((zone) => (
-                            <Card key={zone.id} className="overflow-hidden border-slate-200 shadow-sm hover:border-slate-300 transition-colors bg-white rounded-xl print-shadow-none print-break-inside-avoid">
-                                {/* Zone Header (Click to expand) */}
-                                <div 
-                                    className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-slate-50/50' : 'hover:bg-slate-50'}`}
-                                    onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
-                                >
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="text-sm font-bold text-slate-900">{zone.name}</h3>
-                                            <span className="text-[10px] font-extrabold px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 uppercase tracking-wider">
-                                                {zone.areas.length} Áreas
-                                            </span>
-                                            {zone.notes && (
-                                                <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-100 uppercase tracking-wider flex items-center gap-1">
-                                                    <FileText className="h-3 w-3" /> Notas
+                        groupedZones.map((group) => {
+                            const isGroupExpanded = expandedGroup === group.name;
+                            const groupProgress = group.totalTalleres > 0 ? (group.completedTalleres / group.totalTalleres) * 100 : 0;
+                            return (
+                                <div key={group.name} className="border border-slate-250 rounded-xl overflow-hidden shadow-sm bg-white mb-4">
+                                    {/* Block Accordion Header */}
+                                    <div 
+                                        onClick={() => setExpandedGroup(isGroupExpanded ? null : group.name)}
+                                        className={`p-4 flex items-center justify-between cursor-pointer transition-colors border-b border-slate-100 ${isGroupExpanded ? 'bg-slate-900 text-white' : 'bg-slate-55 hover:bg-slate-100 text-slate-800'}`}
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <Building2 className={`h-4.5 w-4.5 ${isGroupExpanded ? 'text-blue-400' : 'text-slate-500'}`} />
+                                                <span className="font-bold text-sm tracking-tight">{group.name}</span>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${isGroupExpanded ? 'bg-slate-800 text-blue-300' : 'bg-slate-200 text-slate-700'}`}>
+                                                    {group.items.length} Aptos
                                                 </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 mt-2">
-                                            <div className="w-36 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div 
-                                                    className="h-full bg-slate-900 transition-all duration-1000"
-                                                    style={{ width: `${zone.progressPercentage || 0}%` }}
-                                                />
                                             </div>
-                                            <p className="text-[10px] font-semibold text-slate-500">
-                                                {zone.completedTalleres} / {zone.totalTalleres} completados ({zone.progressPercentage?.toFixed(0) || 0}%)
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 no-print">
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteZone(zone.id, zone.name);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                        {expandedZone === zone.id ? <ChevronDown className="h-5 w-5 text-slate-400" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
-                                    </div>
-                                </div>
-
-                                {/* Areas Accordion */}
-                                {(expandedZone === zone.id || typeof window !== 'undefined' && window.matchMedia('print').matches) && (
-                                    <div className="border-t border-slate-100 bg-slate-50/20 pb-4">
-                                        {/* Zone Notes Editor */}
-                                        <div className="mx-4 mt-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                            <Label className="text-slate-800 font-bold mb-2 flex items-center gap-2 text-xs uppercase tracking-wider">
-                                                <FileText className="h-4 w-4 text-slate-500" /> Notas / Materiales de la Zona
-                                            </Label>
-                                            <Textarea 
-                                                className="min-h-[70px] bg-slate-50/50 border-slate-200 focus-visible:ring-slate-400 text-xs no-print"
-                                                placeholder="Notas de materiales o avance específicos para esta zona..."
-                                                defaultValue={zone.notes || ""}
-                                                onBlur={(e) => {
-                                                    if (e.target.value !== zone.notes) {
-                                                        handleUpdateZoneNotes(zone.id, e.target.value);
-                                                    }
-                                                }}
-                                            />
-                                            {zone.notes && (
-                                                <p className="hidden print:block text-xs text-slate-700 mt-2 p-2 bg-slate-50 rounded border border-slate-200">
-                                                    {zone.notes}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {zone.areas.map((area) => {
-                                            const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
-                                            const areaTotal = area.talleres.length;
-                                            const isAreaExpanded = expandedArea === area.id;
-                                            const isAllCompleted = areaCompleted === areaTotal && areaTotal > 0;
-
-                                            return (
-                                                <div key={area.id} className="border border-slate-200 last:border-0 mx-4 mt-3 bg-white rounded-xl shadow-sm overflow-hidden">
-                                                    {/* Area Header */}
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <div className={`w-32 h-1.5 rounded-full overflow-hidden ${isGroupExpanded ? 'bg-slate-850' : 'bg-slate-200'}`}>
                                                     <div 
-                                                        className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
-                                                        onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
+                                                        className={`h-full transition-all duration-500 ${isGroupExpanded ? 'bg-blue-400' : 'bg-slate-900'}`}
+                                                        style={{ width: `${groupProgress}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[10px] font-semibold">
+                                                    {group.completedTalleres} / {group.totalTalleres} hitos ({groupProgress.toFixed(0)}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            {isGroupExpanded ? <ChevronDown className="h-5 w-5 text-slate-400" /> : <ChevronRight className="h-5 w-5 text-slate-400" />}
+                                        </div>
+                                    </div>
+
+                                    {/* Block Content (Apartments/Zones inside the block) */}
+                                    {isGroupExpanded && (
+                                        <div className="p-4 bg-slate-50/30 space-y-4">
+                                            {group.items.map((zone) => (
+                                                <Card key={zone.id} className="overflow-hidden border-slate-200 shadow-sm hover:border-slate-300 transition-colors bg-white rounded-xl print-shadow-none print-break-inside-avoid">
+                                                    {/* Zone Header (Click to expand) */}
+                                                    <div 
+                                                        className={`p-3.5 flex items-center justify-between cursor-pointer transition-colors ${expandedZone === zone.id ? 'bg-slate-50/50' : 'hover:bg-slate-50'}`}
+                                                        onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
                                                     >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-2 h-2 rounded-full ${isAllCompleted ? 'bg-green-500' : 'bg-amber-400'}`} />
-                                                            <span className="font-bold text-slate-900 text-xs">{area.name}</span>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h3 className="text-xs font-bold text-slate-900">{zone.name}</h3>
+                                                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 uppercase tracking-wider">
+                                                                    {zone.areas.length} Áreas
+                                                                </span>
+                                                                {zone.notes && (
+                                                                    <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-amber-50 text-amber-800 rounded border border-amber-100 uppercase tracking-wider flex items-center gap-1">
+                                                                        <FileText className="h-3 w-3" /> Notas
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-3 mt-2">
+                                                                <div className="w-28 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div 
+                                                                        className="h-full bg-slate-900 transition-all duration-500"
+                                                                        style={{ width: `${zone.progressPercentage || 0}%` }}
+                                                                    />
+                                                                </div>
+                                                                <p className="text-[9px] font-semibold text-slate-500">
+                                                                    {zone.completedTalleres} / {zone.totalTalleres} completados ({zone.progressPercentage?.toFixed(0) || 0}%)
+                                                                </p>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
-                                                                isAllCompleted 
-                                                                    ? 'bg-green-50 text-green-800 border-green-100' 
-                                                                    : 'bg-amber-50 text-amber-800 border-amber-100'
-                                                            }`}>
-                                                                {areaCompleted}/{areaTotal} Completados
-                                                            </span>
-                                                            {isAreaExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
+                                                        <div className="flex items-center gap-1.5 no-print" onClick={(e) => e.stopPropagation()}>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="sm" 
+                                                                className="text-slate-500 hover:text-slate-800 hover:bg-slate-100 p-1.5 h-7 w-7 rounded"
+                                                                onClick={() => openAdminDialog('ADD_AREA', { zoneId: zone.id })}
+                                                                title="Agregar Área"
+                                                            >
+                                                                <Plus className="h-4 w-4 text-slate-500" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="sm" 
+                                                                className="text-slate-500 hover:text-slate-800 hover:bg-slate-100 p-1.5 h-7 w-7 rounded"
+                                                                onClick={() => openAdminDialog('EDIT_ZONE', { zoneId: zone.id }, zone.name)}
+                                                                title="Renombrar Zona"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                size="sm" 
+                                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 h-7 w-7 rounded"
+                                                                onClick={() => handleDeleteZone(zone.id, zone.name)}
+                                                                title="Eliminar Zona"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-slate-400 p-1.5 h-7 w-7 rounded"
+                                                                onClick={() => setExpandedZone(expandedZone === zone.id ? null : zone.id)}
+                                                            >
+                                                                {expandedZone === zone.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                            </Button>
                                                         </div>
                                                     </div>
 
-                                                    {/* Talleres List (Admin View) */}
-                                                    {isAreaExpanded && (
-                                                        <div className="bg-slate-50/50 p-4 border-t border-slate-100 space-y-2">
-                                                            {area.talleres.length === 0 ? (
-                                                                <p className="text-xs text-slate-400 italic">No hay hitos definidos en esta área.</p>
-                                                            ) : (
-                                                                area.talleres.sort((a,b) => a.orderIndex - b.orderIndex).map((taller) => {
-                                                                    const isCompleted = taller.status === 'COMPLETED';
-                                                                    const isBlocked = taller.status === 'BLOCKED';
-                                                                    return (
+                                                    {/* Areas Accordion */}
+                                                    {(expandedZone === zone.id || typeof window !== 'undefined' && window.matchMedia('print').matches) && (
+                                                        <div className="border-t border-slate-100 bg-slate-50/20 pb-4">
+                                                            {/* Zone Notes Editor */}
+                                                            <div className="mx-4 mt-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                                <Label className="text-slate-800 font-bold mb-2 flex items-center gap-2 text-xs uppercase tracking-wider">
+                                                                    <FileText className="h-4 w-4 text-slate-500" /> Notas / Materiales de la Zona
+                                                                </Label>
+                                                                <Textarea 
+                                                                    className="min-h-[70px] bg-slate-50/50 border-slate-200 focus-visible:ring-slate-400 text-xs no-print"
+                                                                    placeholder="Notas de materiales o avance específicos para esta zona..."
+                                                                    defaultValue={zone.notes || ""}
+                                                                    onBlur={(e) => {
+                                                                        if (e.target.value !== zone.notes) {
+                                                                            handleUpdateZoneNotes(zone.id, e.target.value);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                {zone.notes && (
+                                                                    <p className="hidden print:block text-xs text-slate-700 mt-2 p-2 bg-slate-50 rounded border border-slate-200">
+                                                                        {zone.notes}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {zone.areas.map((area) => {
+                                                                const areaCompleted = area.talleres.filter(t => t.status === 'COMPLETED').length;
+                                                                const areaTotal = area.talleres.length;
+                                                                const isAreaExpanded = expandedArea === area.id;
+                                                                const isAllCompleted = areaCompleted === areaTotal && areaTotal > 0;
+
+                                                                return (
+                                                                    <div key={area.id} className="border border-slate-200 last:border-0 mx-4 mt-3 bg-white rounded-xl shadow-sm overflow-hidden">
+                                                                        {/* Area Header */}
                                                                         <div 
-                                                                            key={taller.id} 
-                                                                            className={`flex flex-col p-3 rounded-lg border ${
-                                                                                isCompleted ? 'bg-white border-green-200' : 
-                                                                                isBlocked ? 'bg-red-50/20 border-red-200' :
-                                                                                'bg-white border-slate-200'
-                                                                            }`}
+                                                                            className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                                                            onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
                                                                         >
-                                                                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                                                                                <div className="flex items-center gap-3">
-                                                                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                                                                                        isCompleted ? 'bg-green-600 text-white' : 
-                                                                                        isBlocked ? 'bg-red-600 text-white' :
-                                                                                        'bg-slate-100 text-slate-400'
-                                                                                    }`}>
-                                                                                        {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : 
-                                                                                         isBlocked ? <ShieldAlert className="h-4 w-4" /> :
-                                                                                         <Clock className="h-4 w-4" />}
-                                                                                    </div>
-                                                                                    <div>
-                                                                                        <span className={`text-xs font-semibold ${
-                                                                                            isCompleted ? 'text-slate-800' : 
-                                                                                            isBlocked ? 'text-red-950' : 
-                                                                                            'text-slate-700'
-                                                                                        }`}>
-                                                                                            {taller.name}
-                                                                                        </span>
-                                                                                        {isCompleted && taller.completedAt && (
-                                                                                            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                                                                                                <CheckCircle2 className="h-3 w-3" />
-                                                                                                {format((taller.completedAt as any).toDate ? (taller.completedAt as any).toDate() : new Date(taller.completedAt as any), "dd MMM yyyy, HH:mm", { locale: es })}
-                                                                                            </p>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                                
-                                                                                {/* Technician Info & Action Controls */}
-                                                                                <div className="flex flex-wrap items-center gap-2 pl-9 md:pl-0 shrink-0">
-                                                                                    {/* Picker de Técnico (Sólo pantalla) */}
-                                                                                    <div className="flex items-center gap-1.5 no-print">
-                                                                                        <User className="h-3.5 w-3.5 text-slate-400" />
-                                                                                        <select
-                                                                                            value={taller.assignedToTecnicoId || "unassigned"}
-                                                                                            onChange={(e) => handleAssignTechnician(zone.id, area.id, taller.id, e.target.value)}
-                                                                                            className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
-                                                                                        >
-                                                                                            <option value="unassigned">Sin Asignar</option>
-                                                                                            {technicians.map(tech => (
-                                                                                                <option key={tech.id} value={tech.id}>
-                                                                                                    {tech.name}
-                                                                                                </option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                    </div>
-
-                                                                                    {/* Vista Estática del Técnico (Impresión) */}
-                                                                                    <div className="hidden print:flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded border border-slate-200 font-semibold text-slate-700 bg-slate-50">
-                                                                                        <User className="h-3 w-3" />
-                                                                                        {taller.assignedToTecnicoName || "Sin Asignar"}
-                                                                                    </div>
-
-                                                                                    {/* Estado en Impresión */}
-                                                                                    <div className="hidden print:block text-[9px] font-bold border px-2 py-0.5 rounded uppercase tracking-wider">
-                                                                                        {isCompleted ? 'Completado' : isBlocked ? 'Bloqueado' : 'Pendiente'}
-                                                                                    </div>
-
-                                                                                    {/* Botón Evidencia */}
-                                                                                    {isCompleted && (
-                                                                                        taller.evidencePhotoUrl ? (
-                                                                                            <Button 
-                                                                                                variant="outline" 
-                                                                                                size="sm" 
-                                                                                                className="h-7 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 no-print font-bold"
-                                                                                                onClick={() => setViewingPhoto({
-                                                                                                    url: taller.evidencePhotoUrl!,
-                                                                                                    name: taller.name,
-                                                                                                    technician: taller.assignedToTecnicoName || "Técnico Desconocido",
-                                                                                                    date: taller.completedAt
-                                                                                                })}
-                                                                                            >
-                                                                                                <ImageIcon className="h-3.5 w-3.5 mr-1" />
-                                                                                                Evidencia
-                                                                                            </Button>
-                                                                                        ) : (
-                                                                                            <span className="text-[10px] text-slate-400 italic no-print px-1">Sin foto</span>
-                                                                                        )
-                                                                                    )}
-
-                                                                                    {/* Botones de Control de Estado (Sólo pantalla) */}
-                                                                                    <div className="flex items-center gap-1.5 no-print">
-                                                                                        {isCompleted ? (
-                                                                                            <Button 
-                                                                                                variant="outline" 
-                                                                                                size="sm" 
-                                                                                                className="h-7 text-[10px] bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-medium"
-                                                                                                onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
-                                                                                            >
-                                                                                                Reabrir
-                                                                                            </Button>
-                                                                                        ) : isBlocked ? (
-                                                                                            <>
-                                                                                                <span className="text-[9px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-1 rounded uppercase tracking-wider">
-                                                                                                    Bloqueado
-                                                                                                </span>
-                                                                                                <Button 
-                                                                                                    variant="outline" 
-                                                                                                    size="sm" 
-                                                                                                    className="h-7 text-[10px] bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50 font-bold animate-pulse"
-                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
-                                                                                                >
-                                                                                                    Resolver
-                                                                                                </Button>
-                                                                                            </>
-                                                                                        ) : (
-                                                                                            <>
-                                                                                                <span className="text-[9px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded uppercase tracking-wider">
-                                                                                                    Pendiente
-                                                                                                </span>
-                                                                                                <Button 
-                                                                                                    variant="outline" 
-                                                                                                    size="sm" 
-                                                                                                    className="h-7 text-[10px] bg-slate-900 text-white border-transparent hover:bg-slate-800 font-bold"
-                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'COMPLETED')}
-                                                                                                >
-                                                                                                    Listo
-                                                                                                </Button>
-                                                                                            </>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className={`w-1.5 h-1.5 rounded-full ${isAllCompleted ? 'bg-green-500' : 'bg-amber-400'}`} />
+                                                                                <span className="font-bold text-slate-900 text-xs">{area.name}</span>
                                                                             </div>
-
-                                                                            {isBlocked && taller.blockedReason && (
-                                                                                <div className="mt-2 ml-9 p-2.5 bg-red-50/50 border border-red-100 rounded-md text-xs text-red-950 font-medium">
-                                                                                    <span className="font-extrabold text-red-900 block mb-0.5">Reporte de Bloqueo:</span>
-                                                                                    {taller.blockedReason}
-                                                                                </div>
-                                                                            )}
+                                                                            <div className="flex items-center gap-1.5 no-print" onClick={(e) => e.stopPropagation()}>
+                                                                                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border mr-2 ${
+                                                                                    isAllCompleted 
+                                                                                        ? 'bg-green-50 text-green-800 border-green-100' 
+                                                                                        : 'bg-amber-50 text-amber-800 border-amber-100'
+                                                                                }`}>
+                                                                                    {areaCompleted}/{areaTotal} Completados
+                                                                                </span>
+                                                                                <Button 
+                                                                                    variant="ghost" 
+                                                                                    size="sm" 
+                                                                                    className="text-slate-500 hover:text-slate-800 hover:bg-slate-100 p-1 h-6 w-6 rounded"
+                                                                                    onClick={() => openAdminDialog('ADD_TALLER', { zoneId: zone.id, areaId: area.id })}
+                                                                                    title="Agregar Hito"
+                                                                                >
+                                                                                    <Plus className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                                <Button 
+                                                                                    variant="ghost" 
+                                                                                    size="sm" 
+                                                                                    className="text-slate-500 hover:text-slate-800 hover:bg-slate-100 p-1 h-6 w-6 rounded"
+                                                                                    onClick={() => openAdminDialog('EDIT_AREA', { zoneId: zone.id, areaId: area.id }, area.name)}
+                                                                                    title="Renombrar Área"
+                                                                                >
+                                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                                <Button 
+                                                                                    variant="ghost" 
+                                                                                    size="sm" 
+                                                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-6 w-6 rounded"
+                                                                                    onClick={() => handleDeleteArea(zone.id, area.id, area.name)}
+                                                                                    title="Eliminar Área"
+                                                                                >
+                                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="text-slate-400 p-1 h-6 w-6 rounded"
+                                                                                    onClick={() => setExpandedArea(isAreaExpanded ? null : area.id)}
+                                                                                >
+                                                                                    {isAreaExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                                                </Button>
+                                                                            </div>
                                                                         </div>
-                                                                    );
-                                                                })
-                                                            )}
+
+                                                                        {/* Talleres List */}
+                                                                        {isAreaExpanded && (
+                                                                            <div className="bg-slate-50/50 p-3 border-t border-slate-100 space-y-2">
+                                                                                {area.talleres.length === 0 ? (
+                                                                                    <p className="text-[11px] text-slate-400 italic">No hay hitos definidos en esta área.</p>
+                                                                                ) : (
+                                                                                    area.talleres.sort((a,b) => a.orderIndex - b.orderIndex).map((taller) => {
+                                                                                        const isCompleted = taller.status === 'COMPLETED';
+                                                                                        const isBlocked = taller.status === 'BLOCKED';
+                                                                                        return (
+                                                                                            <div 
+                                                                                                key={taller.id} 
+                                                                                                className={`flex flex-col p-2.5 rounded-lg border ${
+                                                                                                    isCompleted ? 'bg-white border-green-250' : 
+                                                                                                    isBlocked ? 'bg-red-50/20 border-red-250' :
+                                                                                                    'bg-white border-slate-200'
+                                                                                                }`}
+                                                                                            >
+                                                                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+                                                                                                    <div className="flex items-center justify-between w-full md:w-auto">
+                                                                                                        <div className="flex items-center gap-2">
+                                                                                                            <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                                                                                                                isCompleted ? 'bg-green-600 text-white' : 
+                                                                                                                isBlocked ? 'bg-red-600 text-white' :
+                                                                                                                'bg-slate-100 text-slate-400'
+                                                                                                            }`}>
+                                                                                                                {isCompleted ? <CheckCircle2 className="h-3 w-3" /> : 
+                                                                                                                 isBlocked ? <ShieldAlert className="h-3 w-3" /> :
+                                                                                                                 <Clock className="h-3 w-3" />}
+                                                                                                            </div>
+                                                                                                            <div>
+                                                                                                                <span className={`text-[11px] font-semibold ${
+                                                                                                                    isCompleted ? 'text-slate-800' : 
+                                                                                                                    isBlocked ? 'text-red-950' : 
+                                                                                                                    'text-slate-700'
+                                                                                                                }`}>
+                                                                                                                    {taller.name}
+                                                                                                                </span>
+                                                                                                                {isCompleted && taller.completedAt && (
+                                                                                                                    <p className="text-[9px] text-slate-400 mt-0.5">
+                                                                                                                        {format((taller.completedAt as any).toDate ? (taller.completedAt as any).toDate() : new Date(taller.completedAt as any), "dd MMM, HH:mm", { locale: es })}
+                                                                                                                    </p>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                        <div className="flex items-center gap-1 md:hidden no-print">
+                                                                                                            <Button 
+                                                                                                                variant="ghost" 
+                                                                                                                size="sm" 
+                                                                                                                className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+                                                                                                                onClick={() => openAdminDialog('EDIT_TALLER', { zoneId: zone.id, areaId: area.id, tallerId: taller.id }, taller.name)}
+                                                                                                            >
+                                                                                                                <Pencil className="h-3 w-3" />
+                                                                                                            </Button>
+                                                                                                            <Button 
+                                                                                                                variant="ghost" 
+                                                                                                                size="sm" 
+                                                                                                                className="h-6 w-6 p-0 text-red-400 hover:text-red-600"
+                                                                                                                onClick={() => handleDeleteTaller(zone.id, area.id, taller.id, taller.name)}
+                                                                                                            >
+                                                                                                                <Trash2 className="h-3 w-3" />
+                                                                                                            </Button>
+                                                                                                        </div>
+                                                                                                    </div>
+
+                                                                                                    <div className="flex flex-wrap items-center gap-2 shrink-0 justify-end w-full md:w-auto">
+                                                                                                        {/* Action button bar */}
+                                                                                                        <div className="flex items-center gap-1.5 no-print">
+                                                                                                            <User className="h-3 w-3 text-slate-400" />
+                                                                                                            <select
+                                                                                                                value={taller.assignedToTecnicoId || "unassigned"}
+                                                                                                                onChange={(e) => handleAssignTechnician(zone.id, area.id, taller.id, e.target.value)}
+                                                                                                                className="text-[9px] bg-white border border-slate-200 rounded px-1 py-0.5 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 mr-2"
+                                                                                                            >
+                                                                                                                <option value="unassigned">Sin Asignar</option>
+                                                                                                                {technicians.map(tech => (
+                                                                                                                    <option key={tech.id} value={tech.id}>
+                                                                                                                        {tech.name}
+                                                                                                                    </option>
+                                                                                                                ))}
+                                                                                                            </select>
+
+                                                                                                            <Button 
+                                                                                                                variant="ghost" 
+                                                                                                                size="sm" 
+                                                                                                                className="hidden md:inline-flex h-6 w-6 p-0 text-slate-400 hover:text-slate-700"
+                                                                                                                onClick={() => openAdminDialog('EDIT_TALLER', { zoneId: zone.id, areaId: area.id, tallerId: taller.id }, taller.name)}
+                                                                                                                title="Renombrar Hito"
+                                                                                                            >
+                                                                                                                <Pencil className="h-3 w-3" />
+                                                                                                            </Button>
+                                                                                                            <Button 
+                                                                                                                variant="ghost" 
+                                                                                                                size="sm" 
+                                                                                                                className="hidden md:inline-flex h-6 w-6 p-0 text-red-400 hover:text-red-650"
+                                                                                                                onClick={() => handleDeleteTaller(zone.id, area.id, taller.id, taller.name)}
+                                                                                                                title="Eliminar Hito"
+                                                                                                            >
+                                                                                                                <Trash2 className="h-3 w-3" />
+                                                                                                            </Button>
+                                                                                                        </div>
+
+                                                                                                        {/* Evidencia photo button */}
+                                                                                                        {isCompleted && taller.evidencePhotoUrl && (
+                                                                                                            <Button 
+                                                                                                                variant="outline" 
+                                                                                                                size="sm" 
+                                                                                                                className="h-6 text-[9px] bg-white text-emerald-600 border-emerald-250 hover:bg-emerald-50 no-print font-bold"
+                                                                                                                onClick={() => setViewingPhoto({
+                                                                                                                    url: taller.evidencePhotoUrl!,
+                                                                                                                    name: taller.name,
+                                                                                                                    technician: taller.assignedToTecnicoName || "Técnico Desconocido",
+                                                                                                                    date: taller.completedAt
+                                                                                                                })}
+                                                                                                            >
+                                                                                                                <ImageIcon className="h-3 w-3 mr-1" />
+                                                                                                                Ver Evidencia
+                                                                                                            </Button>
+                                                                                                        )}
+
+                                                                                                        {/* Control button reopen/ listo */}
+                                                                                                        <div className="flex items-center gap-1.5 no-print">
+                                                                                                            {isCompleted ? (
+                                                                                                                <Button 
+                                                                                                                    variant="outline" 
+                                                                                                                    size="sm" 
+                                                                                                                    className="h-6 text-[9px] bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-medium"
+                                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
+                                                                                                                >
+                                                                                                                    Reabrir
+                                                                                                                </Button>
+                                                                                                            ) : isBlocked ? (
+                                                                                                                <Button 
+                                                                                                                    variant="outline" 
+                                                                                                                    size="sm" 
+                                                                                                                    className="h-6 text-[9px] bg-white text-emerald-600 border-emerald-250 hover:bg-emerald-50 font-bold"
+                                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'PENDING')}
+                                                                                                                >
+                                                                                                                    Resolver
+                                                                                                                </Button>
+                                                                                                            ) : (
+                                                                                                                <Button 
+                                                                                                                    variant="outline" 
+                                                                                                                    size="sm" 
+                                                                                                                    className="h-6 text-[9px] bg-slate-900 text-white border-transparent hover:bg-slate-800 font-bold"
+                                                                                                                    onClick={() => handleToggleTallerStatus(zone.id, area.id, taller.id, 'COMPLETED')}
+                                                                                                                >
+                                                                                                                    Listo
+                                                                                                                </Button>
+                                                                                                            )}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    }))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </Card>
-                        ))
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
                     )}
                 </div>
             </div>
@@ -852,6 +1371,63 @@ export default function AdminProjectDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Modal de Acciones Administrativas Dinámicas */}
+            <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-white text-slate-900 border-slate-200">
+                    <DialogHeader>
+                        <DialogTitle className="text-slate-900 text-sm font-bold uppercase tracking-wider">
+                            {adminDialogType === 'ADD_ZONE' && 'Agregar Nueva Zona'}
+                            {adminDialogType === 'EDIT_ZONE' && 'Renombrar Zona'}
+                            {adminDialogType === 'ADD_AREA' && 'Agregar Nueva Área'}
+                            {adminDialogType === 'EDIT_AREA' && 'Renombrar Área'}
+                            {adminDialogType === 'ADD_TALLER' && 'Agregar Hito / Taller'}
+                            {adminDialogType === 'EDIT_TALLER' && 'Renombrar Hito / Taller'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="adminInput" className="text-xs font-bold text-slate-700 uppercase">
+                                {adminDialogType?.startsWith('ADD') ? 'Nombre del nuevo elemento' : 'Nuevo nombre'}
+                            </Label>
+                            <Input 
+                                id="adminInput" 
+                                value={adminDialogInput} 
+                                onChange={(e) => setAdminDialogInput(e.target.value)} 
+                                className="text-xs h-9"
+                                placeholder="Escribe el nombre aquí..."
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && adminDialogInput.trim() && !isAdminActionLoading) {
+                                        handleAdminDialogSubmit();
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-xs h-9"
+                            onClick={() => setAdminDialogOpen(false)}
+                            disabled={isAdminActionLoading}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="text-xs h-9 bg-slate-900 text-white hover:bg-slate-800"
+                            onClick={handleAdminDialogSubmit}
+                            disabled={!adminDialogInput.trim() || isAdminActionLoading}
+                        >
+                            {isAdminActionLoading ? 'Procesando...' : 'Confirmar'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
-    );
+    </div>
+);
 }
