@@ -263,24 +263,26 @@ export function PhotoUploader({ label, type, photos, onChange, allowGallery = fa
                             />
                         </label>
 
-                        {/* Gallery Button — always show on mobile */}
-                        <label
-                            htmlFor={`gallery-${type}`}
-                            className="cursor-pointer flex flex-col items-center gap-1 px-2 pb-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors w-full text-center border-t border-dashed border-gray-200"
-                        >
-                            <ImageIcon className="h-5 w-5 text-gray-400 mt-1" />
-                            <span className="text-[10px] text-gray-500">Galería</span>
-                            <input
-                                ref={galleryInputRef}
-                                id={`gallery-${type}`}
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                className="hidden"
-                                onChange={handleFileChange}
-                                disabled={uploading}
-                            />
-                        </label>
+                        {/* Gallery Button — show only if allowed */}
+                        {allowGallery && (
+                            <label
+                                htmlFor={`gallery-${type}`}
+                                className="cursor-pointer flex flex-col items-center gap-1 px-2 pb-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors w-full text-center border-t border-dashed border-gray-200"
+                            >
+                                <ImageIcon className="h-5 w-5 text-gray-400 mt-1" />
+                                <span className="text-[10px] text-gray-500">Galería</span>
+                                <input
+                                    ref={galleryInputRef}
+                                    id={`gallery-${type}`}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                    disabled={uploading}
+                                />
+                            </label>
+                        )}
                     </div>
                 )}
 
