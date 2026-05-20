@@ -346,7 +346,7 @@ export default function TechnicianTicketPage() {
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base flex items-center gap-2 text-gray-700">
                                     <PenTool className="h-4 w-4 text-gray-500" />
-                                    Materiales y Herramientas
+                                    Preparación de Materiales y Herramientas
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -401,7 +401,7 @@ export default function TechnicianTicketPage() {
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-base text-blue-700">Materiales a Utilizar</CardTitle>
+                                <CardTitle className="text-base text-blue-700">Preparación de Materiales y Herramientas</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 {(!ticket.materialsChecklist || ticket.materialsChecklist.length === 0) ? (
@@ -700,18 +700,15 @@ export default function TechnicianTicketPage() {
 
                                 // Create checklist alert
                                 const pendingChecklist = (ticket.checklist || []).filter(item => !item.checked);
-                                const pendingMaterials = (ticket.materialsChecklist || []).filter(item => !item.checked);
 
-                                if (pendingChecklist.length > 0 || pendingMaterials.length > 0) {
+                                if (pendingChecklist.length > 0) {
                                     import("firebase/firestore").then(({ addDoc, collection }) => {
                                         addDoc(collection(db, "ticketEvents"), {
                                             ticketId: ticket.id,
                                             userId: "system",
                                             userName: "Sistema Automático",
                                             type: "COMMENT",
-                                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó ítems sin verificar:\n\n${pendingChecklist.length > 0 ? `Pasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}\n` : ""
-                                                }${pendingMaterials.length > 0 ? `Materiales no usados/marcados: ${pendingMaterials.map(i => i.text).join(", ")}` : ""
-                                                }`,
+                                            description: `⚠️ ALERTA: El técnico finalizó el servicio pero dejó pasos sin verificar:\n\nPasos pendientes: ${pendingChecklist.map(i => i.text).join(", ")}`,
                                             timestamp: serverTimestamp()
                                         }).catch(console.error);
                                     });

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, Timestamp, arrayUnion } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { Ticket, User, LogisticTask } from "@/types/schema";
+import { Ticket, User } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +33,7 @@ export function MyDayView() {
     const [showVehicleCheckIn, setShowVehicleCheckIn] = useState(false);
     const [mileageInput, setMileageInput] = useState("");
     const [updatingMileage, setUpdatingMileage] = useState(false);
-    const [activeView, setActiveView] = useState<"list" | "map" | "logistic">("list");
-    const [logisticTasks, setLogisticTasks] = useState<LogisticTask[]>([]);
+    const [activeView, setActiveView] = useState<"list" | "map">("list");
     const router = useRouter();
     const { toast } = useToast();
 
@@ -154,44 +153,18 @@ export function MyDayView() {
         return () => unsubscribe();
     }, [currentUserId]);
 
-    useEffect(() => {
-        if (!currentUserId) return;
-        const qTasks = query(
-            collection(db, "logisticTasks"),
-            where("assignedToId", "==", currentUserId),
-            where("status", "==", "PENDING")
-        );
-        const unsubTasks = onSnapshot(qTasks, (snap) => {
-            setLogisticTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as LogisticTask)));
-        });
-        return () => unsubTasks();
-    }, [currentUserId]);
-
     const handleLogout = async () => {
-        if (logisticTasks.length > 0) {
+        const pendingLogistics = tickets.filter(t => t.serviceType === "LOGISTICA" && t.status !== "COMPLETED");
+        if (pendingLogistics.length > 0) {
             toast({
-                title: "⚠️ Tareas Pendientes",
-                description: "No puedes cerrar tu jornada. Tienes recados o tareas logísticas sin completar en tu bandeja.",
+                title: "⚠️ Tareas Logísticas Pendientes",
+                description: `No puedes cerrar tu jornada. Tienes ${pendingLogistics.length} recado(s) o tarea(s) logística(s) sin completar en tu agenda.`,
                 variant: "destructive",
                 duration: 5000
             });
-            setActiveView("logistic");
             return;
         }
         await auth.signOut();
-    };
-
-    const completeLogisticTask = async (taskId: string) => {
-        try {
-            await updateDoc(doc(db, "logisticTasks", taskId), {
-                status: 'COMPLETED',
-                completedAt: Timestamp.now()
-            });
-            toast({ title: "Completado", description: "Tarea logística finalizada." });
-        } catch (e) {
-            console.error(e);
-            toast({ title: "Error", description: "No se pudo actualizar.", variant: "destructive" });
-        }
     };
 
     const handleQuickAction = async (ticketId: string, action: "start" | "pause" | "complete") => {
@@ -451,8 +424,8 @@ export function MyDayView() {
                 </div>
 
                 {/* View Tabs */}
-                <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "list" | "map" | "logistic")} className="w-full">
-                    <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-6">
+                <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "list" | "map")} className="w-full">
+                    <TabsList className="grid w-full max-w-lg mx-auto grid-cols-2 mb-6">
                         <TabsTrigger value="list" className="flex items-center gap-2 relative">
                             <List className="h-4 w-4" />
                             <span className="hidden sm:inline">Lista</span>
@@ -460,15 +433,6 @@ export function MyDayView() {
                         <TabsTrigger value="map" className="flex items-center gap-2">
                             <MapIcon className="h-4 w-4" />
                             <span className="hidden sm:inline">Ruta</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="logistic" className="flex items-center gap-2 relative">
-                            <Truck className="h-4 w-4" />
-                            <span className="hidden sm:inline">Pendientes</span>
-                            {logisticTasks.length > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                    {logisticTasks.length}
-                                </span>
-                            )}
                         </TabsTrigger>
                     </TabsList>
 
@@ -512,54 +476,6 @@ export function MyDayView() {
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="logistic" className="space-y-4">
-                        {logisticTasks.length === 0 ? (
-                            <Card className="bg-white/60 backdrop-blur border-dashed">
-                                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                                    <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Bandeja Limpia</h3>
-                                    <p className="text-gray-500">
-                                        No tienes tareas logísticas ni recados pendientes. <br/> Puedes cerrar tu jornada tranquilamente.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="bg-orange-100 border border-orange-200 text-orange-800 px-4 py-3 rounded-lg flex items-start gap-3">
-                                    <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                                    <div>
-                                        <p className="font-semibold">Cierre Bloqueado</p>
-                                        <p className="text-sm">Debes completar estas tareas antes de salir.</p>
-                                    </div>
-                                </div>
-                                {logisticTasks.map(task => (
-                                    <Card key={task.id} className="border-orange-200 shadow-sm relative overflow-hidden">
-                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
-                                        <CardContent className="p-4 pl-5">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <div>
-                                                    <h3 className="font-bold text-gray-900">{task.title}</h3>
-                                                    {task.description && (
-                                                        <p className="text-gray-600 text-sm mt-1">{task.description}</p>
-                                                    )}
-                                                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        Asignado por: {task.createdBy === 'Admin' ? 'Administración' : 'Oficina'}
-                                                    </p>
-                                                </div>
-                                                <Button 
-                                                    className="bg-green-600 hover:bg-green-700 flex-shrink-0 shadow-md"
-                                                    onClick={() => completeLogisticTask(task.id!)}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-2" /> Completar
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
                 </Tabs>
             </div>
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, where, orderBy } from "firebase/firestore";
+import { collection, query, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, where } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { LogisticTask, User } from "@/types/schema";
+import { User } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { CheckCircle, Clock, Truck, Plus, Check } from "lucide-react";
+import { CheckCircle, Truck, Plus, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function LogisticsAdminPage() {
-    const [tasks, setTasks] = useState<LogisticTask[]>([]);
+    const [tasks, setTasks] = useState<any[]>([]);
     const [technicians, setTechnicians] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -50,10 +50,21 @@ export default function LogisticsAdminPage() {
             });
         });
 
-        // Fetch Tasks
-        const qTasks = query(collection(db, "logisticTasks"), orderBy("createdAt", "desc"));
+        // Fetch Tasks (unified under Tickets collection with serviceType == 'LOGISTICA')
+        const qTasks = query(
+            collection(db, "tickets"),
+            where("serviceType", "==", "LOGISTICA")
+        );
+        
         const unsubTasks = onSnapshot(qTasks, (snap) => {
-            setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as LogisticTask)));
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            // Sort by createdAt desc in memory to avoid index requirement errors
+            list.sort((a, b) => {
+                const dateA = a.createdAt?.seconds || 0;
+                const dateB = b.createdAt?.seconds || 0;
+                return dateB - dateA;
+            });
+            setTasks(list);
             setLoading(false);
         });
 
@@ -75,23 +86,37 @@ export default function LogisticsAdminPage() {
 
         setSaving(true);
         try {
-            await addDoc(collection(db, "logisticTasks"), {
-                title,
-                description,
-                assignedToId,
-                assignedToName: tech.nombre || tech.email || "Técnico",
-                status: 'PENDING',
+            // Import ticket number generator
+            const { generateNextTicketNumber } = await import("@/lib/tickets");
+            const ticketNumber = await generateNextTicketNumber();
+
+            await addDoc(collection(db, "tickets"), {
+                ticketNumber,
+                number: ticketNumber,
+                clientName: "Logística / Recados Internos",
+                locationName: "Taller / Oficina / Campo",
+                serviceType: "LOGISTICA",
+                title: title, // Store title for compatibility and quick search
+                description: description || title,
+                priority: "MEDIUM",
+                status: "OPEN",
+                technicianId: assignedToId,
+                technicianName: tech.nombre || tech.email || "Técnico",
+                checklist: [
+                    { id: `chk-${Date.now()}-0`, text: "Completar tarea: " + title, checked: false }
+                ],
                 createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
                 createdBy: auth.currentUser?.uid || "Admin"
             });
 
-            toast({ title: "Tarea creada", description: "La tarea ha sido asignada al técnico." });
+            toast({ title: "Recado creado", description: "Se creó el ticket de logística asignado al técnico." });
             setTitle("");
             setDescription("");
             setAssignedToId("");
         } catch (error) {
             console.error(error);
-            toast({ title: "Error", description: "No se pudo crear la tarea", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudo crear el ticket de logística", variant: "destructive" });
         } finally {
             setSaving(false);
         }
@@ -99,11 +124,12 @@ export default function LogisticsAdminPage() {
 
     const markAsCompleted = async (taskId: string) => {
         try {
-            await updateDoc(doc(db, "logisticTasks", taskId), {
+            await updateDoc(doc(db, "tickets", taskId), {
                 status: 'COMPLETED',
+                updatedAt: serverTimestamp(),
                 completedAt: serverTimestamp()
             });
-            toast({ title: "Tarea completada", description: "La tarea se marcó como completada." });
+            toast({ title: "Tarea completada", description: "El ticket de logística se marcó como completado." });
         } catch (error) {
             console.error(error);
             toast({ title: "Error", description: "No se pudo actualizar la tarea.", variant: "destructive" });
@@ -119,7 +145,7 @@ export default function LogisticsAdminPage() {
                 </h1>
                 <p className="text-gray-500 mt-2">
                     Asigna recados, entregas de documentos o búsqueda de equipos a los técnicos. 
-                    El técnico no podrá cerrar su jornada hasta completar estas tareas.
+                    Las tareas se crean como tickets especiales y el técnico no podrá cerrar su jornada hasta completarlas.
                 </p>
             </div>
 
@@ -186,21 +212,21 @@ export default function LogisticsAdminPage() {
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                             <h3 className={`font-semibold ${task.status === 'COMPLETED' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-                                                {task.title}
+                                                {task.title || task.description}
                                             </h3>
-                                            <Badge variant={task.status === 'COMPLETED' ? "secondary" : "default"} className={task.status === 'PENDING' ? 'bg-orange-100 text-orange-800 hover:bg-orange-100' : ''}>
-                                                {task.status === 'PENDING' ? 'Pendiente' : 'Completado'}
+                                            <Badge variant={task.status === 'COMPLETED' ? "secondary" : "default"} className={task.status !== 'COMPLETED' ? 'bg-orange-100 text-orange-800 hover:bg-orange-100' : ''}>
+                                                {task.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
                                             </Badge>
                                         </div>
-                                        {task.description && <p className="text-sm text-gray-600">{task.description}</p>}
+                                        {task.description && task.title && <p className="text-sm text-gray-600">{task.description}</p>}
                                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-2">
-                                            <span className="font-medium text-blue-600">👤 {task.assignedToName}</span>
+                                            <span className="font-medium text-blue-600">👤 {task.technicianName}</span>
                                             <span>•</span>
                                             <span>Creado: {task.createdAt?.toDate ? task.createdAt.toDate().toLocaleDateString() : 'Reciente'}</span>
                                         </div>
                                     </div>
                                     
-                                    {task.status === 'PENDING' && (
+                                    {task.status !== 'COMPLETED' && (
                                         <Button 
                                             variant="outline" 
                                             size="sm"
