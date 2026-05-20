@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { VertexAI } from "@google-cloud/vertexai";
-
-// Initialize Vertex AI
-// Note: Requires GCP_PROJECT_ID and GCP_PRIVATE_KEY in .env.local
-const projectId = process.env.GCP_PROJECT_ID;
-const location = "us-central1"; // or your preferred region
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
     try {
@@ -17,30 +12,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "No photos provided" }, { status: 400 });
         }
 
-        // Initialize Vertex AI Client (only if we have server-side credentials)
-        // For local dev without ADC, we might need a custom auth client, 
-        // but VertexAI SDK usually expects ADC or specific options.
-        // Assuming environment is set up or we can pass credentials.
-
-        // Quick check for keys
-        if (!process.env.GCP_PROJECT_ID || !process.env.GCP_CLIENT_EMAIL || !process.env.GCP_PRIVATE_KEY) {
-            console.error("Missing GCP Credentials");
-            return NextResponse.json({ error: "Server configuration error: Missing GCP Credentials" }, { status: 500 });
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error("Missing GEMINI_API_KEY");
+            return NextResponse.json({ error: "Server configuration error: Missing Credentials" }, { status: 500 });
         }
 
-        const vertex_ai = new VertexAI({
-            project: projectId,
-            location: location,
-            googleAuthOptions: {
-                credentials: {
-                    client_email: process.env.GCP_CLIENT_EMAIL,
-                    private_key: process.env.GCP_PRIVATE_KEY.replace(/\\n/g, '\n'),
-                }
-            }
-        });
-
-        const modelId = "gemini-pro-vision"; // Or gemini-1.5-flash which is faster/cheaper for this
-        const generativeModel = vertex_ai.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const parts: any[] = [];
 
@@ -85,7 +64,7 @@ export async function POST(req: NextRequest) {
         });
 
         const response = result.response;
-        const text = response.candidates?.[0].content.parts[0].text;
+        const text = response.text();
 
         // Parse JSON
         let extractedErrors = [];

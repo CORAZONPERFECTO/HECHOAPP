@@ -45,7 +45,7 @@ Responde SOLO con JSON, sin texto adicional, sin markdown, sin backticks. Format
 Si no puedes leer algún campo, usa valores vacíos o 0. No inventes datos.`;
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

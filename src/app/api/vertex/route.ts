@@ -1,4 +1,4 @@
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
@@ -9,39 +9,24 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
         }
 
-        const projectId = process.env.GCP_PROJECT_ID;
-        const clientEmail = process.env.GCP_CLIENT_EMAIL;
-        const privateKey = process.env.GCP_PRIVATE_KEY?.replace(/\\n/g, '\n');
-        const location = process.env.GCP_LOCATION || 'us-central1';
+        const apiKey = process.env.GEMINI_API_KEY;
 
-        if (!projectId || !clientEmail || !privateKey) {
-            console.error("Missing GCP credentials in environment variables");
+        if (!apiKey) {
+            console.error("Missing GEMINI_API_KEY in environment variables");
             return NextResponse.json({ error: 'Server configuration error: Missing Credentials' }, { status: 500 });
         }
 
-        // Initialize Vertex AI with explicit credentials
-        const vertexAI = new VertexAI({
-            project: projectId,
-            location: location,
-            googleAuthOptions: {
-                credentials: {
-                    client_email: clientEmail,
-                    private_key: privateKey,
-                }
-            }
-        });
+        // Initialize GoogleGenerativeAI
+        const genAI = new GoogleGenerativeAI(apiKey);
 
-        // Use Gemini 2.0 Flash (Experimental) as it is the only active model for this project
-        const model = 'gemini-2.0-flash-exp';
-
-        const generativeModel = vertexAI.getGenerativeModel({
-            model: model,
-            systemInstruction: systemInstruction ? { role: 'system', parts: [{ text: systemInstruction }] } : undefined,
+        // Use gemini-2.5-flash which is functional
+        const generativeModel = genAI.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            systemInstruction: systemInstruction ? systemInstruction : undefined,
             generationConfig: {
                 maxOutputTokens: 2048,
                 temperature: 0.2, // Lower temperature for more deterministic/structured outputs
                 topP: 0.8,
-                topK: 40,
             },
         });
 
@@ -50,7 +35,7 @@ export async function POST(req: Request) {
         });
 
         const response = await result.response;
-        const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = response.text();
 
         if (!text) {
             throw new Error("No text generated from model");
@@ -59,7 +44,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ result: text });
 
     } catch (error: any) {
-        console.error('Vertex AI API Error:', error);
+        console.error('Vertex (Gemini API fallback) Error:', error);
         return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
     }
 }
