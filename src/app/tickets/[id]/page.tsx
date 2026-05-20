@@ -41,6 +41,7 @@ export default function TicketDetailPage() {
     const ticketId = params.id as string;
 
     const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [isDirty, setIsDirty] = useState(false);
     const [events, setEvents] = useState<TicketEvent[]>([]);
     const [activeTab, setActiveTab] = useState("info");
     const [currentUserId, setCurrentUserId] = useState("");
@@ -50,20 +51,26 @@ export default function TicketDetailPage() {
 
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
 
+    const updateTicket = (updated: Ticket) => {
+        setTicket(updated);
+        setIsDirty(true);
+    };
+
     // Auto-save functionality
     useEffect(() => {
-        if (!ticket || !ticketId) return;
+        if (!ticket || !ticketId || !isDirty) return;
 
         const timeoutId = setTimeout(async () => {
             try {
                 await setDoc(doc(db, "tickets", ticketId), ticket);
+                setIsDirty(false);
             } catch (error) {
                 console.error("Error auto-saving ticket:", error);
             }
         }, 1000);
 
         return () => clearTimeout(timeoutId);
-    }, [ticket, ticketId]);
+    }, [ticket, ticketId, isDirty]);
 
     useEffect(() => {
         const loadAuth = async () => {
@@ -93,6 +100,7 @@ export default function TicketDetailPage() {
         const unsubscribe = onSnapshot(doc(db, "tickets", ticketId), (docSnap) => {
             if (docSnap.exists()) {
                 setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
+                setIsDirty(false);
             }
         });
 
@@ -332,7 +340,7 @@ export default function TicketDetailPage() {
                                                         const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : undefined;
                                                         // Auto status logic: If setting a date, ensure status reflects it if currently OPEN
                                                         const newStatus = ticket.status;
-                                                        setTicket({ ...ticket, scheduledStart: date, status: newStatus });
+                                                        updateTicket({ ...ticket, scheduledStart: date, status: newStatus });
                                                     }}
                                                 />
                                             </div>
@@ -344,7 +352,7 @@ export default function TicketDetailPage() {
                                                     value={ticket.scheduledEnd ? new Date(ticket.scheduledEnd.seconds * 1000).toISOString().slice(0, 16) : ""}
                                                     onChange={(e) => {
                                                         const date = e.target.value ? Timestamp.fromDate(new Date(e.target.value)) : undefined;
-                                                        setTicket({ ...ticket, scheduledEnd: date });
+                                                        updateTicket({ ...ticket, scheduledEnd: date });
                                                     }}
                                                 />
                                             </div>
@@ -367,7 +375,7 @@ export default function TicketDetailPage() {
                                                         const sv = prompt("Escribe el nombre del servicio adicional (ej: MANTENIMIENTO, REPARACION):");
                                                         if (sv) {
                                                             const arr = ticket.extraServices || [];
-                                                            setTicket({ ...ticket, extraServices: [...arr, sv.toUpperCase()] });
+                                                            updateTicket({ ...ticket, extraServices: [...arr, sv.toUpperCase()] });
                                                         }
                                                     }}
                                                 >
@@ -406,7 +414,7 @@ export default function TicketDetailPage() {
                                             value={ticket.locationUrl || ticket.locationName || ""}
                                             onChange={(val) => {
                                                 if (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') {
-                                                    setTicket({ ...ticket, locationUrl: val, locationName: val });
+                                                    updateTicket({ ...ticket, locationUrl: val, locationName: val });
                                                 }
                                             }}
                                             placeholder={
@@ -430,7 +438,7 @@ export default function TicketDetailPage() {
                                             type="checkbox"
                                             id="allowGallery"
                                             checked={ticket.allowGalleryUpload || false}
-                                            onChange={(e) => setTicket({ ...ticket, allowGalleryUpload: e.target.checked })}
+                                            onChange={(e) => updateTicket({ ...ticket, allowGalleryUpload: e.target.checked })}
                                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                         />
                                         <Label htmlFor="allowGallery" className="cursor-pointer font-medium">
@@ -485,7 +493,7 @@ export default function TicketDetailPage() {
                                         const newChecklist = ticket.checklist.map(item =>
                                             item.id === id ? { ...item, checked } : item
                                         );
-                                        setTicket({ ...ticket, checklist: newChecklist });
+                                        updateTicket({ ...ticket, checklist: newChecklist });
                                     }}
                                 />
                             </CardContent>
@@ -524,7 +532,7 @@ export default function TicketDetailPage() {
                                     label="Fotos Antes"
                                     type="BEFORE"
                                     photos={ticket.photos || []}
-                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
                                     allowGallery={true}
                                     onPhotoAdded={handlePhotoAdded}
                                 />
@@ -533,7 +541,7 @@ export default function TicketDetailPage() {
                                     label="Fotos Durante"
                                     type="DURING"
                                     photos={ticket.photos || []}
-                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
                                     allowGallery={true}
                                     onPhotoAdded={handlePhotoAdded}
                                 />
@@ -542,7 +550,7 @@ export default function TicketDetailPage() {
                                     label="Fotos Después"
                                     type="AFTER"
                                     photos={ticket.photos || []}
-                                    onChange={(photos) => setTicket({ ...ticket, photos })}
+                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
                                     allowGallery={true}
                                     onPhotoAdded={handlePhotoAdded}
                                 />
@@ -561,7 +569,7 @@ export default function TicketDetailPage() {
                                     <VoiceTextarea
                                         placeholder="¿Qué encontraste?"
                                         value={ticket.diagnosis || ''}
-                                        onChange={(e) => setTicket({ ...ticket, diagnosis: e.target.value })}
+                                        onChange={(e) => updateTicket({ ...ticket, diagnosis: e.target.value })}
                                         className="min-h-[100px]"
                                     />
                                 </div>
@@ -571,14 +579,14 @@ export default function TicketDetailPage() {
                                         <ErrorSearchModal
                                             onSelectSolution={(sol: string) => {
                                                 const current = ticket?.solution || "";
-                                                setTicket({ ...ticket!, solution: current + (current ? "\n\n" : "") + sol });
+                                                updateTicket({ ...ticket!, solution: current + (current ? "\n\n" : "") + sol });
                                             }}
                                         />
                                     </div>
                                     <VoiceTextarea
                                         placeholder="¿Qué hiciste?"
                                         value={ticket.solution || ''}
-                                        onChange={(e) => setTicket({ ...ticket, solution: e.target.value })}
+                                        onChange={(e) => updateTicket({ ...ticket, solution: e.target.value })}
                                         className="min-h-[100px]"
                                     />
                                 </div>
@@ -587,7 +595,7 @@ export default function TicketDetailPage() {
                                     <VoiceTextarea
                                         placeholder="Sugerencias para el cliente..."
                                         value={ticket.recommendations || ''}
-                                        onChange={(e) => setTicket({ ...ticket, recommendations: e.target.value })}
+                                        onChange={(e) => updateTicket({ ...ticket, recommendations: e.target.value })}
                                     />
                                 </div>
                             </CardContent>
@@ -610,7 +618,7 @@ export default function TicketDetailPage() {
                                         <Label>Nombre de quien recibe</Label>
                                         <Input
                                             value={ticket.clientSignatureName || ""}
-                                            onChange={(e) => setTicket({ ...ticket, clientSignatureName: e.target.value })}
+                                            onChange={(e) => updateTicket({ ...ticket, clientSignatureName: e.target.value })}
                                             placeholder="Ej. Juan Pérez"
                                             className="h-10"
                                         />
@@ -619,7 +627,7 @@ export default function TicketDetailPage() {
                                         <Label>Firma del Cliente</Label>
                                         <SignaturePad
                                             value={ticket.clientSignature}
-                                            onChange={(sig) => setTicket({ ...ticket, clientSignature: sig })}
+                                            onChange={(sig) => updateTicket({ ...ticket, clientSignature: sig })}
                                         />
                                     </div>
                                 </div>
