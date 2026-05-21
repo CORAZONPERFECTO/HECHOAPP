@@ -115,7 +115,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
             const { compressImage } = await import("@/lib/image-utils");
             let compressedFile: Blob;
             try {
-                compressedFile = await compressImage(file);
+                compressedFile = await compressImage(file, 1600, 0.85);
             } catch (err) {
                 console.warn("Failed to compress, using original", err);
                 compressedFile = file;
@@ -175,12 +175,12 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
             setFormData(prev => ({
                 ...prev,
-                providerName: data.provider || "",
-                rnc: data.rnc || "",
+                providerName: data.providerName || data.provider || "",
+                rnc: data.rnc || data.rncEmisor || data.rnc_emisor || "",
                 ncf: data.ncf || "",
-                eNcf: data.eNcf || "",
-                buyerRnc: data.buyerRnc || "131947532",
-                buyerName: data.buyerName || "HECHO SRL",
+                eNcf: data.eNcf || data.eNCF || data.encf || data.e_ncf || "",
+                buyerRnc: data.buyerRnc || data.buyerRNC || data.buyer_rnc || data.rncComprador || "131947532",
+                buyerName: data.buyerName || data.buyer_name || data.razonSocialComprador || "HECHO SRL",
                 status: data.status || "ACEPTADA",
                 date: data.date || new Date().toISOString().split('T')[0],
                 tax: data.tax || 0,
