@@ -462,7 +462,12 @@ export default function TechnicianTicketPage() {
                                 <ShoppingCart className="h-5 w-5 text-purple-600" />
                                 Compras Registradas
                             </h3>
-                            <TicketPurchases ticketId={ticket.id!} />
+                            <TicketPurchases 
+                                ticketId={ticket.id!} 
+                                ticketNumber={ticket.ticketNumber}
+                                currentUserRole="TECNICO"
+                                userId={user?.uid}
+                            />
                         </div>
                     </TabsContent>
 

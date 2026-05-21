@@ -77,6 +77,7 @@ Si no puedes leer algo con claridad, usa string vacío o 0. No inventes datos.`;
                     generationConfig: {
                         temperature: 0.1,
                         maxOutputTokens: 1024,
+                        responseMimeType: "application/json",
                     }
                 })
             }
@@ -91,15 +92,25 @@ Si no puedes leer algo con claridad, usa string vacío o 0. No inventes datos.`;
         const geminiData = await response.json();
         const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-        // Parse JSON — strip markdown fences if present
+        // Parse JSON — strip markdown fences if present, extract outermost braces
         let parsed: any = null;
         try {
             const cleaned = rawText
                 .replace(/```json\n?/gi, "")
                 .replace(/```\n?/g, "")
                 .trim();
-            parsed = JSON.parse(cleaned);
-        } catch {
+            
+            const firstBrace = cleaned.indexOf('{');
+            const lastBrace = cleaned.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                const jsonContent = cleaned.substring(firstBrace, lastBrace + 1);
+                parsed = JSON.parse(jsonContent);
+            } else {
+                parsed = JSON.parse(cleaned);
+            }
+        } catch (parseError: any) {
+            console.error("JSON parsing of Gemini response failed:", parseError);
+            console.error("Raw response text was:", rawText);
             // JSON parse failed — return blank form so user fills manually
             parsed = {
                 provider: "",

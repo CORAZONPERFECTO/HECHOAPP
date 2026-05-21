@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch-ui";
 import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2, ShoppingCart } from "lucide-react";
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerPurchase, getPurchasesByTicket } from "@/lib/purchase-service";
-import { storage } from "@/lib/firebase";
+import { storage, auth } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { InventoryProduct, InventoryLocation } from "@/types/inventory";
 import { getProducts, getLocations } from "@/lib/inventory-service";
@@ -79,8 +79,6 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
             setLocations(locData);
 
             // Auto Select assigned vehicle logic could be reused here
-            // Importing auth directly here as it's client component logic if needed
-            const { auth } = await import("@/lib/firebase");
             const currentUid = userId || auth.currentUser?.uid;
 
             if (currentUid) {
@@ -179,7 +177,9 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 // We trust sum of items or AI total? Let's act smart:
                 // If items were found, let UI recalc total. If not, use AI total.
                 total: data.total || 0,
-                items: processedItems
+                items: processedItems,
+                manualTotal: 0,
+                useManualTotal: false
             }));
 
             setStep(2);
@@ -225,20 +225,25 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 }
             }
 
-            // Use manual total if set, otherwise recalculate from items
+            // Recalculate items to make sure item.total = item.quantity * item.unitPrice
             const recalcItems = formData.items.map(item => ({
                 ...item,
                 total: item.quantity * item.unitPrice
             }));
-            const itemSubtotal = recalcItems.reduce((acc, i) => acc + i.total, 0);
-            const effectiveSubtotal = (formData.useManualTotal && formData.manualTotal > 0)
-                ? formData.manualTotal
-                : itemSubtotal;
-            const total = effectiveSubtotal + (formData.tax || 0);
-            // If using manual total, create a single summary item if items list is empty
+
+            // If items list is empty, create a single summary item using the manual total
             const finalItems = recalcItems.length > 0 ? recalcItems : [
-                { description: "Compra registrada manualmente", quantity: 1, unitPrice: effectiveSubtotal, total: effectiveSubtotal, isInventory: false }
+                {
+                    description: "Compra registrada manualmente",
+                    quantity: 1,
+                    unitPrice: formData.manualTotal > 0 ? formData.manualTotal : 0,
+                    total: formData.manualTotal > 0 ? formData.manualTotal : 0,
+                    isInventory: false
+                }
             ];
+
+            const effectiveSubtotal = finalItems.reduce((acc, i) => acc + i.total, 0);
+            const total = effectiveSubtotal + (formData.tax || 0);
 
             const purchaseParams = {
                 ticketId,
@@ -253,7 +258,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 items: finalItems,
                 paymentMethod: formData.paymentMethod,
                 evidenceUrls: receiptUrl ? [receiptUrl] : [],
-                userId: userId || 'unknown',
+                userId: userId || auth.currentUser?.uid || 'unknown',
                 addToInventory: formData.addToInventory,
                 inventoryTargetLocationId: formData.targetLocationId
             };
@@ -319,7 +324,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Registrar Compra Rápid</DialogTitle>
+                        <DialogTitle>Registrar Compra Rápida</DialogTitle>
                     </DialogHeader>
 
                     {step === 1 && (
