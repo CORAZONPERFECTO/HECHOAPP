@@ -55,3 +55,4 @@ functions/node_modules/
 functions/test-erp.js
 functions/src/test-erp-flow.ts
 .next_locked*
+node_modules_old_123/
