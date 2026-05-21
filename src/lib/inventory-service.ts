@@ -17,6 +17,7 @@ import {
     DocumentReference
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { cleanUndefined } from "./utils";
 import {
     InventoryProduct,
     InventoryMovement,
@@ -247,10 +248,10 @@ export async function registerMovement(movement: Omit<InventoryMovement, 'id' | 
 
             // 4. Create Movement Record
             const movRef = doc(collection(db, "inventory_movements"));
-            transaction.set(movRef, {
+            transaction.set(movRef, cleanUndefined({
                 ...movement,
                 createdAt: serverTimestamp()
-            });
+            }));
         });
 
         return { success: true };

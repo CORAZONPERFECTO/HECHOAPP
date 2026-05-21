@@ -3,6 +3,7 @@ import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, runTransaction, doc, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerMovement } from "./inventory-service";
+import { cleanUndefined } from "./utils";
 
 // Helper for mathematical integrity
 function validatePurchaseIntegrity(data: { items: any[], subtotal: number, tax: number, total: number }) {
@@ -20,6 +21,9 @@ function validatePurchaseIntegrity(data: { items: any[], subtotal: number, tax: 
         throw new Error(`Integrity Error: Subtotal + Tax (${calculatedTotal.toFixed(2)}) does not match Total (${data.total.toFixed(2)})`);
     }
 }
+
+
+
 
 export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'createdAt' | 'createdByUserId'> & {
     userId: string;
@@ -68,14 +72,16 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
 
         await runTransaction(db, async (transaction) => {
             // 3. Create Purchase Record
-            transaction.set(purchaseRef, {
+            const dataToSet = cleanUndefined({
                 ...purchaseData,
                 createdByUserId: purchaseData.userId,
-                createdAt: serverTimestamp(),
-                // Clean up transient fields
-                addToInventory: undefined,
-                inventoryTargetLocationId: undefined
+                createdAt: serverTimestamp()
             });
+            delete dataToSet.userId;
+            delete dataToSet.addToInventory;
+            delete dataToSet.inventoryTargetLocationId;
+
+            transaction.set(purchaseRef, dataToSet);
         });
 
         // 4. Post-Transaction: Process Inventory (Sequential)
@@ -98,7 +104,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                     });
                 } else {
                     // No Match: Create Pending Product (Provisional)
-                    await addDoc(collection(db, "pending_products"), {
+                    const pendingDoc = cleanUndefined({
                         detectedName: item.description,
                         providerName: purchaseData.providerName,
                         suggestedUnit: 'UND',
@@ -112,6 +118,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                         createdByUserId: purchaseData.userId,
                         createdAt: serverTimestamp()
                     });
+                    await addDoc(collection(db, "pending_products"), pendingDoc);
                 }
             }
         }
