@@ -10,6 +10,11 @@ export async function analyzeReceiptAction(formData: FormData): Promise<{
         provider?: string;
         rnc?: string;
         ncf?: string;
+        eNcf?: string;
+        buyerRnc?: string;
+        buyerName?: string;
+        status?: string;
+        date?: string;
         tax?: number;
         total?: number;
         items?: Array<{
@@ -37,18 +42,23 @@ export async function analyzeReceiptAction(formData: FormData): Promise<{
         const base64 = Buffer.from(arrayBuffer).toString("base64");
         const mimeType = file.type || "image/jpeg";
 
-        const prompt = `Eres un asistente experto en facturas y recibos dominicanos.
+        const prompt = `Eres un asistente experto en facturas y recibos dominicanos (incluyendo Facturación Electrónica e-CF).
 Analiza esta imagen de factura/recibo y extrae la información. 
 Responde SOLO con JSON válido, sin markdown, sin backticks, sin texto extra:
 {
-  "provider": "nombre del proveedor o tienda",
-  "rnc": "RNC o cédula si aparece, cadena vacía si no",
-  "ncf": "número de comprobante fiscal (ej B0100000001), cadena vacía si no aparece",
+  "provider": "nombre o razón social del emisor (proveedor)",
+  "rnc": "RNC o cédula del emisor (proveedor), cadena vacía si no aparece",
+  "buyerRnc": "RNC o cédula del comprador (HECHO SRL, ej. 1-31-24604-5 o similar), cadena vacía si no aparece",
+  "buyerName": "nombre o razón social del comprador (ej. HECHO SRL), cadena vacía si no aparece",
+  "ncf": "número de comprobante fiscal tradicional (ej. B0100000001) si no es electrónico, sino cadena vacía",
+  "eNcf": "número de comprobante fiscal electrónico (e-NCF, ej. E3100000001) si aparece, sino cadena vacía",
+  "status": "estado de la factura electrónica si aparece (ej. ACEPTADA, RECHAZADA, PENDIENTE, VÁLIDA), sino 'ACEPTADA'",
+  "date": "fecha de emisión de la factura en formato YYYY-MM-DD si aparece, sino cadena vacía",
   "tax": 0,
   "total": 0,
   "items": [
     {
-      "description": "descripción del producto",
+      "description": "descripción del producto o servicio",
       "quantity": 1,
       "unitPrice": 0,
       "total": 0
@@ -115,7 +125,12 @@ Si no puedes leer algo con claridad, usa string vacío o 0. No inventes datos.`;
             parsed = {
                 provider: "",
                 rnc: "",
+                buyerRnc: "",
+                buyerName: "",
                 ncf: "",
+                eNcf: "",
+                status: "ACEPTADA",
+                date: "",
                 tax: 0,
                 total: 0,
                 items: [{ description: "Item de compra", quantity: 1, unitPrice: 0, total: 0 }]

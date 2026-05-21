@@ -49,6 +49,11 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
         providerName: "",
         rnc: "",
         ncf: "",
+        eNcf: "",
+        buyerRnc: "131947532",
+        buyerName: "HECHO SRL",
+        status: "ACEPTADA",
+        date: new Date().toISOString().split('T')[0],
         tax: 0,
         total: 0,
         manualTotal: 0,       // ← Total ingresado manualmente por el técnico
@@ -173,6 +178,11 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 providerName: data.provider || "",
                 rnc: data.rnc || "",
                 ncf: data.ncf || "",
+                eNcf: data.eNcf || "",
+                buyerRnc: data.buyerRnc || "131947532",
+                buyerName: data.buyerName || "HECHO SRL",
+                status: data.status || "ACEPTADA",
+                date: data.date || new Date().toISOString().split('T')[0],
                 tax: data.tax || 0,
                 // We trust sum of items or AI total? Let's act smart:
                 // If items were found, let UI recalc total. If not, use AI total.
@@ -245,13 +255,19 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
             const effectiveSubtotal = finalItems.reduce((acc, i) => acc + i.total, 0);
             const total = effectiveSubtotal + (formData.tax || 0);
 
+            const parsedDate = formData.date ? new Date(formData.date + "T12:00:00") : new Date();
+
             const purchaseParams = {
                 ticketId,
                 ticketNumber: ticketNumber || undefined,
                 providerName: formData.providerName || "Proveedor General",
                 rnc: formData.rnc || undefined,
                 ncf: formData.ncf || undefined,
-                date: new Date() as any,
+                eNcf: formData.eNcf || undefined,
+                buyerRnc: formData.buyerRnc || undefined,
+                buyerName: formData.buyerName || undefined,
+                status: formData.status || undefined,
+                date: parsedDate as any,
                 subtotal: effectiveSubtotal,
                 tax: formData.tax || 0,
                 total: total,
@@ -271,12 +287,10 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 const offlinePurchase: Purchase = {
                     ...purchaseParams,
                     id: tempId,
-                    date: { seconds: Date.now() / 1000, nanoseconds: 0 } as Timestamp,
-                    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0 } as Timestamp,
+                    date: Timestamp.fromDate(parsedDate),
+                    createdAt: Timestamp.now(),
                     createdByUserId: userId || 'unknown',
-                    // Clean up extra params not in Purchase type
-                    // (They are used in queuePurchaseCreation params, but strictly filtered for UI object)
-                } as unknown as Purchase; // Cast to avoid strict type mismatch on 'addToInventory' if present in spread
+                } as unknown as Purchase;
 
                 await queuePurchaseCreation(purchaseParams, offlinePurchase);
 
@@ -291,6 +305,11 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 providerName: "",
                 rnc: "",
                 ncf: "",
+                eNcf: "",
+                buyerRnc: "131947532",
+                buyerName: "HECHO SRL",
+                status: "ACEPTADA",
+                date: new Date().toISOString().split('T')[0],
                 tax: 0,
                 total: 0,
                 manualTotal: 0,
@@ -298,7 +317,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                 items: [],
                 paymentMethod: "CASH",
                 addToInventory: false,
-                targetLocationId: ""
+                targetLocationId: formData.targetLocationId
             });
             if (isOnline) loadData(); // Reload if online, otherwise we did optimistic update
         } catch (error: any) {
@@ -403,44 +422,125 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
                     {step === 2 && (
                         <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Proveedor</Label>
-                                    <Input
-                                        value={formData.providerName}
-                                        onChange={e => setFormData({ ...formData, providerName: e.target.value })}
-                                        placeholder="Ej. Ferretería Popular"
-                                    />
+                            {/* Grid de Datos Generales */}
+                            <div className="space-y-4">
+                                {/* Sección Emisor */}
+                                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Datos del Emisor</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">Proveedor (Razón Social Emisor)</Label>
+                                            <Input
+                                                value={formData.providerName}
+                                                onChange={e => setFormData({ ...formData, providerName: e.target.value })}
+                                                placeholder="Ej. Ferretería Popular"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">RNC Emisor</Label>
+                                            <Input
+                                                value={formData.rnc}
+                                                onChange={e => setFormData({ ...formData, rnc: e.target.value })}
+                                                placeholder="001-0000000-0"
+                                                className="bg-white font-mono"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>RNC / Cédula</Label>
-                                    <Input
-                                        value={formData.rnc}
-                                        onChange={e => setFormData({ ...formData, rnc: e.target.value })}
-                                        placeholder="001-0000000-0"
-                                    />
+
+                                {/* Sección Comprador */}
+                                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Datos del Comprador</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">Comprador (Razón Social)</Label>
+                                            <Input
+                                                value={formData.buyerName}
+                                                onChange={e => setFormData({ ...formData, buyerName: e.target.value })}
+                                                placeholder="HECHO SRL"
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">RNC Comprador</Label>
+                                            <Input
+                                                value={formData.buyerRnc}
+                                                onChange={e => setFormData({ ...formData, buyerRnc: e.target.value })}
+                                                placeholder="131947532"
+                                                className="bg-white font-mono"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>NCF (Comprobante)</Label>
-                                    <Input
-                                        value={formData.ncf}
-                                        onChange={e => setFormData({ ...formData, ncf: e.target.value })}
-                                        placeholder="B0100000001"
-                                    />
+
+                                {/* Sección Comprobantes */}
+                                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Comprobantes y Fecha</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">NCF (Tradicional)</Label>
+                                            <Input
+                                                value={formData.ncf}
+                                                onChange={e => setFormData({ ...formData, ncf: e.target.value })}
+                                                placeholder="B0100000001"
+                                                className="bg-white font-mono"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600 font-medium text-blue-600">e-NCF (Electrónico)</Label>
+                                            <Input
+                                                value={formData.eNcf}
+                                                onChange={e => setFormData({ ...formData, eNcf: e.target.value })}
+                                                placeholder="E3100000001"
+                                                className="bg-white border-blue-200 focus-visible:ring-blue-500 font-mono"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">Fecha Emisión</Label>
+                                            <Input
+                                                type="date"
+                                                value={formData.date}
+                                                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                                className="bg-white"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Método Pago</Label>
-                                    <Select
-                                        value={formData.paymentMethod}
-                                        onValueChange={(val: any) => setFormData({ ...formData, paymentMethod: val })}
-                                    >
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="CASH">Efectivo</SelectItem>
-                                            <SelectItem value="CARD">Tarjeta</SelectItem>
-                                            <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+
+                                {/* Sección Pago y Estado */}
+                                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Método y Estado</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">Método de Pago</Label>
+                                            <Select
+                                                value={formData.paymentMethod}
+                                                onValueChange={(val: any) => setFormData({ ...formData, paymentMethod: val })}
+                                            >
+                                                <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="CASH">Efectivo</SelectItem>
+                                                    <SelectItem value="CARD">Tarjeta</SelectItem>
+                                                    <SelectItem value="TRANSFER">Transferencia</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-slate-600">Estado de Factura Electrónica</Label>
+                                            <Select
+                                                value={formData.status}
+                                                onValueChange={(val: string) => setFormData({ ...formData, status: val })}
+                                            >
+                                                <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ACEPTADA">ACEPTADA (Válida)</SelectItem>
+                                                    <SelectItem value="PENDIENTE">PENDIENTE</SelectItem>
+                                                    <SelectItem value="RECHAZADA">RECHAZADA</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -559,34 +659,100 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                         <ShoppingCart className="h-4 w-4" /> Compras Registradas
                     </h3>
                     <div className="space-y-3">
-                        {purchases.map(p => (
-                            <Card key={p.id} className="overflow-hidden shadow-sm">
-                                <CardContent className="p-0">
-                                    <div className="p-4 flex justify-between items-start">
-                                        <div>
-                                            <div className="font-bold text-gray-900">{p.providerName || "Proveedor No Definido"}</div>
-                                            <div className="text-xs text-gray-500 mt-0.5">
-                                                {p.createdAt && (p.createdAt as any).seconds ? new Date((p.createdAt as any).seconds * 1000).toLocaleString() : "Recién registrado"}
+                        {purchases.map(p => {
+                            // Helper to format timestamps/dates safely
+                            const getFormattedDate = (timestampOrDate: any) => {
+                                if (!timestampOrDate) return null;
+                                if (timestampOrDate.seconds) {
+                                    return new Date(timestampOrDate.seconds * 1000).toLocaleDateString("es-DO", { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                }
+                                if (timestampOrDate instanceof Date) {
+                                    return timestampOrDate.toLocaleDateString("es-DO", { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                }
+                                if (typeof timestampOrDate === "string") {
+                                    return new Date(timestampOrDate).toLocaleDateString("es-DO", { year: 'numeric', month: '2-digit', day: '2-digit' });
+                                }
+                                return null;
+                            };
+
+                            const emissionDateStr = getFormattedDate(p.date);
+                            const registerDateStr = getFormattedDate(p.createdAt);
+                            
+                            const statusStyle = p.status === "RECHAZADA"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : p.status === "PENDIENTE"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                    : "bg-green-50 text-green-700 border-green-200"; // ACEPTADA
+
+                            return (
+                                <Card key={p.id} className="overflow-hidden border border-slate-100 hover:shadow-md transition-shadow">
+                                    <CardContent className="p-4 space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <div className="font-bold text-slate-900 text-base">{p.providerName || "Proveedor No Definido"}</div>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                                                    <span>RNC: <strong className="font-mono">{p.rnc || "N/D"}</strong></span>
+                                                    <span className="text-slate-300">•</span>
+                                                    <span>Para: <strong>{p.buyerName || "HECHO SRL"}</strong> ({p.buyerRnc || "131947532"})</span>
+                                                </div>
                                             </div>
+                                            <div className="text-right space-y-1">
+                                                <div className="font-bold text-lg text-slate-900">${p.total.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</div>
+                                                <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">{p.paymentMethod === "CASH" ? "Efectivo" : p.paymentMethod === "CARD" ? "Tarjeta" : "Transferencia"}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Comprobantes & Estado */}
+                                        <div className="flex flex-wrap gap-2 items-center justify-between border-t pt-3">
+                                            <div className="flex flex-wrap gap-2">
+                                                {p.eNcf ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                                                        e-NCF: {p.eNcf}
+                                                    </span>
+                                                ) : null}
+                                                {p.ncf ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-50 text-slate-700 border border-slate-100">
+                                                        NCF: {p.ncf}
+                                                    </span>
+                                                ) : null}
+                                                {!p.eNcf && !p.ncf ? (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100">
+                                                        Sin Comprobante
+                                                    </span>
+                                                ) : null}
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                {p.status && (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusStyle} uppercase tracking-wide flex items-center gap-1`}>
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                                        {p.status}
+                                                    </span>
+                                                )}
+                                                <span className="text-[11px] text-slate-500 font-medium">
+                                                    {emissionDateStr ? `Emitida: ${emissionDateStr}` : (registerDateStr ? `Reg: ${registerDateStr}` : "Sin fecha")}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Acciones de Foto y Detalles de Items */}
+                                        <div className="flex items-center justify-between pt-1">
+                                            <span className="text-xs text-slate-400">{p.items?.length || 0} {p.items?.length === 1 ? 'item' : 'items'} registrados</span>
                                             {p.evidenceUrls && p.evidenceUrls.length > 0 && (
                                                 <a 
                                                     href={p.evidenceUrls[0]} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 font-medium hover:underline bg-blue-50 px-2 py-1 rounded-md"
+                                                    className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline bg-blue-50/50 hover:bg-blue-50 px-2.5 py-1 rounded-md transition-colors"
                                                 >
                                                     <Camera className="h-3 w-3" /> Ver Foto de Factura
                                                 </a>
                                             )}
                                         </div>
-                                        <div className="text-right">
-                                            <div className="font-bold text-lg text-gray-900">${p.total.toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500">{p.items?.length || 0} items</div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </div>
             )}

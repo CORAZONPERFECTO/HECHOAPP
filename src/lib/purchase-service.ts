@@ -38,7 +38,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         total: purchaseData.total
     });
 
-    // 2. Duplicate Check (NCF + Provider)
+    // 2. Duplicate Check (NCF / e-NCF + Provider)
     if (purchaseData.ncf) {
         const q = query(
             collection(db, "purchases"),
@@ -47,7 +47,18 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         );
         const duplicateSnap = await getDocs(q);
         if (!duplicateSnap.empty) {
-            throw new Error(`Duplicate Invoice: A purchase from ${purchaseData.providerName} with NCF ${purchaseData.ncf} already exists.`);
+            throw new Error(`Factura Duplicada: Ya existe una compra de ${purchaseData.providerName} con el NCF ${purchaseData.ncf}.`);
+        }
+    }
+    if (purchaseData.eNcf) {
+        const q = query(
+            collection(db, "purchases"),
+            where("eNcf", "==", purchaseData.eNcf),
+            where("providerName", "==", purchaseData.providerName)
+        );
+        const duplicateSnap = await getDocs(q);
+        if (!duplicateSnap.empty) {
+            throw new Error(`Factura Duplicada: Ya existe una compra de ${purchaseData.providerName} con el e-NCF ${purchaseData.eNcf}.`);
         }
     }
 
