@@ -8,11 +8,22 @@ export async function analyzeReceiptAction(formData: FormData): Promise<{
     success: boolean;
     data?: {
         provider?: string;
+        providerName?: string;
         rnc?: string;
+        rncEmisor?: string;
+        rnc_emisor?: string;
         ncf?: string;
         eNcf?: string;
+        eNCF?: string;
+        encf?: string;
+        e_ncf?: string;
         buyerRnc?: string;
+        buyerRNC?: string;
+        buyer_rnc?: string;
+        rncComprador?: string;
         buyerName?: string;
+        buyer_name?: string;
+        razonSocialComprador?: string;
         status?: string;
         date?: string;
         tax?: number;
