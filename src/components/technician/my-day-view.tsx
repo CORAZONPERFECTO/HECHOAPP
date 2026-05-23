@@ -16,11 +16,12 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
-    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2
+    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2, Package, Wrench
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { TicketCardRefactored } from "@/components/tickets/ticket-card-refactored";
+import { getLocations, getStockByLocation, getProducts } from "@/lib/inventory-service";
 
 export function MyDayView() {
     const { isOnline, isSyncing, pendingOperations, syncQueue, retryOperation, discardOperation } = useOfflineSync();
@@ -36,6 +37,10 @@ export function MyDayView() {
     const [activeView, setActiveView] = useState<"list" | "map">("list");
     const router = useRouter();
     const { toast } = useToast();
+
+    const [showCheckoutWarning, setShowCheckoutWarning] = useState(false);
+    const [checkoutIssues, setCheckoutIssues] = useState<{ name: string; details: string; type: 'STAGNANT' | 'TOOL' }[]>([]);
+    const [isCheckingShiftEnd, setIsCheckingShiftEnd] = useState(false);
 
     useEffect(() => {
         const unsubAuth = auth.onAuthStateChanged((user) => {
@@ -164,7 +169,57 @@ export function MyDayView() {
             });
             return;
         }
-        await auth.signOut();
+
+        setIsCheckingShiftEnd(true);
+        try {
+            const locs = await getLocations();
+            const assignedLoc = locs.find(l => l.responsibleUserId === currentUserId);
+            
+            const issues: { name: string; details: string; type: 'STAGNANT' | 'TOOL' }[] = [];
+
+            if (assignedLoc) {
+                const stock = await getStockByLocation(assignedLoc.id);
+                const prods = await getProducts();
+                
+                const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+                
+                stock.forEach(item => {
+                    const itemDate = item.updatedAt 
+                        ? (item.updatedAt as any).toDate 
+                            ? (item.updatedAt as any).toDate().getTime() 
+                            : new Date((item.updatedAt as any).seconds * 1000).getTime() 
+                        : Date.now();
+                    
+                    if (item.quantity > 0 && itemDate < threeDaysAgo) {
+                        const prod = prods.find(p => p.id === item.productId);
+                        issues.push({
+                            name: prod ? prod.name : "Material Incierto",
+                            details: `Inactivo hace más de 3 días en camioneta (${item.quantity} ${prod ? prod.unit : 'unidades'}).`,
+                            type: 'STAGNANT'
+                        });
+                    }
+                });
+            }
+
+            // MOCK: Add a check for standard critical tools checklist confirmation
+            issues.push({
+                name: "Herramientas de Trabajo",
+                details: "Asegúrate de haber guardado el Juego de Manómetros y la Bomba de Vacío en tu vehículo.",
+                type: 'TOOL'
+            });
+
+            if (issues.length > 0) {
+                setCheckoutIssues(issues);
+                setShowCheckoutWarning(true);
+            } else {
+                await auth.signOut();
+            }
+        } catch (error) {
+            console.error("Error during checkout audit:", error);
+            await auth.signOut();
+        } finally {
+            setIsCheckingShiftEnd(false);
+        }
     };
 
     const handleQuickAction = async (ticketId: string, action: "start" | "pause" | "complete") => {
@@ -478,6 +533,71 @@ export function MyDayView() {
 
                 </Tabs>
             </div>
+
+            {/* Modal de Advertencia de Salida de Turno (Checkout Audit) */}
+            <Dialog open={showCheckoutWarning} onOpenChange={setShowCheckoutWarning}>
+                <DialogContent className="max-w-md p-6 bg-white rounded-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <AlertTriangle className="h-6 w-6 text-amber-600 animate-bounce" />
+                            Auditoría de Fin de Turno
+                        </DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600">
+                            Antes de cerrar tu sesión y terminar tu turno, por favor revisa el estado de tu vehículo y herramientas:
+                        </p>
+                        
+                        <ScrollArea className="max-h-[200px] pr-2 overflow-y-auto border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+                            <div className="space-y-3">
+                                {checkoutIssues.map((issue, idx) => (
+                                    <div key={idx} className="flex items-start gap-3 text-left">
+                                        <div className="mt-0.5">
+                                            {issue.type === 'STAGNANT' ? (
+                                                <Package className="h-4 w-4 text-orange-500" />
+                                            ) : (
+                                                <Wrench className="h-4 w-4 text-blue-500" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-semibold text-slate-800">{issue.name}</h4>
+                                            <p className="text-[10px] text-slate-500 leading-normal mt-0.5">{issue.details}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                        
+                        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-xs text-amber-800 leading-relaxed">
+                            <strong>Nota:</strong> Si tienes materiales sobrantes de obras anteriores (inactivos hace +3 días), recuerda devolverlos al almacén principal para evitar cargos de inventario ocioso.
+                        </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-3 border-t flex justify-end gap-3">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={isCheckingShiftEnd}
+                            onClick={() => setShowCheckoutWarning(false)}
+                            className="text-xs h-9"
+                        >
+                            Cancelar y Revisar
+                        </Button>
+                        <Button 
+                            size="sm" 
+                            disabled={isCheckingShiftEnd}
+                            onClick={async () => {
+                                setShowCheckoutWarning(false);
+                                await auth.signOut();
+                            }}
+                            className="text-xs h-9 bg-slate-900 hover:bg-slate-800 text-white"
+                        >
+                            Cerrar Turno de Todos Modos
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Modal de Control de Cola de Sincronización */}
             <Dialog open={isQueueOpen} onOpenChange={setIsQueueOpen}>

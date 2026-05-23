@@ -26,6 +26,11 @@ export interface TechnicianMetrics {
     reopenRate: number; // percentage
     avgRating?: number;
     totalRevenue: number;
+    totalMaterialsCost: number;
+    totalLaborCost: number;
+    totalCosts: number;
+    netProfit: number;
+    netProfitMargin: number;
 }
 
 export interface MaterialAnalysis {
@@ -146,6 +151,9 @@ export class TicketAnalyticsEngine {
             resolutionTimes: number[];
             reopened: number;
             revenue: number;
+            materialsCost: number;
+            laborCost: number;
+            totalCosts: number;
         }>();
 
         this.tickets.forEach(ticket => {
@@ -157,7 +165,10 @@ export class TicketAnalyticsEngine {
                 completed: 0,
                 resolutionTimes: [],
                 reopened: 0,
-                revenue: 0
+                revenue: 0,
+                materialsCost: 0,
+                laborCost: 0,
+                totalCosts: 0
             };
 
             current.total++;
@@ -172,22 +183,35 @@ export class TicketAnalyticsEngine {
             }
 
             current.revenue += ticket.revenue || 0;
+            current.materialsCost += ticket.materialsCost || 0;
+            current.laborCost += (ticket.laborHours || 0) * (ticket.laborRate || 0);
+            current.totalCosts += ticket.totalCost || 0;
 
             techMap.set(ticket.technicianId, current);
         });
 
-        return Array.from(techMap.entries()).map(([id, data]) => ({
-            technicianId: id,
-            technicianName: data.name,
-            totalTickets: data.total,
-            completedTickets: data.completed,
-            avgResolutionTime: data.resolutionTimes.length > 0
-                ? data.resolutionTimes.reduce((a, b) => a + b, 0) / data.resolutionTimes.length
-                : 0,
-            completionRate: data.total > 0 ? (data.completed / data.total) * 100 : 0,
-            reopenRate: data.total > 0 ? (data.reopened / data.total) * 100 : 0,
-            totalRevenue: data.revenue
-        })).sort((a, b) => b.completionRate - a.completionRate);
+        return Array.from(techMap.entries()).map(([id, data]) => {
+            const netProfit = data.revenue - data.totalCosts;
+            const netProfitMargin = data.revenue > 0 ? (netProfit / data.revenue) * 100 : 0;
+
+            return {
+                technicianId: id,
+                technicianName: data.name,
+                totalTickets: data.total,
+                completedTickets: data.completed,
+                avgResolutionTime: data.resolutionTimes.length > 0
+                    ? data.resolutionTimes.reduce((a, b) => a + b, 0) / data.resolutionTimes.length
+                    : 0,
+                completionRate: data.total > 0 ? (data.completed / data.total) * 100 : 0,
+                reopenRate: data.total > 0 ? (data.reopened / data.total) * 100 : 0,
+                totalRevenue: data.revenue,
+                totalMaterialsCost: data.materialsCost,
+                totalLaborCost: data.laborCost,
+                totalCosts: data.totalCosts,
+                netProfit,
+                netProfitMargin
+            };
+        }).sort((a, b) => b.netProfit - a.netProfit);
     }
 
     /**

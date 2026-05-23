@@ -45,16 +45,88 @@ service cloud.firestore {
         (request.method != 'create' && resource != null && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid)
       ));
     }
-
-    // 3) RESTO DE COLECCIONES (Tickets, Inventario, Finanzas, etc.)
-    // Permitido a usuarios autenticados para que la operativa del sistema funcione.
-    // La seguridad fina de módulos se maneja en el FrontEnd, excepto para usuarios/personal.
-    match /{colId}/{docId} {
-      allow read, write: if isAuth() && colId != 'users' && colId != 'personnel';
+    
+    // 3) CATÁLOGO DE PRODUCTOS E INVENTARIO
+    // Solo gerentes/admin pueden crear o modificar productos y ubicaciones (almacenes/camionetas)
+    match /inventory_products/{productId} {
+      allow read: if isAuth();
+      allow write: if isManager();
+    }
+    
+    match /inventory_locations/{locationId} {
+      allow read: if isAuth();
+      allow write: if isManager();
+    }
+    
+    // El stock y alertas son modificados por los técnicos al consumir materiales en transacciones
+    match /inventory_stock/{stockId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    
+    match /inventory_alerts/{alertId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+    }
+    
+    // Los movimientos pueden ser creados por técnicos, pero nunca modificados ni eliminados por ellos
+    match /inventory_movements/{movementId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isManager();
+    }
+    
+    // 4) TICKETS Y SUBCOLECCIONES
+    // Técnicos pueden leer todos pero solo actualizar los asignados a ellos
+    match /tickets/{ticketId} {
+      allow read: if isAuth();
+      allow create: if isManager();
+      allow update: if isManager() || (isAuth() && (
+        resource.data.technicianId == request.auth.uid || 
+        resource.data.tecnicoAsignadoId == request.auth.uid
+      ));
+      allow delete: if isManager();
       
-      // Manejar subcolecciones
       match /{document=**} {
-        allow read, write: if isAuth() && colId != 'users' && colId != 'personnel';
+        allow read: if isAuth();
+        allow create, update: if isManager() || (isAuth() && (
+          get(/databases/$(database)/documents/tickets/$(ticketId)).data.technicianId == request.auth.uid || 
+          get(/databases/$(database)/documents/tickets/$(ticketId)).data.tecnicoAsignadoId == request.auth.uid
+        ));
+        allow delete: if isManager();
+      }
+    }
+    
+    // Eventos e Historial de Tickets (Timeline/Auditoría)
+    match /ticketEvents/{eventId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isManager();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isManager();
+    }
+    
+    // 5) COMPRAS EN CALLE
+    // Técnicos registran compras, pero solo gerentes pueden listarlas de forma global o eliminarlas
+    match /purchases/{purchaseId} {
+      allow read: if isManager() || (isAuth() && resource.data.userId == request.auth.uid);
+      allow create: if isAuth();
+      allow update: if isManager() || (isAuth() && resource.data.userId == request.auth.uid);
+      allow delete: if isManager();
+    }
+    
+    // 6) FALLBACK SEGURO PARA OTRAS COLECCIONES
+    match /{colId}/{docId} {
+      allow read: if isAuth() && colId != 'users' && colId != 'personnel';
+      allow write: if isManager() && colId != 'users' && colId != 'personnel';
+      
+      match /{document=**} {
+        allow read: if isAuth() && colId != 'users' && colId != 'personnel';
+        allow write: if isManager() && colId != 'users' && colId != 'personnel';
       }
     }
   }
