@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { InterventionForm } from "@/components/hvac/intervention-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
+import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
 import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -259,6 +260,7 @@ export default function TechnicianTicketPage() {
                                 { value: "fotos", label: "Fotos", icon: <Camera className="h-4 w-4" /> },
                                 { value: "reporte", label: "Reporte", icon: <FileText className="h-4 w-4" /> },
                                 { value: "desmontaje", label: "Piezas", icon: <Cpu className="h-4 w-4" /> },
+                                { value: "materiales", label: "Materiales", icon: <PackageCheck className="h-4 w-4" /> },
                                 { value: "compras", label: "Compras", icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "herramientas", label: "Herramientas", icon: <Wrench className="h-4 w-4" /> },
                                 { value: "historial", label: "Historial", icon: <History className="h-4 w-4" /> },
@@ -453,6 +455,21 @@ export default function TechnicianTicketPage() {
                                 />
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* Materiales Tab */}
+                    <TabsContent value="materiales">
+                        <div className="bg-white rounded-lg shadow border p-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                                <PackageCheck className="h-5 w-5 text-blue-600" />
+                                Materiales Utilizados
+                            </h3>
+                            <TicketMaterialsConsumption
+                                ticketId={ticket.id!}
+                                ticketNumber={ticket.ticketNumber}
+                                currentUserRole="TECNICO"
+                            />
+                        </div>
                     </TabsContent>
 
                     {/* Compras Tab */}

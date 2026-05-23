@@ -24,7 +24,8 @@ import {
     InventoryStock,
     InventoryLocation,
     MovementType,
-    InventoryLocationType
+    InventoryLocationType,
+    InventoryAlert
 } from "@/types/inventory";
 
 // --- PRODUCTS ---
@@ -285,4 +286,13 @@ export async function getMovements(productId?: string, limitCount = 50) {
 export async function getAllStock() {
     const snapshot = await getDocs(collection(db, "inventory_stock"));
     return snapshot.docs.map(d => d.data() as InventoryStock);
+}
+
+export async function getActiveAlerts() {
+    const q = query(
+        collection(db, "inventory_alerts"),
+        where("status", "==", "ACTIVE")
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InventoryAlert));
 }

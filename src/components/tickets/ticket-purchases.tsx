@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { Timestamp } from "firebase/firestore";
+import { validateRNCorCedula, validateENCF, validateNCF } from "@/lib/dominican-val";
 
 // Keywords for auto-classification
 const KW_INVENTORY = ['cobre', 'tubo', 'gas', 'r410', 'alambre', 'breaker', 'tornillo', 'cinta', 'varilla', 'capacit', 'soldadura', 'filtro', 'compresor', 'valvula'];
@@ -222,6 +223,20 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const handleSave = async () => {
         setSaving(true);
         try {
+            // Validaciones Fiscales Dominicanas
+            if (formData.rnc && !validateRNCorCedula(formData.rnc)) {
+                throw new Error("El RNC del Emisor no es válido (debe tener 9 u 11 dígitos y cumplir con el algoritmo Modulo 11/10).");
+            }
+            if (formData.buyerRnc && !validateRNCorCedula(formData.buyerRnc)) {
+                throw new Error("El RNC del Comprador no es válido (debe tener 9 u 11 dígitos y cumplir con el algoritmo Modulo 11/10).");
+            }
+            if (formData.ncf && !validateNCF(formData.ncf)) {
+                throw new Error("El NCF tradicional no es válido (debe iniciar con 'B' y tener 10 dígitos).");
+            }
+            if (formData.eNcf && !validateENCF(formData.eNcf)) {
+                throw new Error("El e-NCF electrónico no es válido (debe iniciar con 'E' y tener 10 dígitos).");
+            }
+
             // Upload image to Firebase Storage
             let receiptUrl = "";
             if (file) {
@@ -438,12 +453,19 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-xs text-slate-600">RNC Emisor</Label>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs text-slate-600">RNC Emisor</Label>
+                                                {formData.rnc && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${validateRNCorCedula(formData.rnc) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {validateRNCorCedula(formData.rnc) ? 'Válido' : 'Inválido'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <Input
                                                 value={formData.rnc}
                                                 onChange={e => setFormData({ ...formData, rnc: e.target.value })}
                                                 placeholder="001-0000000-0"
-                                                className="bg-white font-mono"
+                                                className={`bg-white font-mono ${formData.rnc && !validateRNCorCedula(formData.rnc) ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
                                             />
                                         </div>
                                     </div>
@@ -463,12 +485,19 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-xs text-slate-600">RNC Comprador</Label>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs text-slate-600">RNC Comprador</Label>
+                                                {formData.buyerRnc && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${validateRNCorCedula(formData.buyerRnc) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {validateRNCorCedula(formData.buyerRnc) ? 'Válido' : 'Inválido'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <Input
                                                 value={formData.buyerRnc}
                                                 onChange={e => setFormData({ ...formData, buyerRnc: e.target.value })}
                                                 placeholder="131947532"
-                                                className="bg-white font-mono"
+                                                className={`bg-white font-mono ${formData.buyerRnc && !validateRNCorCedula(formData.buyerRnc) ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
                                             />
                                         </div>
                                     </div>
@@ -479,21 +508,35 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                     <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Comprobantes y Fecha</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                         <div className="space-y-1.5">
-                                            <Label className="text-xs text-slate-600">NCF (Tradicional)</Label>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs text-slate-600">NCF (Tradicional)</Label>
+                                                {formData.ncf && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${validateNCF(formData.ncf) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {validateNCF(formData.ncf) ? 'Válido' : 'Inválido'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <Input
                                                 value={formData.ncf}
                                                 onChange={e => setFormData({ ...formData, ncf: e.target.value })}
                                                 placeholder="B0100000001"
-                                                className="bg-white font-mono"
+                                                className={`bg-white font-mono ${formData.ncf && !validateNCF(formData.ncf) ? 'border-red-300 focus-visible:ring-red-500' : ''}`}
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <Label className="text-xs text-slate-600 font-medium text-blue-600">e-NCF (Electrónico)</Label>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs text-slate-600 font-medium text-blue-600">e-NCF (Electrónico)</Label>
+                                                {formData.eNcf && (
+                                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${validateENCF(formData.eNcf) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {validateENCF(formData.eNcf) ? 'Válido' : 'Inválido'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <Input
                                                 value={formData.eNcf}
                                                 onChange={e => setFormData({ ...formData, eNcf: e.target.value })}
                                                 placeholder="E3100000001"
-                                                className="bg-white border-blue-200 focus-visible:ring-blue-500 font-mono"
+                                                className={`bg-white font-mono ${formData.eNcf && !validateENCF(formData.eNcf) ? 'border-red-300 focus-visible:ring-red-500' : 'border-blue-200 focus-visible:ring-blue-500'}`}
                                             />
                                         </div>
                                         <div className="space-y-1.5">
