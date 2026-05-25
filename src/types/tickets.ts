@@ -99,6 +99,8 @@ export interface Ticket {
     enRouteAt?: Timestamp; // When technician started moving towards location
     arrivedAt?: Timestamp; // When technician arrived at the location
     workStartedAt?: Timestamp; // When actual work started
+    startMileage?: number;
+    endMileage?: number;
     
     // Profitability Fields
     laborHours?: number; // Hours worked on this ticket

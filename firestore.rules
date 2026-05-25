@@ -118,6 +118,13 @@ service cloud.firestore {
       allow update: if isManager() || (isAuth() && resource.data.userId == request.auth.uid);
       allow delete: if isManager();
     }
+
+    // Historial y Control de Kilometraje de Vehículos
+    match /vehicleMileageLogs/{logId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isManager();
+    }
     
     // 6) FALLBACK SEGURO PARA OTRAS COLECCIONES
     match /{colId}/{docId} {

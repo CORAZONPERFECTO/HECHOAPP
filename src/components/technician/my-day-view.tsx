@@ -85,6 +85,21 @@ export function MyDayView() {
                 "vehicle.lastMileageUpdateDate": todayStr
             });
 
+            // Log to historical database
+            import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
+                addDoc(collection(db, "vehicleMileageLogs"), {
+                    userId: currentUserId,
+                    userName: userData.nombre || userData.email || "Técnico",
+                    vehiclePlate: userData.vehicle?.plate || "S/R",
+                    vehicleBrand: userData.vehicle?.brand || "S/R",
+                    vehicleModel: userData.vehicle?.model || "S/R",
+                    mileage: newMileage,
+                    type: 'DAILY_CHECKIN',
+                    createdAt: serverTimestamp(),
+                    date: todayStr
+                }).catch(err => console.error("Error logging mileage to history:", err));
+            });
+
             if (needsOilChange) {
                 toast({
                     title: "⚠️ Mantenimiento de Vehículo",

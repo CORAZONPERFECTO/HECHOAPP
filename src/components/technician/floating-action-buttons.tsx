@@ -6,11 +6,12 @@ import { Navigation, Phone, MessageCircle, MapPin } from "lucide-react";
 
 interface FloatingActionButtonsProps {
     ticket: Ticket;
+    clientPhone?: string;
 }
 
-export function FloatingActionButtons({ ticket }: FloatingActionButtonsProps) {
+export function FloatingActionButtons({ ticket, clientPhone }: FloatingActionButtonsProps) {
     const address = `${ticket.locationName}${ticket.specificLocation ? ", " + ticket.specificLocation : ""}`;
-    const phone = ticket.clientName; // In production, you'd have actual phone number
+    const phone = clientPhone || "";
 
     const openWaze = () => {
         const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(address)}`;
@@ -23,13 +24,20 @@ export function FloatingActionButtons({ ticket }: FloatingActionButtonsProps) {
     };
 
     const callClient = () => {
-        // In production, use actual phone number from client data
+        if (!phone) {
+            alert("No hay número de teléfono registrado para este cliente.");
+            return;
+        }
         window.location.href = `tel:${phone}`;
     };
 
     const whatsappClient = () => {
-        // In production, use actual phone number
-        const whatsappUrl = `https://wa.me/${phone}`;
+        if (!phone) {
+            alert("No hay número de teléfono registrado para este cliente.");
+            return;
+        }
+        const cleanPhone = phone.replace(/[^\d]/g, "");
+        const whatsappUrl = `https://wa.me/${cleanPhone}`;
         window.open(whatsappUrl, "_blank");
     };
 
