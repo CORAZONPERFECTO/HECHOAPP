@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { collection, query, onSnapshot, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { Project } from "@/types/projects";
 import { Card, CardContent } from "@/components/ui/card";
 import { Building2, Loader2, HardHat } from "lucide-react";
@@ -16,65 +16,79 @@ export default function TechnicianProjectsPage() {
     const isOnline = useOnlineStatus();
 
     useEffect(() => {
-        if (!isOnline) {
-            // Cargar localmente de IndexedDB si está offline
-            initDB().then((database) => {
-                const transaction = database.transaction(['projects'], 'readonly');
-                const store = transaction.objectStore('projects');
-                const request = store.getAll();
-                request.onsuccess = () => {
-                    const localProjects = request.result as Project[];
-                    // Filtrar activos y ordenar
-                    const filtered = localProjects.filter(p => ["PLANNING", "IN_PROGRESS"].includes(p.status));
-                    filtered.sort((a, b) => {
-                        const dateA = (a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0;
-                        const dateB = (b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0;
-                        return dateB - dateA;
-                    });
-                    setProjects(filtered);
+        const unsubscribeAuth = auth.onAuthStateChanged((user) => {
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+
+            if (!isOnline) {
+                // Cargar localmente de IndexedDB si está offline
+                initDB().then((database) => {
+                    const transaction = database.transaction(['projects'], 'readonly');
+                    const store = transaction.objectStore('projects');
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        const localProjects = request.result as Project[];
+                        // Filtrar activos y asignados al usuario
+                        const filtered = localProjects.filter(p => 
+                            ["PLANNING", "IN_PROGRESS"].includes(p.status) &&
+                            p.assignedTechnicianIds && p.assignedTechnicianIds.includes(user.uid)
+                        );
+                        filtered.sort((a, b) => {
+                            const dateA = (a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0;
+                            const dateB = (b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0;
+                            return dateB - dateA;
+                        });
+                        setProjects(filtered);
+                        setLoading(false);
+                    };
+                }).catch(err => {
+                    console.error("Error reading projects offline:", err);
                     setLoading(false);
-                };
-            }).catch(err => {
-                console.error("Error reading projects offline:", err);
+                });
+                return;
+            }
+
+            // Si está online, usar onSnapshot filtrando por assignedTechnicianIds
+            const q = query(
+                collection(db, "projects"), 
+                where("status", "in", ["PLANNING", "IN_PROGRESS"]),
+                where("assignedTechnicianIds", "array-contains", user.uid)
+            );
+            const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+                
+                // Ordenar en memoria (descendente por createdAt)
+                data.sort((a, b) => {
+                    const dateA = (a.createdAt as any)?.toDate ? (a.createdAt as any).toDate().getTime() : ((a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0);
+                    const dateB = (b.createdAt as any)?.toDate ? (b.createdAt as any).toDate().getTime() : ((b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0);
+                    return dateB - dateA;
+                });
+                
+                setProjects(data);
+                setLoading(false);
+
+                // Caching offline
+                data.forEach(p => {
+                    const projectCopy = {
+                        ...p,
+                        createdAt: (p.createdAt as any)?.toDate ? (p.createdAt as any).toDate() : p.createdAt,
+                        updatedAt: (p.updatedAt as any)?.toDate ? (p.updatedAt as any).toDate() : p.updatedAt,
+                        estimatedCompletionDate: (p.estimatedCompletionDate as any)?.toDate ? (p.estimatedCompletionDate as any).toDate() : p.estimatedCompletionDate,
+                        startDate: (p.startDate as any)?.toDate ? (p.startDate as any).toDate() : p.startDate,
+                    };
+                    saveProjectOffline(projectCopy);
+                });
+            }, (error) => {
+                console.error("Firestore onSnapshot error, falling back to local:", error);
                 setLoading(false);
             });
-            return;
-        }
 
-        // Si está online, usar onSnapshot
-        const q = query(
-            collection(db, "projects"), 
-            where("status", "in", ["PLANNING", "IN_PROGRESS"])
-        );
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-            
-            // Ordenar en memoria (descendente por createdAt)
-            data.sort((a, b) => {
-                const dateA = (a.createdAt as any)?.toDate ? (a.createdAt as any).toDate().getTime() : ((a.createdAt as any)?.getTime ? (a.createdAt as any).getTime() : 0);
-                const dateB = (b.createdAt as any)?.toDate ? (b.createdAt as any).toDate().getTime() : ((b.createdAt as any)?.getTime ? (b.createdAt as any).getTime() : 0);
-                return dateB - dateA;
-            });
-            
-            setProjects(data);
-            setLoading(false);
-
-            // Caching offline
-            data.forEach(p => {
-                const projectCopy = {
-                    ...p,
-                    createdAt: (p.createdAt as any)?.toDate ? (p.createdAt as any).toDate() : p.createdAt,
-                    updatedAt: (p.updatedAt as any)?.toDate ? (p.updatedAt as any).toDate() : p.updatedAt,
-                    estimatedCompletionDate: (p.estimatedCompletionDate as any)?.toDate ? (p.estimatedCompletionDate as any).toDate() : p.estimatedCompletionDate,
-                    startDate: (p.startDate as any)?.toDate ? (p.startDate as any).toDate() : p.startDate,
-                };
-                saveProjectOffline(projectCopy);
-            });
-        }, (error) => {
-            console.error("Firestore onSnapshot error, falling back to local:", error);
+            return () => unsubscribeSnapshot();
         });
 
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }, [isOnline]);
 
     return (

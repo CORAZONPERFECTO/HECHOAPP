@@ -272,11 +272,15 @@ export function useOfflineSync() {
             const newProjectCompleted = projectData.completedTalleres + 1;
             const newProjectProgress = projectData.totalTalleres > 0 ? (newProjectCompleted / projectData.totalTalleres) * 100 : 0;
 
+            const currentAssigned = projectData.assignedTechnicianIds || [];
+            const newAssigned = new Set([...currentAssigned, userId]);
+
             transaction.update(zoneRef, zoneData as any);
             transaction.update(projectRef, {
                 completedTalleres: newProjectCompleted,
                 progressPercentage: newProjectProgress,
-                status: projectData.status === 'PLANNING' ? 'IN_PROGRESS' : projectData.status
+                status: projectData.status === 'PLANNING' ? 'IN_PROGRESS' : projectData.status,
+                assignedTechnicianIds: Array.from(newAssigned)
             });
         });
         console.log(`✅ Synced milestone completion: ${tallerId} in project ${projectId}`);
@@ -295,14 +299,18 @@ export function useOfflineSync() {
         const { projectId, zoneId, areaId, tallerId, blockedReason, blockedByContractor, userId, userName } = data;
 
         await runTransaction(db, async (transaction) => {
+            const projectRef = doc(db, "projects", projectId);
             const zoneRef = doc(db, "projectZones", zoneId);
+            
+            const projectDoc = await transaction.get(projectRef);
             const zoneDoc = await transaction.get(zoneRef);
             
-            if (!zoneDoc.exists()) {
-                throw new Error("Zona no encontrada");
+            if (!projectDoc.exists() || !zoneDoc.exists()) {
+                throw new Error("Documentos no encontrados");
             }
             
             const zoneData = zoneDoc.data() as ProjectZone;
+            const projectData = projectDoc.data() as Project;
 
             let tallerEncontrado = false;
             for (let a of zoneData.areas) {
@@ -326,7 +334,13 @@ export function useOfflineSync() {
                 return;
             }
 
+            const currentAssigned = projectData.assignedTechnicianIds || [];
+            const newAssigned = new Set([...currentAssigned, userId]);
+
             transaction.update(zoneRef, zoneData as any);
+            transaction.update(projectRef, {
+                assignedTechnicianIds: Array.from(newAssigned)
+            });
         });
         console.log(`✅ Synced milestone block: ${tallerId} in project ${projectId}`);
     };

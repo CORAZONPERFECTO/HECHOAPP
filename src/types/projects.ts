@@ -73,6 +73,9 @@ export interface Project {
     createdBy: string;
     createdAt: Timestamp | Date;
     updatedAt: Timestamp | Date;
+
+    // Access control
+    assignedTechnicianIds?: string[];
 }
 
 // Pre-diseños (Plantillas Base)

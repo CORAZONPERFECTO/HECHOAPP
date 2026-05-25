@@ -125,8 +125,28 @@ service cloud.firestore {
       allow create: if isAuth();
       allow update, delete: if isManager();
     }
+
+    // 6) PROYECTOS Y ZONAS (Acceso restringido por asignación de técnicos)
+    match /projects/{projectId} {
+      allow read: if isAuth() && (
+        isManager() || 
+        (resource != null && resource.data.assignedTechnicianIds != null && resource.data.assignedTechnicianIds.hasAny([request.auth.uid]))
+      );
+      allow write: if isManager();
+    }
     
-    // 6) FALLBACK SEGURO PARA OTRAS COLECCIONES
+    match /projectZones/{zoneId} {
+      allow read: if isAuth() && (
+        isManager() || 
+        (resource != null && get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTechnicianIds.hasAny([request.auth.uid]))
+      );
+      allow write: if isAuth() && (
+        isManager() || 
+        (resource != null && get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTechnicianIds.hasAny([request.auth.uid]))
+      );
+    }
+    
+    // 7) FALLBACK SEGURO PARA OTRAS COLECCIONES
     match /{colId}/{docId} {
       allow read: if isAuth() && colId != 'users' && colId != 'personnel';
       allow write: if isManager() && colId != 'users' && colId != 'personnel';
