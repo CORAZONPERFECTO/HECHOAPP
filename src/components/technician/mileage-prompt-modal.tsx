@@ -16,6 +16,8 @@ export function MileagePromptModal() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
+    const [userName, setUserName] = useState<string>("");
+    const [vehiclePlate, setVehiclePlate] = useState<string>("");
     const [formData, setFormData] = useState({
         brand: "",
         model: "",
@@ -66,6 +68,8 @@ export function MileagePromptModal() {
                         }
 
                         if (shouldPrompt) {
+                            setUserName(userData.nombre || userData.email || "Técnico");
+                            setVehiclePlate(vehicle.plate || "S/R");
                             setFormData({
                                 brand: vehicle.brand || "",
                                 model: vehicle.model || "",
@@ -95,6 +99,7 @@ export function MileagePromptModal() {
         setSaving(true);
         try {
             const nowStr = new Date().toISOString(); // Using ISO string or YYYY-MM-DD
+            const todayStr = nowStr.split("T")[0];
             
             await updateDoc(doc(db, "users", userId), {
                 "vehicle.brand": formData.brand,
@@ -102,6 +107,21 @@ export function MileagePromptModal() {
                 "vehicle.year": formData.year,
                 "vehicle.currentMileage": Number(formData.currentMileage),
                 "vehicle.lastMileageUpdateDate": nowStr
+            });
+
+            // Log to historical database
+            import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
+                addDoc(collection(db, "vehicleMileageLogs"), {
+                    userId,
+                    userName: userName || "Técnico",
+                    vehiclePlate: vehiclePlate || "S/R",
+                    vehicleBrand: formData.brand,
+                    vehicleModel: formData.model,
+                    mileage: Number(formData.currentMileage),
+                    type: 'PERIODIC_PROMPT',
+                    createdAt: serverTimestamp(),
+                    date: todayStr
+                }).catch(err => console.error("Error logging mileage to history:", err));
             });
 
             setIsOpen(false);

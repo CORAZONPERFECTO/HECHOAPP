@@ -17,7 +17,11 @@ export interface Purchase {
 
     providerName: string;
     rnc?: string;
-    ncf?: string; // Comprobante
+    ncf?: string; // Comprobante tradicional
+    eNcf?: string; // Comprobante Electrónico (e-NCF)
+    buyerRnc?: string; // RNC Comprador (HECHO SRL)
+    buyerName?: string; // Razón Social Comprador (HECHO SRL)
+    status?: string; // Estado (e.g., ACEPTADA, PENDIENTE)
 
     date: Timestamp; // Firestore Timestamp
 

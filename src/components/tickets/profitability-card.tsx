@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { InventoryMovement } from "@/types/inventory";
 
 interface ProfitabilityCardProps {
     ticket: Ticket;
@@ -25,12 +26,68 @@ export function ProfitabilityCard({ ticket, onUpdate }: ProfitabilityCardProps) 
         revenue: ticket.revenue?.toString() || "",
     });
 
+    const [warehouseMaterialsCost, setWarehouseMaterialsCost] = useState(0);
+    const [streetPurchasesCost, setStreetPurchasesCost] = useState(0);
+    const [loadingCosts, setLoadingCosts] = useState(true);
+
+    useEffect(() => {
+        async function fetchCosts() {
+            if (!ticket.id) return;
+            setLoadingCosts(true);
+            try {
+                // Fetch purchases
+                const { getPurchasesByTicket } = await import("@/lib/purchase-service");
+                const purchaseData = await getPurchasesByTicket(ticket.id);
+                const streetCost = purchaseData.reduce((acc, p) => acc + (p.total || 0), 0);
+                setStreetPurchasesCost(streetCost);
+
+                // Fetch inventory movements
+                const { collection, query, where, getDocs } = await import("firebase/firestore");
+                const { db: firestoreDb } = await import("@/lib/firebase");
+                const q = query(collection(firestoreDb, "inventory_movements"), where("ticketId", "==", ticket.id));
+                const snap = await getDocs(q);
+                
+                const { getProducts } = await import("@/lib/inventory-service");
+                const productsList = await getProducts();
+                
+                let warehouseCost = 0;
+                snap.docs.forEach(docSnap => {
+                    const mov = docSnap.data() as InventoryMovement;
+                    const prod = productsList.find(p => p.id === mov.productId);
+                    const cost = (mov.quantity || 0) * (prod?.averageCost || 0);
+                    if (mov.type === 'SALIDA') {
+                        warehouseCost += cost;
+                    } else if (mov.type === 'ENTRADA') {
+                        warehouseCost -= cost;
+                    }
+                });
+                setWarehouseMaterialsCost(warehouseCost);
+
+                // Synchronize total materials cost
+                const totalMaterials = warehouseCost + streetCost;
+                setFormData(prev => ({
+                    ...prev,
+                    materialsCost: totalMaterials.toString()
+                }));
+            } catch (error) {
+                console.error("Error loading costs for profitability:", error);
+            } finally {
+                setLoadingCosts(false);
+            }
+        }
+
+        fetchCosts();
+    }, [ticket.id]);
+
     // Calculate totals
     const laborHours = parseFloat(formData.laborHours) || 0;
     const laborRate = parseFloat(formData.laborRate) || 0;
-    const materialsCost = parseFloat(formData.materialsCost) || 0;
     const otherCosts = parseFloat(formData.otherCosts) || 0;
     const revenue = parseFloat(formData.revenue) || 0;
+
+    const materialsCost = editing 
+        ? (parseFloat(formData.materialsCost) || 0) 
+        : (warehouseMaterialsCost + streetPurchasesCost);
 
     const laborCost = laborHours * laborRate;
     const totalCost = laborCost + materialsCost + otherCosts;
@@ -149,8 +206,18 @@ export function ProfitabilityCard({ ticket, onUpdate }: ProfitabilityCardProps) 
                                     <span className="font-medium">RD$ {laborCost.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-600">Materiales</span>
+                                    <span className="text-gray-600 font-medium">Materiales (Total)</span>
                                     <span className="font-medium">RD$ {materialsCost.toFixed(2)}</span>
+                                </div>
+                                <div className="space-y-1 pl-4 border-l-2 border-slate-200 text-xs text-gray-500">
+                                    <div className="flex justify-between">
+                                        <span>Almacén (Móvil)</span>
+                                        <span>RD$ {warehouseMaterialsCost.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Compras en Calle</span>
+                                        <span>RD$ {streetPurchasesCost.toFixed(2)}</span>
+                                    </div>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Otros Costos</span>

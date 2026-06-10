@@ -109,3 +109,16 @@ export interface PendingProduct {
     createdByUserId: string;
     createdAt: Timestamp | Date;
 }
+
+export interface InventoryAlert {
+    id: string;
+    productId: string;
+    locationId: string;
+    type: 'LOW_STOCK' | 'OUT_OF_STOCK';
+    status: 'ACTIVE' | 'RESOLVED';
+    currentQty: number;
+    threshold: number;
+    createdAt?: Timestamp | Date;
+    updatedAt?: Timestamp | Date;
+    resolvedAt?: Timestamp | Date;
+}

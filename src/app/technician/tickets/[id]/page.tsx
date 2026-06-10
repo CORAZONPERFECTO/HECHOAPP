@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play } from "lucide-react";
 import { Ticket, TicketPhoto } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,17 +24,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { InterventionForm } from "@/components/hvac/intervention-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
+import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
 import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { TicketDismantlingTab } from "@/components/tickets/ticket-dismantling-tab";
 import { StartServiceCard } from "@/components/technician/start-service-card";
+import { MaterialRequestForm } from "@/components/technician/material-request-form";
+import { EquipmentHistoryModal } from "@/components/technician/equipment-history-modal";
+import { FloatingActionButtons } from "@/components/technician/floating-action-buttons";
+import { sendWhatsAppNotification } from "@/lib/whatsapp-service";
 
 // FORZAR ACTUALIZACION VERCEL - VERSION 3.1 TABS, MATERIALES Y HERRAMIENTAS, CIERRE
 export default function TechnicianTicketPage() {
     const params = useParams();
     const id = params?.id as string;
     const [ticket, setTicket] = useState<Ticket | null>(null);
+    const [clientPhone, setClientPhone] = useState<string>("");
+    const [endMileage, setEndMileage] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isInterventionOpen, setIsInterventionOpen] = useState(false);
@@ -85,7 +92,20 @@ export default function TechnicianTicketPage() {
             const docRef = doc(db, "tickets", id);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
+                const ticketData = { id: docSnap.id, ...docSnap.data() } as Ticket;
+                setTicket(ticketData);
+
+                // Fetch client phone number
+                if (ticketData.clientId) {
+                    try {
+                        const clientSnap = await getDoc(doc(db, "clients", ticketData.clientId));
+                        if (clientSnap.exists()) {
+                            setClientPhone(clientSnap.data().telefonoContacto || "");
+                        }
+                    } catch (err) {
+                        console.error("Error fetching client phone:", err);
+                    }
+                }
             }
         } catch (error) {
             console.error("Error fetching ticket:", error);
@@ -214,6 +234,8 @@ export default function TechnicianTicketPage() {
         setNewMaterialText("");
     };
 
+
+
     // Show permission request if user is logged in but hasn't granted permissions
     if (user && !permissionsGranted) {
         return (
@@ -259,6 +281,7 @@ export default function TechnicianTicketPage() {
                                 { value: "fotos", label: "Fotos", icon: <Camera className="h-4 w-4" /> },
                                 { value: "reporte", label: "Reporte", icon: <FileText className="h-4 w-4" /> },
                                 { value: "desmontaje", label: "Piezas", icon: <Cpu className="h-4 w-4" /> },
+                                { value: "materiales", label: "Materiales", icon: <PackageCheck className="h-4 w-4" /> },
                                 { value: "compras", label: "Compras", icon: <ShoppingCart className="h-4 w-4" /> },
                                 { value: "herramientas", label: "Herramientas", icon: <Wrench className="h-4 w-4" /> },
                                 { value: "historial", label: "Historial", icon: <History className="h-4 w-4" /> },
@@ -280,12 +303,106 @@ export default function TechnicianTicketPage() {
                     <TabsContent value="info" className="space-y-4">
                         <StartServiceCard ticket={ticket} onStart={fetchTicket} />
 
+                        {/* Controles de Pausa / Reanudación */}
+                        {ticket.status === 'IN_PROGRESS' && (
+                            <Card className="border-amber-200 bg-amber-50/30">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800">
+                                        <Pause className="h-4 w-4 text-amber-600" />
+                                        Pausar o Reportar Espera
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-xs border-amber-300 text-amber-800 bg-white hover:bg-amber-50"
+                                        onClick={async () => {
+                                            try {
+                                                setSaving(true);
+                                                await updateDoc(doc(db, "tickets", ticket.id!), {
+                                                    status: 'WAITING_PARTS',
+                                                    updatedAt: serverTimestamp()
+                                                });
+                                                fetchTicket();
+                                                alert("Estado cambiado a: Esperando Repuestos.");
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert("Error al cambiar estado.");
+                                            } finally {
+                                                setSaving(false);
+                                            }
+                                        }}
+                                    >
+                                        Esperando Repuestos
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-xs border-amber-300 text-amber-800 bg-white hover:bg-amber-50"
+                                        onClick={async () => {
+                                            try {
+                                                setSaving(true);
+                                                await updateDoc(doc(db, "tickets", ticket.id!), {
+                                                    status: 'WAITING_CLIENT',
+                                                    updatedAt: serverTimestamp()
+                                                });
+                                                fetchTicket();
+                                                alert("Estado cambiado a: Esperando al Cliente.");
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert("Error al cambiar estado.");
+                                            } finally {
+                                                setSaving(false);
+                                            }
+                                        }}
+                                    >
+                                        Esperando al Cliente
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {(ticket.status === 'WAITING_PARTS' || ticket.status === 'WAITING_CLIENT') && (
+                            <Card className="border-blue-200 bg-blue-50/30">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm font-semibold flex items-center gap-2 text-blue-800">
+                                        <Play className="h-4 w-4 text-blue-600 animate-pulse" />
+                                        Servicio en Espera / Pausado
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <Button
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+                                        onClick={async () => {
+                                            try {
+                                                setSaving(true);
+                                                await updateDoc(doc(db, "tickets", ticket.id!), {
+                                                    status: 'IN_PROGRESS',
+                                                    updatedAt: serverTimestamp()
+                                                });
+                                                fetchTicket();
+                                                alert("Servicio reanudado.");
+                                            } catch (err) {
+                                                console.error(err);
+                                                alert("Error al reanudar el servicio.");
+                                            } finally {
+                                                setSaving(false);
+                                            }
+                                        }}
+                                    >
+                                        Reanudar Trabajo
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         {/* Cliente */}
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base">Información del Cliente</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-sm space-y-1">
+                            <CardContent className="text-sm space-y-2">
                                 <div className="font-bold text-lg">{ticket.clientName}</div>
                                 <div className="flex items-center gap-2 text-gray-500">
                                     <MapPin className="h-3.5 w-3.5 text-red-500 shrink-0" />
@@ -299,12 +416,28 @@ export default function TechnicianTicketPage() {
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 text-xs flex items-center gap-1 hover:underline mt-1"
+                                    className="text-blue-600 text-xs flex items-center gap-1 hover:underline mt-1 font-semibold"
                                 >
                                     {ticket.locationUrl ? "📍 Abrir Ubicación del Cliente →" : "📍 Ver en Mapa →"}
                                 </a>
                             </CardContent>
                         </Card>
+
+                        {/* Historial de Equipo (RIT) */}
+                        {ticket.equipmentId && (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-base flex items-center gap-2 text-gray-700">
+                                        <History className="h-4 w-4 text-gray-500" />
+                                        Historial del Equipo (RIT)
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex justify-between items-center text-sm gap-4">
+                                    <span className="text-gray-600">Ver todas las intervenciones previas a este equipo.</span>
+                                    <EquipmentHistoryModal equipmentId={ticket.equipmentId} />
+                                </CardContent>
+                            </Card>
+                        )}
 
                         {/* Dirección detallada — SOLO LECTURA */}
                         <Card className="border-gray-200 bg-gray-50">
@@ -455,6 +588,29 @@ export default function TechnicianTicketPage() {
                         </Card>
                     </TabsContent>
 
+                    {/* Materiales Tab */}
+                    <TabsContent value="materiales" className="space-y-4">
+                        <div className="bg-white rounded-lg shadow border p-4">
+                            <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                                <PackageCheck className="h-5 w-5 text-blue-600" />
+                                Materiales Utilizados
+                            </h3>
+                            <TicketMaterialsConsumption
+                                ticketId={ticket.id!}
+                                ticketNumber={ticket.ticketNumber}
+                                currentUserRole="TECNICO"
+                            />
+                        </div>
+
+                        {/* Solicitar Material Adicional */}
+                        <MaterialRequestForm
+                            ticketId={ticket.id!}
+                            ticketNumber={ticket.ticketNumber}
+                            userId={user.uid}
+                            userName={user.displayName || user.email || "Técnico"}
+                        />
+                    </TabsContent>
+
                     {/* Compras Tab */}
                     <TabsContent value="compras">
                         <div className="bg-white rounded-lg shadow border p-4">
@@ -462,7 +618,12 @@ export default function TechnicianTicketPage() {
                                 <ShoppingCart className="h-5 w-5 text-purple-600" />
                                 Compras Registradas
                             </h3>
-                            <TicketPurchases ticketId={ticket.id!} />
+                            <TicketPurchases 
+                                ticketId={ticket.id!} 
+                                ticketNumber={ticket.ticketNumber}
+                                currentUserRole="TECNICO"
+                                userId={user?.uid}
+                            />
                         </div>
                     </TabsContent>
 
@@ -625,6 +786,19 @@ export default function TechnicianTicketPage() {
                                 <CardTitle className="text-base">Datos de Cierre y Conformidad</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                <div className="space-y-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                                    <Label className="font-semibold text-blue-950">Kilometraje Final del Vehículo *</Label>
+                                    <Input
+                                        type="number"
+                                        placeholder={ticket.startMileage ? `Debe ser >= ${ticket.startMileage}` : "Ej. 145300"}
+                                        value={endMileage}
+                                        onChange={(e) => setEndMileage(e.target.value)}
+                                        className="bg-white text-base h-11"
+                                    />
+                                    {ticket.startMileage && (
+                                        <p className="text-xs text-blue-800 font-medium">Kilometraje inicial registrado: {ticket.startMileage} km</p>
+                                    )}
+                                </div>
                                 <div className="space-y-2">
                                     <Label className="font-semibold">Nombre legible de quien recibe *</Label>
                                     <VoiceInput
@@ -652,6 +826,20 @@ export default function TechnicianTicketPage() {
                                     alert("⚠️ El Nombre Legible de quien recibe es obligatorio para poder cerrar el servicio.");
                                     return;
                                 }
+                                if (!endMileage) {
+                                    alert("⚠️ El Kilometraje Final es obligatorio para poder cerrar el servicio.");
+                                    return;
+                                }
+                                const endMileageNum = parseInt(endMileage);
+                                if (isNaN(endMileageNum) || endMileageNum <= 0) {
+                                    alert("⚠️ Por favor, ingresa un kilometraje final numérico válido.");
+                                    return;
+                                }
+                                if (ticket.startMileage && endMileageNum < ticket.startMileage) {
+                                    alert(`⚠️ El kilometraje final (${endMileageNum} km) no puede ser menor al kilometraje inicial (${ticket.startMileage} km).`);
+                                    return;
+                                }
+
                                 if (!ticket.equipmentId) {
                                     // Direct closure without intervention form
                                     try {
@@ -660,8 +848,33 @@ export default function TechnicianTicketPage() {
                                         await updateDoc(doc(db, "tickets", ticket.id!), {
                                             status: 'COMPLETED',
                                             closedAt: serverTimestamp(),
+                                            endMileage: endMileageNum,
                                             interventionId: "NOT_APPLICABLE"
                                         });
+
+                                        // Update user vehicle profile mileage
+                                        await updateDoc(doc(db, "users", user.uid), {
+                                            "vehicle.currentMileage": endMileageNum,
+                                            "vehicle.lastMileageUpdateDate": new Date().toISOString().split("T")[0]
+                                        }).catch(err => console.error("Error updating user current mileage:", err));
+
+                                        // Log to history logs collection
+                                        import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
+                                            addDoc(collection(db, "vehicleMileageLogs"), {
+                                                userId: user.uid,
+                                                userName: user.displayName || user.email || "Técnico",
+                                                vehiclePlate: "S/R",
+                                                vehicleBrand: "S/R",
+                                                vehicleModel: "S/R",
+                                                mileage: endMileageNum,
+                                                type: 'TICKET_END',
+                                                ticketId: ticket.id,
+                                                ticketNumber: ticket.ticketNumber || ticket.id?.substring(0, 8),
+                                                createdAt: serverTimestamp(),
+                                                date: new Date().toISOString().split("T")[0]
+                                            }).catch(err => console.error("Error logging mileage to history:", err));
+                                        });
+
                                         fetchTicket();
                                         alert("Servicio finalizado.");
                                     } catch (err) {
@@ -714,12 +927,39 @@ export default function TechnicianTicketPage() {
                                     });
                                 }
 
+                                const endMileageNum = parseInt(endMileage);
+
                                 // Complete Ticket
                                 await updateDoc(doc(db, "tickets", ticket.id!), {
                                     status: 'COMPLETED',
                                     closedAt: serverTimestamp(),
+                                    endMileage: endMileageNum,
                                     interventionId: "PENDING_LINK"
                                 });
+
+                                // Update user vehicle profile mileage
+                                await updateDoc(doc(db, "users", user.uid), {
+                                    "vehicle.currentMileage": endMileageNum,
+                                    "vehicle.lastMileageUpdateDate": new Date().toISOString().split("T")[0]
+                                }).catch(err => console.error("Error updating user current mileage:", err));
+
+                                // Log to history logs collection
+                                import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
+                                    addDoc(collection(db, "vehicleMileageLogs"), {
+                                        userId: user.uid,
+                                        userName: user.displayName || user.email || "Técnico",
+                                        vehiclePlate: "S/R",
+                                        vehicleBrand: "S/R",
+                                        vehicleModel: "S/R",
+                                        mileage: endMileageNum,
+                                        type: 'TICKET_END',
+                                        ticketId: ticket.id,
+                                        ticketNumber: ticket.ticketNumber || ticket.id?.substring(0, 8),
+                                        createdAt: serverTimestamp(),
+                                        date: new Date().toISOString().split("T")[0]
+                                    }).catch(err => console.error("Error logging mileage to history:", err));
+                                });
+
                                 fetchTicket();
                                 alert("Servicio finalizado y guardado en RIT.");
                             }}
@@ -728,6 +968,8 @@ export default function TechnicianTicketPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <FloatingActionButtons ticket={ticket} clientPhone={clientPhone} />
 
             <style>{`
                 .hide-scrollbar::-webkit-scrollbar { display: none; }

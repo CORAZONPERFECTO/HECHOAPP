@@ -3,9 +3,10 @@
 import { useState, useRef } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { db, storage, auth } from "@/lib/firebase";
 import { Ticket, TicketPhoto } from "@/types/tickets";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Camera, MapPin, Loader2, PlayCircle, Clock } from "lucide-react";
 import { formatDistanceToNow, formatDistance } from "date-fns";
@@ -18,11 +19,23 @@ interface StartServiceCardProps {
 
 export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
     const [loading, setLoading] = useState(false);
+    const [startMileage, setStartMileage] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !ticket.id) return;
+
+        if (!startMileage) {
+            alert("⚠️ Por favor, ingresa el kilometraje de inicio antes de capturar la foto.");
+            return;
+        }
+
+        const mileageNum = parseInt(startMileage);
+        if (isNaN(mileageNum) || mileageNum <= 0) {
+            alert("⚠️ Ingresa un kilometraje numérico válido.");
+            return;
+        }
 
         setLoading(true);
         try {
@@ -43,10 +56,29 @@ export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
                 arrivedAt: serverTimestamp(),
                 workStartedAt: serverTimestamp(),
                 status: 'IN_PROGRESS',
+                startMileage: mileageNum,
                 photos: [...(ticket.photos || []), newPhoto]
             };
 
             await updateDoc(doc(db, "tickets", ticket.id), updates);
+
+            // Log to vehicleMileageLogs history
+            import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
+                const currentUser = auth.currentUser;
+                addDoc(collection(db, "vehicleMileageLogs"), {
+                    userId: currentUser?.uid || ticket.technicianId || "unknown",
+                    userName: currentUser?.displayName || currentUser?.email || ticket.technicianName || "Técnico",
+                    vehiclePlate: "S/R",
+                    vehicleBrand: "S/R",
+                    vehicleModel: "S/R",
+                    mileage: mileageNum,
+                    type: 'TICKET_START',
+                    ticketId: ticket.id,
+                    ticketNumber: ticket.ticketNumber || ticket.id?.substring(0, 8),
+                    createdAt: serverTimestamp(),
+                    date: new Date().toISOString().split("T")[0]
+                }).catch(err => console.error("Error logging ticket start mileage:", err));
+            });
             
             // 3. Notify parent to refresh
             onStart();
@@ -94,7 +126,20 @@ export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
                     </div>
                     <div>
                         <h3 className="font-bold text-blue-900">¿Ya llegaste a la ubicación?</h3>
-                        <p className="text-sm text-blue-700 mt-1">Para iniciar a contar el tiempo de servicio, debes tomar una foto de la fachada o puerta principal.</p>
+                        <p className="text-sm text-blue-700 mt-1">Para iniciar a contar el tiempo de servicio, debes ingresar el kilometraje inicial y tomar una foto de la fachada o puerta principal.</p>
+                    </div>
+
+                    <div className="w-full max-w-xs space-y-1.5 text-left bg-white p-3 rounded-lg border border-blue-200">
+                        <label className="text-xs font-bold text-blue-800 uppercase tracking-wide block">
+                            Kilometraje Inicial del Vehículo *
+                        </label>
+                        <Input
+                            type="number"
+                            placeholder="Ej: 145200"
+                            value={startMileage}
+                            onChange={e => setStartMileage(e.target.value)}
+                            className="h-10 text-sm"
+                        />
                     </div>
                     
                     <input 
@@ -108,9 +153,15 @@ export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
                     
                     <Button 
                         size="lg" 
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md text-base h-14"
-                        disabled={loading}
-                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md text-base h-14 animate-pulse-subtle"
+                        disabled={loading || !startMileage}
+                        onClick={() => {
+                            if (!startMileage) {
+                                alert("Por favor, ingresa el kilometraje inicial.");
+                                return;
+                            }
+                            fileInputRef.current?.click();
+                        }}
                     >
                         {loading ? (
                             <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Registrando Llegada...</>

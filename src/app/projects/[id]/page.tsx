@@ -299,10 +299,35 @@ export default function AdminProjectDetailPage() {
 
             if (updated) {
                 await updateDoc(zoneRef, { areas: zoneData.areas });
+                await updateProjectAssignedTechnicians(projectId);
             }
         } catch (error) {
             console.error("Error assigning technician:", error);
             alert("Error al asignar técnico.");
+        }
+    };
+
+    const updateProjectAssignedTechnicians = async (projId: string) => {
+        try {
+            const qZones = query(collection(db, "projectZones"), where("projectId", "==", projId));
+            const zonesSnap = await getDocs(qZones);
+            const uniqueTechIds = new Set<string>();
+            zonesSnap.forEach(docSnap => {
+                const zone = docSnap.data() as ProjectZone;
+                zone.areas.forEach(area => {
+                    area.talleres.forEach(t => {
+                        if (t.assignedToTecnicoId) {
+                            uniqueTechIds.add(t.assignedToTecnicoId);
+                        }
+                    });
+                });
+            });
+            const projectRef = doc(db, "projects", projId);
+            await updateDoc(projectRef, {
+                assignedTechnicianIds: Array.from(uniqueTechIds)
+            });
+        } catch (err) {
+            console.error("Error updating project assigned technicians list:", err);
         }
     };
 

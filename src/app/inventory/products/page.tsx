@@ -1,20 +1,30 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Filter, Package } from "lucide-react";
+import { Search, Plus, Filter, Package, Edit2 } from "lucide-react";
 import Link from "next/link";
-import { getProducts } from "@/lib/inventory-service";
-import { InventoryProduct } from "@/types/inventory";
+import { getProducts, updateProduct } from "@/lib/inventory-service";
+import { InventoryProduct, UnitOfMeasure } from "@/types/inventory";
 import { Badge } from "@/components/ui/badge";
 import { ExcelImporter } from "@/components/inventory/excel-importer";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const CATEGORIES = ["Materiales", "Herramientas", "Equipos", "Consumibles", "Repuestos", "Otros"];
+const UNITS: UnitOfMeasure[] = ['UNIDAD', 'PIE', 'METRO', 'ROLLO', 'GALON', 'LIBRA', 'CAJA', 'JUEGO', 'PAQUETE', 'OTRO'];
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<InventoryProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+
+    // Editing states
+    const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null);
+    const [editFormData, setEditFormData] = useState<Partial<InventoryProduct>>({});
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         loadProducts();
@@ -23,12 +33,49 @@ export default function ProductsPage() {
     const loadProducts = async () => {
         setLoading(true);
         try {
-            const data = await getProducts();
+            const data = await getProducts(false); // get both active and inactive products
             setProducts(data);
         } catch (error) {
             console.error("Failed to load products", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleEditClick = (product: InventoryProduct, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingProduct(product);
+        setEditFormData({
+            sku: product.sku,
+            name: product.name,
+            category: product.category,
+            unit: product.unit,
+            minStock: product.minStock,
+            averageCost: product.averageCost,
+            isActive: product.isActive
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingProduct) return;
+        setSaving(true);
+        try {
+            await updateProduct(editingProduct.id, {
+                sku: editFormData.sku,
+                name: editFormData.name,
+                category: editFormData.category,
+                unit: editFormData.unit,
+                minStock: Number(editFormData.minStock) || 0,
+                averageCost: Number(editFormData.averageCost) || 0,
+                isActive: editFormData.isActive !== undefined ? editFormData.isActive : true
+            });
+            setEditingProduct(null);
+            loadProducts();
+        } catch (error) {
+            console.error("Failed to update product", error);
+            alert("Error al actualizar producto");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -98,17 +145,127 @@ export default function ProductsPage() {
                                 <div className="flex items-center gap-6">
                                     <div className="text-right hidden md:block">
                                         <div className="text-sm font-medium">Min: {product.minStock}</div>
-                                        {/* Real stock would go here */}
                                     </div>
                                     <Badge variant={product.isActive ? 'default' : 'secondary'}>
                                         {product.isActive ? 'Activo' : 'Inactivo'}
                                     </Badge>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => handleEditClick(product, e)}
+                                    >
+                                        <Edit2 className="h-4 w-4 text-gray-500" />
+                                    </Button>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
+
+            {editingProduct && (
+                <Dialog open={!!editingProduct} onOpenChange={(open) => !open && setEditingProduct(null)}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Editar Producto</DialogTitle>
+                            <DialogDescription>Modificar parámetros y reglas de stock para {editingProduct.name}</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>SKU (Código)</Label>
+                                    <Input
+                                        value={editFormData.sku || ""}
+                                        onChange={(e) => setEditFormData({ ...editFormData, sku: e.target.value.toUpperCase() })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Categoría</Label>
+                                    <Select
+                                        value={editFormData.category || "Materiales"}
+                                        onValueChange={(val) => setEditFormData({ ...editFormData, category: val })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Nombre del Producto</Label>
+                                <Input
+                                    required
+                                    value={editFormData.name || ""}
+                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Unidad de Medida</Label>
+                                    <Select
+                                        value={editFormData.unit || "UNIDAD"}
+                                        onValueChange={(val) => setEditFormData({ ...editFormData, unit: val as any })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Stock Mínimo (Alerta)</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        value={editFormData.minStock ?? 5}
+                                        onChange={(e) => setEditFormData({ ...editFormData, minStock: Number(e.target.value) })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Costo Promedio (RD$)</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editFormData.averageCost ?? 0}
+                                        onChange={(e) => setEditFormData({ ...editFormData, averageCost: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Estado</Label>
+                                    <Select
+                                        value={editFormData.isActive ? "activo" : "inactivo"}
+                                        onValueChange={(val) => setEditFormData({ ...editFormData, isActive: val === "activo" })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="activo">Activo</SelectItem>
+                                            <SelectItem value="inactivo">Inactivo</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setEditingProduct(null)} disabled={saving}>
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleSaveEdit} disabled={saving || !editFormData.name}>
+                                {saving ? "Guardando..." : "Guardar Cambios"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
 import { getStorage } from "firebase/storage";
@@ -18,7 +18,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+});
 if (typeof window !== "undefined") {
   enableMultiTabIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {

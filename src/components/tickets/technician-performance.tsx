@@ -29,7 +29,7 @@ export function TechnicianPerformance({ technicians }: TechnicianPerformanceProp
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="text-center">
                                 <div className="text-3xl font-bold text-green-600">
                                     {topPerformer.completionRate.toFixed(0)}%
@@ -49,10 +49,16 @@ export function TechnicianPerformance({ technicians }: TechnicianPerformanceProp
                                 <div className="text-xs text-gray-500 mt-1">Tickets Completados</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-3xl font-bold text-emerald-600">
-                                    ${topPerformer.totalRevenue.toLocaleString()}
+                                <div className="text-3xl font-bold text-emerald-600 font-mono">
+                                    RD$ {topPerformer.totalRevenue.toLocaleString()}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">Ingresos Generados</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-3xl font-bold text-blue-700">
+                                    {topPerformer.netProfitMargin.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">Margen Rentabilidad</div>
                             </div>
                         </div>
                     </CardContent>
@@ -101,6 +107,9 @@ export function TechnicianPerformance({ technicians }: TechnicianPerformanceProp
                                             Ingresos
                                         </div>
                                     </th>
+                                    <th className="text-center p-3 text-sm font-semibold text-gray-700">Costos Mat.</th>
+                                    <th className="text-center p-3 text-sm font-semibold text-gray-700">Utilidad Neta</th>
+                                    <th className="text-center p-3 text-sm font-semibold text-gray-700">Margen Neto</th>
                                     <th className="text-center p-3 text-sm font-semibold text-gray-700">Performance</th>
                                 </tr>
                             </thead>
@@ -161,8 +170,23 @@ export function TechnicianPerformance({ technicians }: TechnicianPerformanceProp
                                                 </span>
                                             </td>
                                             <td className="p-3 text-center">
-                                                <span className="text-sm font-medium text-emerald-600">
-                                                    ${tech.totalRevenue.toLocaleString()}
+                                                <span className="text-sm font-medium text-emerald-600 font-mono">
+                                                    RD$ {tech.totalRevenue.toLocaleString()}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className="text-sm font-medium text-red-600 font-mono">
+                                                    RD$ {(tech.totalMaterialsCost || 0).toLocaleString()}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`text-sm font-bold font-mono ${tech.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    RD$ {(tech.netProfit || 0).toLocaleString()}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <span className={`text-sm font-bold ${tech.netProfitMargin >= 50 ? 'text-green-600' : tech.netProfitMargin >= 20 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                    {tech.netProfitMargin.toFixed(1)}%
                                                 </span>
                                             </td>
                                             <td className="p-3 text-center">

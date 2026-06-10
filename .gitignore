@@ -55,8 +55,8 @@ functions/node_modules/
 functions/test-erp.js
 functions/src/test-erp-flow.ts
 .next_locked*
-
 # Temporary maintenance scripts
 create-temp-admin.js
 reset-main-user.js
 test-login-client.js
+node_modules_old_123/

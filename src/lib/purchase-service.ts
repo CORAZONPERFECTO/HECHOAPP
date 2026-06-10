@@ -1,8 +1,9 @@
 
 import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, runTransaction, doc, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, runTransaction, doc, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerMovement } from "./inventory-service";
+import { cleanUndefined } from "./utils";
 
 // Helper for mathematical integrity
 function validatePurchaseIntegrity(data: { items: any[], subtotal: number, tax: number, total: number }) {
@@ -21,6 +22,9 @@ function validatePurchaseIntegrity(data: { items: any[], subtotal: number, tax: 
     }
 }
 
+
+
+
 export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'createdAt' | 'createdByUserId'> & {
     userId: string;
     addToInventory: boolean;
@@ -38,7 +42,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         total: purchaseData.total
     });
 
-    // 2. Duplicate Check (NCF + Provider)
+    // 2. Duplicate Check (NCF / e-NCF + Provider)
     if (purchaseData.ncf) {
         const q = query(
             collection(db, "purchases"),
@@ -47,7 +51,18 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         );
         const duplicateSnap = await getDocs(q);
         if (!duplicateSnap.empty) {
-            throw new Error(`Duplicate Invoice: A purchase from ${purchaseData.providerName} with NCF ${purchaseData.ncf} already exists.`);
+            throw new Error(`Factura Duplicada: Ya existe una compra de ${purchaseData.providerName} con el NCF ${purchaseData.ncf}.`);
+        }
+    }
+    if (purchaseData.eNcf) {
+        const q = query(
+            collection(db, "purchases"),
+            where("eNcf", "==", purchaseData.eNcf),
+            where("providerName", "==", purchaseData.providerName)
+        );
+        const duplicateSnap = await getDocs(q);
+        if (!duplicateSnap.empty) {
+            throw new Error(`Factura Duplicada: Ya existe una compra de ${purchaseData.providerName} con el e-NCF ${purchaseData.eNcf}.`);
         }
     }
 
@@ -55,16 +70,48 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
         // Create ref outside to get ID
         const purchaseRef = doc(collection(db, "purchases"));
 
+        // Normalize date to Timestamp for Firestore transaction safety
+        let dateVal: any = purchaseData.date;
+        if (dateVal) {
+            if (typeof dateVal === 'string') {
+                dateVal = Timestamp.fromDate(new Date(dateVal));
+            } else if (dateVal instanceof Date) {
+                dateVal = Timestamp.fromDate(dateVal);
+            } else if (typeof dateVal === 'object') {
+                if (dateVal instanceof Timestamp) {
+                    // Already a Timestamp
+                } else if (typeof dateVal.seconds === 'number') {
+                    dateVal = new Timestamp(dateVal.seconds, dateVal.nanoseconds || 0);
+                } else if (typeof dateVal.toDate === 'function') {
+                    dateVal = Timestamp.fromDate(dateVal.toDate());
+                } else {
+                    const parsed = new Date(dateVal);
+                    if (!isNaN(parsed.getTime())) {
+                        dateVal = Timestamp.fromDate(parsed);
+                    } else {
+                        dateVal = Timestamp.now();
+                    }
+                }
+            } else {
+                dateVal = Timestamp.now();
+            }
+        } else {
+            dateVal = Timestamp.now();
+        }
+
         await runTransaction(db, async (transaction) => {
             // 3. Create Purchase Record
-            transaction.set(purchaseRef, {
+            const dataToSet = cleanUndefined({
                 ...purchaseData,
+                date: dateVal,
                 createdByUserId: purchaseData.userId,
-                createdAt: serverTimestamp(),
-                // Clean up transient fields
-                addToInventory: undefined,
-                inventoryTargetLocationId: undefined
+                createdAt: serverTimestamp()
             });
+            delete dataToSet.userId;
+            delete dataToSet.addToInventory;
+            delete dataToSet.inventoryTargetLocationId;
+
+            transaction.set(purchaseRef, dataToSet);
         });
 
         // 4. Post-Transaction: Process Inventory (Sequential)
@@ -87,7 +134,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                     });
                 } else {
                     // No Match: Create Pending Product (Provisional)
-                    await addDoc(collection(db, "pending_products"), {
+                    const pendingDoc = cleanUndefined({
                         detectedName: item.description,
                         providerName: purchaseData.providerName,
                         suggestedUnit: 'UND',
@@ -101,6 +148,7 @@ export async function registerPurchase(purchaseData: Omit<Purchase, 'id' | 'crea
                         createdByUserId: purchaseData.userId,
                         createdAt: serverTimestamp()
                     });
+                    await addDoc(collection(db, "pending_products"), pendingDoc);
                 }
             }
         }

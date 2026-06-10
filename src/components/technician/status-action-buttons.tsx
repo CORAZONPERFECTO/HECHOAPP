@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Ticket, TicketStatus } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Truck, MapPin, Wrench, CheckCircle, Loader2 } from "lucide-react";
+import { sendWhatsAppNotification } from "@/lib/whatsapp-service";
 
 interface StatusActionButtonsProps {
     ticket: Ticket;
@@ -80,15 +81,20 @@ export function StatusActionButtons({ ticket, onStatusChange }: StatusActionButt
             };
 
             // Track timestamps
+            let whatsappStatus: "EN_CAMINO" | "ARRIVED" | "COMPLETED" | null = null;
+            
             if (action.label.includes("En Camino")) {
                 updates.enRouteAt = serverTimestamp();
+                whatsappStatus = "EN_CAMINO";
             } else if (action.label.includes("Llegué")) {
                 updates.arrivedAt = serverTimestamp();
                 updates.firstResponseAt = serverTimestamp(); // For SLA tracking
+                whatsappStatus = "ARRIVED";
             } else if (action.label.includes("Trabajando")) {
                 updates.workStartedAt = serverTimestamp();
             } else if (action.label.includes("Terminado")) {
                 updates.resolvedAt = serverTimestamp();
+                whatsappStatus = "COMPLETED";
 
                 // Check for incomplete checklist
                 const pendingChecklist = (ticket.checklist || []).filter(item => !item.checked);
@@ -108,6 +114,34 @@ export function StatusActionButtons({ ticket, onStatusChange }: StatusActionButt
             }
 
             await updateDoc(doc(db, "tickets", ticket.id), updates);
+
+            // Trigger WhatsApp Notifications asynchronously so it doesn't block UI
+            if (whatsappStatus) {
+                (async () => {
+                    try {
+                        let toPhone = "";
+                        if (ticket.clientId) {
+                            const clientSnap = await getDoc(doc(db, "clients", ticket.clientId));
+                            if (clientSnap.exists()) {
+                                toPhone = clientSnap.data().telefonoContacto || "";
+                            }
+                        }
+                        if (!toPhone) {
+                            toPhone = "8095550100"; // Fallback demo number
+                        }
+                        await sendWhatsAppNotification({
+                            toPhone,
+                            clientName: ticket.clientName,
+                            ticketNumber: ticket.ticketNumber || ticket.id.substring(0, 8),
+                            status: whatsappStatus!,
+                            technicianName: ticket.technicianName || "Técnico HECHO SRL",
+                            details: whatsappStatus === "EN_CAMINO" ? "El técnico se desplaza a su ubicación." : undefined
+                        });
+                    } catch (err) {
+                        console.error("Error triggering WhatsApp status notification:", err);
+                    }
+                })();
+            }
 
             // Advance step for IN_PROGRESS flow
             if (ticket.status === "IN_PROGRESS" && currentStep < 2) {
