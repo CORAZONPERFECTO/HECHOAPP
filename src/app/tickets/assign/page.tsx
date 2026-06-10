@@ -51,10 +51,10 @@ export default function AssignmentDashboard() {
         const loadTechnicians = async () => {
             const usersSnap = await getDocs(collection(db, "users"));
             const techUsers = usersSnap.docs
-                .filter(doc => doc.data().role === "TECNICO")
+                .filter(doc => doc.data().role === "TECNICO" || doc.data().rol === "TECNICO")
                 .map(doc => ({
                     id: doc.id,
-                    name: doc.data().name || doc.data().email,
+                    name: doc.data().nombre || doc.data().name || doc.data().email || "Técnico",
                     email: doc.data().email,
                     specialty: doc.data().specialty,
                     currentLoad: 0

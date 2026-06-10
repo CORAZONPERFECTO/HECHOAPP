@@ -67,7 +67,7 @@ export default function TicketDetailPage() {
                         .filter(d => d.data().role === 'TECNICO' || d.data().rol === 'TECNICO')
                         .map(d => ({
                             id: d.id,
-                            name: d.data().name || d.data().displayName || d.data().email || "Técnico"
+                            name: d.data().nombre || d.data().name || d.data().displayName || d.data().email || "Técnico"
                         }));
                     setTechnicians(techs);
                 } catch (err) {
