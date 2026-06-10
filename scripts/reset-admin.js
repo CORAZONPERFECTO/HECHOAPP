@@ -12,7 +12,7 @@ admin.initializeApp({
 });
 
 const TARGET_EMAIL = "lcaa27@gmail.com";
-const NEW_PASSWORD = "Password123!"; // <--- Nueva contraseña
+const NEW_PASSWORD = "12345678"; // <--- Nueva contraseña
 
 async function resetPassword() {
     try {

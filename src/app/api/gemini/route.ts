@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/vertex-client";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { searchInventoryTool } from "@/lib/ai-tools";
 
 export async function POST(req: NextRequest) {
     try {
@@ -166,12 +168,82 @@ INSTRUCCIONES:
             });
         }
 
-        const result = await model.generateContent({
-            contents: [{ role: 'user', parts }]
-        });
+        let result;
+        let response;
+        let text = "";
 
-        const response = result.response;
-        const text = response.text();  // Gemini API direct uses .text() method
+        if (task === 'generate-quote') {
+            const apiKey = process.env.GEMINI_API_KEY;
+            const genAIInstance = new GoogleGenerativeAI(apiKey!);
+            const modelWithTools = genAIInstance.getGenerativeModel({
+                model: 'gemini-2.5-flash',
+                generationConfig: {
+                    maxOutputTokens: 2048,
+                    temperature: 0.3,
+                    topP: 0.8,
+                },
+                tools: [{
+                    functionDeclarations: [
+                        {
+                            name: 'searchInventory',
+                            description: 'Busca productos, repuestos, herramientas y materiales reales en el catálogo de inventario por palabras clave (ej: "capacitor", "refrigerante", "compresor"). Devuelve nombre, precio y descripción.',
+                            parameters: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    query: {
+                                        type: SchemaType.STRING,
+                                        description: 'Palabra clave de búsqueda, ej. "capacitor" o "R410A"'
+                                    }
+                                },
+                                required: ['query']
+                            }
+                        }
+                    ]
+                }]
+            });
+
+            result = await modelWithTools.generateContent({
+                contents: [{ role: 'user', parts }]
+            });
+
+            response = result.response;
+            const functionCalls = response.functionCalls ? response.functionCalls() : undefined;
+
+            if (functionCalls && functionCalls.length > 0) {
+                const call = functionCalls[0];
+                if (call.name === 'searchInventory') {
+                    const args = call.args as { query: string };
+                    const toolResult = await searchInventoryTool(args.query);
+
+                    console.log(`[Gemini Route] Suministrando resultados de la herramienta al modelo...`);
+
+                    const secondResult = await modelWithTools.generateContent({
+                        contents: [
+                            { role: 'user', parts },
+                            response.candidates![0].content,
+                            {
+                                role: 'function',
+                                parts: [{
+                                    functionResponse: {
+                                        name: 'searchInventory',
+                                        response: toolResult
+                                    }
+                                }]
+                            }
+                        ]
+                    });
+
+                    response = secondResult.response;
+                }
+            }
+            text = response.text();
+        } else {
+            result = await model.generateContent({
+                contents: [{ role: 'user', parts }]
+            });
+            response = result.response;
+            text = response.text();
+        }
 
         if (!text) {
             throw new Error("No response generated from Gemini");

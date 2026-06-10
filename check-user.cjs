@@ -42,9 +42,9 @@ async function fixUser() {
     try {
         console.log("Verificando si el usuario existe en Firebase Auth...");
         try {
-            await admin.auth().getUser(uid);
-            console.log("El usuario ya existe. Actualizando contraseña...");
-            await admin.auth().updateUser(uid, { password: password });
+            const userRecord = await admin.auth().getUserByEmail(email);
+            console.log(`El usuario ya existe con UID ${userRecord.uid}. Actualizando contraseña...`);
+            await admin.auth().updateUser(userRecord.uid, { password: password });
             console.log("✅ Contraseña actualizada con éxito a 8494493444.");
         } catch (err) {
             if (err.code === 'auth/user-not-found') {
