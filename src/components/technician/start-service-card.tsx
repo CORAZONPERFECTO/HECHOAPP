@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage, auth } from "@/lib/firebase";
 import { Ticket, TicketPhoto } from "@/types/tickets";
@@ -51,13 +51,44 @@ export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
                 timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
             };
 
-            // 2. Update ticket
+            // 2. Update visits history
+            const currentVisits = ticket.visits || [];
+            let updatedVisits = [...currentVisits];
+            
+            if (updatedVisits.length === 0) {
+                updatedVisits.push({
+                    id: `v1-${Date.now()}`,
+                    visitNumber: 1,
+                    technicianId: ticket.technicianId || "unknown",
+                    technicianName: ticket.technicianName || "Técnico",
+                    status: 'IN_PROGRESS',
+                    arrivedAt: Timestamp.now(),
+                    workStartedAt: Timestamp.now(),
+                    startMileage: mileageNum,
+                    photos: [newPhoto]
+                });
+            } else {
+                const lastIndex = updatedVisits.length - 1;
+                if (updatedVisits[lastIndex].status === 'SCHEDULED') {
+                    updatedVisits[lastIndex] = {
+                        ...updatedVisits[lastIndex],
+                        status: 'IN_PROGRESS',
+                        arrivedAt: Timestamp.now(),
+                        workStartedAt: Timestamp.now(),
+                        startMileage: mileageNum,
+                        photos: [...(updatedVisits[lastIndex].photos || []), newPhoto]
+                    };
+                }
+            }
+
+            // 3. Update ticket
             const updates = {
                 arrivedAt: serverTimestamp(),
                 workStartedAt: serverTimestamp(),
                 status: 'IN_PROGRESS',
                 startMileage: mileageNum,
-                photos: [...(ticket.photos || []), newPhoto]
+                photos: [...(ticket.photos || []), newPhoto],
+                visits: updatedVisits
             };
 
             await updateDoc(doc(db, "tickets", ticket.id), updates);

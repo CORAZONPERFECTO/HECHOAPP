@@ -49,6 +49,24 @@ export interface ChecklistItem {
     checked: boolean;
 }
 
+export interface TicketVisit {
+    id: string;
+    visitNumber: number;
+    technicianId: string;
+    technicianName: string;
+    status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+    scheduledDate?: Timestamp;
+    arrivedAt?: Timestamp;
+    workStartedAt?: Timestamp;
+    workEndedAt?: Timestamp;
+    startMileage?: number;
+    endMileage?: number;
+    diagnosis?: string;
+    solution?: string;
+    recommendations?: string;
+    photos?: TicketPhoto[];
+}
+
 export interface Ticket {
     id: string;
     ticketNumber?: string;
@@ -73,6 +91,7 @@ export interface Ticket {
     technicianId?: string;
     technicianName?: string;
     tecnicoAsignadoId?: string;
+    visits?: TicketVisit[];
     extraServices?: string[]; // Multiple additional services added by admin/manager
     creadoPorId?: string;
     diagnosis?: string;

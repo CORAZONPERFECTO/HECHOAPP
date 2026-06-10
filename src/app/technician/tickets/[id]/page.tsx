@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { useParams, useRouter } from "next/navigation";
+import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,80 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { FloatingActionButtons } from "@/components/technician/floating-action-buttons";
 import { sendWhatsAppNotification } from "@/lib/whatsapp-service";
 
+const getUpdatedVisitsForDraft = (ticket: any) => {
+    const currentVisits = ticket.visits || [];
+    let updatedVisits = [...currentVisits];
+    
+    if (updatedVisits.length === 0) {
+        updatedVisits.push({
+            id: `v1-${Date.now()}`,
+            visitNumber: 1,
+            technicianId: ticket.technicianId || "unknown",
+            technicianName: ticket.technicianName || "Técnico",
+            status: ticket.status === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'SCHEDULED',
+            diagnosis: ticket.diagnosis || "",
+            solution: ticket.solution || "",
+            recommendations: ticket.recommendations || "",
+            photos: ticket.photos || []
+        });
+    } else {
+        const lastIndex = updatedVisits.length - 1;
+        if (updatedVisits[lastIndex].status === 'IN_PROGRESS' || updatedVisits[lastIndex].status === 'SCHEDULED') {
+            updatedVisits[lastIndex] = {
+                ...updatedVisits[lastIndex],
+                diagnosis: ticket.diagnosis || "",
+                solution: ticket.solution || "",
+                recommendations: ticket.recommendations || "",
+                photos: ticket.photos || []
+            };
+        }
+    }
+    return updatedVisits;
+};
+
+const getUpdatedVisitsForClosure = (ticket: any, endMileageNum: number, status: 'IN_PROGRESS' | 'COMPLETED') => {
+    const currentVisits = ticket.visits || [];
+    let updatedVisits = [...currentVisits];
+    
+    if (updatedVisits.length === 0) {
+        updatedVisits.push({
+            id: `v1-${Date.now()}`,
+            visitNumber: 1,
+            technicianId: ticket.technicianId || "unknown",
+            technicianName: ticket.technicianName || "Técnico",
+            status: status,
+            arrivedAt: ticket.arrivedAt || Timestamp.now(),
+            workStartedAt: ticket.workStartedAt || Timestamp.now(),
+            workEndedAt: Timestamp.now(),
+            startMileage: ticket.startMileage || 0,
+            endMileage: endMileageNum,
+            diagnosis: ticket.diagnosis || "",
+            solution: ticket.solution || "",
+            recommendations: ticket.recommendations || "",
+            photos: ticket.photos || []
+        });
+    } else {
+        const lastIndex = updatedVisits.length - 1;
+        if (updatedVisits[lastIndex].status === 'IN_PROGRESS' || updatedVisits[lastIndex].status === 'SCHEDULED') {
+            updatedVisits[lastIndex] = {
+                ...updatedVisits[lastIndex],
+                status: status,
+                workEndedAt: Timestamp.now(),
+                endMileage: endMileageNum,
+                diagnosis: ticket.diagnosis || "",
+                solution: ticket.solution || "",
+                recommendations: ticket.recommendations || "",
+                photos: ticket.photos || []
+            };
+        }
+    }
+    return updatedVisits;
+};
+
 // FORZAR ACTUALIZACION VERCEL - VERSION 3.1 TABS, MATERIALES Y HERRAMIENTAS, CIERRE
 export default function TechnicianTicketPage() {
     const params = useParams();
+    const router = useRouter();
     const id = params?.id as string;
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [clientPhone, setClientPhone] = useState<string>("");
@@ -53,6 +124,17 @@ export default function TechnicianTicketPage() {
     const [password, setPassword] = useState("");
     const [authLoading, setAuthLoading] = useState(true);
     const [permissionsGranted, setPermissionsGranted] = useState(false);
+    const [userRole, setUserRole] = useState<string>("");
+
+    useEffect(() => {
+        if (user) {
+            getDoc(doc(db, "users", user.uid)).then((docSnap) => {
+                if (docSnap.exists()) {
+                    setUserRole(docSnap.data().rol || docSnap.data().role || "");
+                }
+            }).catch(console.error);
+        }
+    }, [user]);
 
     // Offline sync
     const { isOnline, isSyncing, pendingOperations, saveOffline } = useOfflineSync();
@@ -169,6 +251,7 @@ export default function TechnicianTicketPage() {
         if (!ticket) return;
         setSaving(true);
         try {
+            const updatedVisits = getUpdatedVisitsForDraft(ticket);
             const updates = {
                 checklist: ticket.checklist || [],
                 materialsChecklist: ticket.materialsChecklist || [],
@@ -179,6 +262,7 @@ export default function TechnicianTicketPage() {
                 recommendations: ticket.recommendations || "",
                 clientSignature: ticket.clientSignature || "",
                 clientSignatureName: ticket.clientSignatureName || "",
+                visits: updatedVisits,
                 updatedAt: serverTimestamp()
             };
 
@@ -255,6 +339,23 @@ export default function TechnicianTicketPage() {
         <div className="min-h-screen bg-gray-50 pb-24">
             {/* Offline Indicator */}
             <OfflineIndicator pendingOperations={pendingOperations} isSyncing={isSyncing} />
+
+            {/* Admin Banner inside Technician view */}
+            {user && ticket && (userRole === 'ADMIN' || user.email?.toLowerCase() === 'lcaa27@gmail.com') && (
+                <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-4 py-2.5 text-xs flex justify-between items-center shadow-md sticky top-[49px] z-10">
+                    <span className="font-semibold flex items-center gap-1.5">
+                        🛡️ Vista de Técnico (Administrador)
+                    </span>
+                    <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        onClick={() => router.push(`/tickets/${ticket.id}`)}
+                        className="h-7 text-xs px-2.5 bg-white text-blue-900 font-bold hover:bg-blue-50 border-0"
+                    >
+                        Gestionar Ticket →
+                    </Button>
+                </div>
+            )}
 
             {/* Header Mobile-First */}
             <div className="bg-white border-b sticky top-0 z-10 px-4 py-3 flex justify-between items-center shadow-sm">
@@ -845,11 +946,13 @@ export default function TechnicianTicketPage() {
                                     try {
                                         setSaving(true);
                                         // Complete Ticket
+                                        const updatedVisits = getUpdatedVisitsForClosure(ticket, endMileageNum, 'COMPLETED');
                                         await updateDoc(doc(db, "tickets", ticket.id!), {
                                             status: 'COMPLETED',
                                             closedAt: serverTimestamp(),
                                             endMileage: endMileageNum,
-                                            interventionId: "NOT_APPLICABLE"
+                                            interventionId: "NOT_APPLICABLE",
+                                            visits: updatedVisits
                                         });
 
                                         // Update user vehicle profile mileage
@@ -930,11 +1033,13 @@ export default function TechnicianTicketPage() {
                                 const endMileageNum = parseInt(endMileage);
 
                                 // Complete Ticket
+                                const updatedVisits = getUpdatedVisitsForClosure(ticket, endMileageNum, 'COMPLETED');
                                 await updateDoc(doc(db, "tickets", ticket.id!), {
                                     status: 'COMPLETED',
                                     closedAt: serverTimestamp(),
                                     endMileage: endMileageNum,
-                                    interventionId: "PENDING_LINK"
+                                    interventionId: "PENDING_LINK",
+                                    visits: updatedVisits
                                 });
 
                                 // Update user vehicle profile mileage

@@ -81,10 +81,20 @@ export default function AssignmentDashboard() {
             const technician = technicians.find(t => t.id === technicianId);
             if (!technician) return;
 
+            const firstVisit = {
+                id: `v1-${Date.now()}`,
+                visitNumber: 1,
+                technicianId: technician.id,
+                technicianName: technician.name,
+                status: "SCHEDULED",
+                scheduledDate: Timestamp.now()
+            };
+
             await updateDoc(doc(db, "tickets", ticketId), {
                 technicianId: technician.id,
                 technicianName: technician.name,
                 updatedAt: Timestamp.now(),
+                visits: [firstVisit],
                 timeline: arrayUnion({
                     status: "ASSIGNED",
                     timestamp: Timestamp.now(),

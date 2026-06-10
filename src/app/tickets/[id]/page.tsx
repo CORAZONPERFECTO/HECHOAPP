@@ -34,6 +34,9 @@ import { ProfitabilityCard } from "@/components/tickets/profitability-card";
 import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function TicketDetailPage() {
     const params = useParams();
@@ -48,8 +51,158 @@ export default function TicketDetailPage() {
     const [currentUserEmail, setCurrentUserEmail] = useState("");
     const [currentUserName, setCurrentUserName] = useState("");
     const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
+    const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+    const [showNewVisitModal, setShowNewVisitModal] = useState(false);
+    const [newVisitTechId, setNewVisitTechId] = useState("");
+    const [newVisitDate, setNewVisitDate] = useState("");
 
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
+
+    useEffect(() => {
+        if (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE') {
+            import("firebase/firestore").then(async ({ collection, getDocs }) => {
+                try {
+                    const snap = await getDocs(collection(db, "users"));
+                    const techs = snap.docs
+                        .filter(d => d.data().role === 'TECNICO' || d.data().rol === 'TECNICO')
+                        .map(d => ({
+                            id: d.id,
+                            name: d.data().name || d.data().displayName || d.data().email || "Técnico"
+                        }));
+                    setTechnicians(techs);
+                } catch (err) {
+                    console.error("Error loading technicians:", err);
+                }
+            });
+        }
+    }, [currentUserRole]);
+
+    const handleReassign = async (techId: string) => {
+        if (!ticket) return;
+        const selectedTech = technicians.find(t => t.id === techId);
+        if (!selectedTech) return;
+
+        if (ticket.arrivedAt || ticket.status === 'IN_PROGRESS') {
+            alert("⚠️ El técnico ya inició el servicio. No se puede reasignar.");
+            return;
+        }
+
+        try {
+            const currentVisits = ticket.visits || [];
+            let updatedVisits = [...currentVisits];
+            
+            if (updatedVisits.length === 0) {
+                updatedVisits.push({
+                    id: `v1-${Date.now()}`,
+                    visitNumber: 1,
+                    technicianId: selectedTech.id,
+                    technicianName: selectedTech.name,
+                    status: 'SCHEDULED',
+                    scheduledDate: ticket.scheduledStart || Timestamp.now()
+                });
+            } else {
+                const lastIndex = updatedVisits.length - 1;
+                if (updatedVisits[lastIndex].status === 'SCHEDULED') {
+                    updatedVisits[lastIndex] = {
+                        ...updatedVisits[lastIndex],
+                        technicianId: selectedTech.id,
+                        technicianName: selectedTech.name
+                    };
+                } else {
+                    alert("⚠️ No se puede modificar una visita que ya no está programada.");
+                    return;
+                }
+            }
+
+            const updatedTicket = {
+                ...ticket,
+                technicianId: selectedTech.id,
+                technicianName: selectedTech.name,
+                visits: updatedVisits,
+                updatedAt: Timestamp.now()
+            };
+
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            setTicket(updatedTicket);
+
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'ASSIGNMENT',
+                description: `Reasignó el ticket a ${selectedTech.name}`,
+                timestamp: serverTimestamp()
+            });
+
+            alert(`✅ Ticket reasignado a ${selectedTech.name}`);
+        } catch (error) {
+            console.error("Error reassigning ticket:", error);
+            alert("Error al reasignar el ticket.");
+        }
+    };
+
+    const handleScheduleNewVisit = async () => {
+        if (!ticket || !newVisitTechId || !newVisitDate) {
+            alert("Por favor completa todos los campos.");
+            return;
+        }
+
+        const selectedTech = technicians.find(t => t.id === newVisitTechId);
+        if (!selectedTech) return;
+
+        try {
+            const currentVisits = ticket.visits || [];
+            const nextVisitNumber = currentVisits.length + 1;
+            
+            const newVisit: any = {
+                id: `v${nextVisitNumber}-${Date.now()}`,
+                visitNumber: nextVisitNumber,
+                technicianId: selectedTech.id,
+                technicianName: selectedTech.name,
+                status: 'SCHEDULED',
+                scheduledDate: Timestamp.fromDate(new Date(newVisitDate))
+            };
+
+            const updatedVisits = [...currentVisits, newVisit];
+
+            const updatedTicket: Ticket = {
+                ...ticket,
+                technicianId: selectedTech.id,
+                technicianName: selectedTech.name,
+                status: 'OPEN' as TicketStatus,
+                scheduledStart: Timestamp.fromDate(new Date(newVisitDate)),
+                visits: updatedVisits,
+                updatedAt: Timestamp.now()
+            };
+
+            // Delete active time tracking fields for the new visit so they are cleared in the overwrite
+            delete updatedTicket.enRouteAt;
+            delete updatedTicket.arrivedAt;
+            delete updatedTicket.workStartedAt;
+            delete updatedTicket.startMileage;
+            delete updatedTicket.endMileage;
+
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            setTicket(updatedTicket);
+
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'ASSIGNMENT',
+                description: `Programó la Visita #${nextVisitNumber} con el técnico ${selectedTech.name} para el ${new Date(newVisitDate).toLocaleString()}`,
+                timestamp: serverTimestamp()
+            });
+
+            setShowNewVisitModal(false);
+            setNewVisitTechId("");
+            setNewVisitDate("");
+            alert(`✅ Visita #${nextVisitNumber} programada con éxito.`);
+        } catch (error) {
+            console.error("Error scheduling new visit:", error);
+            alert("Error al programar la nueva visita.");
+        }
+    };
 
     const updateTicket = (updated: Ticket) => {
         setTicket(updated);
@@ -388,6 +541,40 @@ export default function TicketDetailPage() {
                                         <span className="text-gray-500 block">Prioridad</span>
                                         <span className={`font-medium ${ticket.priority === 'URGENT' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
                                     </div>
+                                    <div>
+                                        <span className="text-gray-500 block font-semibold mb-1">Técnico Asignado</span>
+                                        {ticket.arrivedAt || ticket.status === 'IN_PROGRESS' ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-800">{ticket.technicianName || "Sin asignar"}</span>
+                                                <span className="text-xs text-amber-600 italic mt-0.5">⚠️ Servicio iniciado (Asignación bloqueada)</span>
+                                            </div>
+                                        ) : (
+                                            (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE') ? (
+                                                <Select
+                                                    value={ticket.technicianId || "unassigned"}
+                                                    onValueChange={(val) => {
+                                                        if (val !== "unassigned") {
+                                                            handleReassign(val);
+                                                        }
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="w-full bg-white h-9 mt-0.5 text-xs border-slate-200">
+                                                        <SelectValue placeholder="Seleccionar técnico..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-white">
+                                                        <SelectItem value="unassigned">Sin asignar</SelectItem>
+                                                        {technicians.map(t => (
+                                                            <SelectItem key={t.id} value={t.id}>
+                                                                {t.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <span className="font-medium text-slate-800">{ticket.technicianName || "Sin asignar"}</span>
+                                            )
+                                        )}
+                                    </div>
 
                                     <div className="col-span-2">
                                         <div className="flex gap-6 text-xs text-gray-500 border-t pt-2 mt-2">
@@ -448,6 +635,88 @@ export default function TicketDetailPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Historial de Visitas */}
+                        {ticket.visits && ticket.visits.length > 0 && (
+                            <Card className="border-slate-200">
+                                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-base">Historial de Visitas</CardTitle>
+                                        <CardDescription>Detalle de cada visita técnica programada o realizada.</CardDescription>
+                                    </div>
+                                    {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE') && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setNewVisitTechId(ticket.technicianId || "");
+                                                setShowNewVisitModal(true);
+                                            }}
+                                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50"
+                                        >
+                                            + Nueva Visita
+                                        </Button>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-3">
+                                        {ticket.visits.map((visit) => (
+                                            <div key={visit.id} className="p-3 border rounded-lg bg-white shadow-xs text-sm space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-bold text-slate-800">Visita #{visit.visitNumber}</span>
+                                                    <Badge variant={visit.status === 'COMPLETED' ? 'default' : visit.status === 'IN_PROGRESS' ? 'secondary' : 'outline'}>
+                                                        {visit.status === 'COMPLETED' ? 'Completada' : visit.status === 'IN_PROGRESS' ? 'En Curso' : 'Programada'}
+                                                    </Badge>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                                    <div>
+                                                        <span className="font-semibold block">Técnico</span>
+                                                        <span>{visit.technicianName}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-semibold block">Fecha</span>
+                                                        <span>
+                                                            {visit.scheduledDate ? new Date(visit.scheduledDate.seconds * 1000).toLocaleString() : "Sin fecha"}
+                                                        </span>
+                                                    </div>
+                                                    {visit.arrivedAt && (
+                                                        <div>
+                                                            <span className="font-semibold block">Llegada / Inicio</span>
+                                                            <span>{new Date(visit.arrivedAt.seconds * 1000).toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {visit.workEndedAt && (
+                                                        <div>
+                                                            <span className="font-semibold block">Fin de Trabajo</span>
+                                                            <span>{new Date(visit.workEndedAt.seconds * 1000).toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {visit.startMileage !== undefined && visit.startMileage !== null && (
+                                                        <div>
+                                                            <span className="font-semibold block">KM Inicial</span>
+                                                            <span>{visit.startMileage} km</span>
+                                                        </div>
+                                                    )}
+                                                    {visit.endMileage !== undefined && visit.endMileage !== null && (
+                                                        <div>
+                                                            <span className="font-semibold block">KM Final</span>
+                                                            <span>{visit.endMileage} km</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {(visit.diagnosis || visit.solution || visit.recommendations) && (
+                                                    <div className="mt-2 border-t pt-2 space-y-1 text-xs text-gray-700 bg-slate-50 p-2 rounded">
+                                                        {visit.diagnosis && <p><strong>Diagnóstico:</strong> {visit.diagnosis}</p>}
+                                                        {visit.solution && <p><strong>Solución:</strong> {visit.solution}</p>}
+                                                        {visit.recommendations && <p><strong>Recomendaciones:</strong> {visit.recommendations}</p>}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader>
@@ -686,6 +955,54 @@ export default function TicketDetailPage() {
 
             {/* Floating Action Buttons */}
             <FloatingActionButtons ticket={ticket} />
+
+            {/* Modal para programar nueva visita */}
+            <Dialog open={showNewVisitModal} onOpenChange={setShowNewVisitModal}>
+                <DialogContent className="sm:max-w-md bg-white">
+                    <DialogHeader>
+                        <DialogTitle>Programar Nueva Visita</DialogTitle>
+                        <CardDescription>Crea una nueva visita técnica para este ticket de servicio.</CardDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4 text-sm">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="visitTech">Técnico Asignado</Label>
+                            <Select value={newVisitTechId} onValueChange={setNewVisitTechId}>
+                                <SelectTrigger id="visitTech" className="bg-white">
+                                    <SelectValue placeholder="Seleccionar técnico..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white">
+                                    {technicians.map(t => (
+                                        <SelectItem key={t.id} value={t.id}>
+                                            {t.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="visitDate">Fecha y Hora Programada</Label>
+                            <Input
+                                id="visitDate"
+                                type="datetime-local"
+                                value={newVisitDate}
+                                onChange={e => setNewVisitDate(e.target.value)}
+                                className="bg-white"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setShowNewVisitModal(false)}>
+                            Cancelar
+                        </Button>
+                        <Button 
+                            onClick={handleScheduleNewVisit}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            Programar Visita
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
