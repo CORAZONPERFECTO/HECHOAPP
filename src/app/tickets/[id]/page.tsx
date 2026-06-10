@@ -82,8 +82,8 @@ export default function TicketDetailPage() {
         const selectedTech = technicians.find(t => t.id === techId);
         if (!selectedTech) return;
 
-        if (ticket.arrivedAt || ticket.status === 'IN_PROGRESS') {
-            alert("⚠️ El técnico ya inició el servicio. No se puede reasignar.");
+        if (ticket.arrivedAt || ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+            alert("⚠️ El técnico ya llegó al servicio. No se puede reasignar.");
             return;
         }
 
@@ -543,10 +543,10 @@ export default function TicketDetailPage() {
                                     </div>
                                     <div>
                                         <span className="text-gray-500 block font-semibold mb-1">Técnico Asignado</span>
-                                        {ticket.arrivedAt || ticket.status === 'IN_PROGRESS' ? (
+                                        {ticket.arrivedAt || ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' ? (
                                             <div className="flex flex-col">
                                                 <span className="font-medium text-slate-800">{ticket.technicianName || "Sin asignar"}</span>
-                                                <span className="text-xs text-amber-600 italic mt-0.5">⚠️ Servicio iniciado (Asignación bloqueada)</span>
+                                                <span className="text-xs text-amber-600 italic mt-0.5">⚠️ Servicio iniciado o finalizado (Asignación bloqueada)</span>
                                             </div>
                                         ) : (
                                             (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE') ? (
