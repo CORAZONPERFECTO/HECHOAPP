@@ -43,6 +43,14 @@ export interface TicketPhoto {
     details?: string;
 }
 
+export interface TicketVideo {
+    id: string;
+    url: string;
+    description?: string;
+    uploadedAt: Timestamp | any;
+    uploadedBy: string; // Nombre del técnico o persona que lo subió
+}
+
 export interface ChecklistItem {
     id: string;
     text: string;
@@ -87,6 +95,7 @@ export interface Ticket {
     checklist: ChecklistItem[];
     materialsChecklist?: ChecklistItem[];
     photos: TicketPhoto[];
+    videos?: TicketVideo[];
     dismantledParts?: DismantledPart[];
     technicianId?: string;
     technicianName?: string;

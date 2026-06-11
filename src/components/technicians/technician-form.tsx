@@ -36,6 +36,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         telefono: initialData?.telefono || "",
         rol: initialData?.rol || "TECNICO",
         activo: initialData?.activo ?? true,
+        allowVideoUpload: initialData?.allowVideoUpload ?? false,
     });
     const [password, setPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -246,7 +247,32 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
             </div>
 
             {(formData.rol === "TECNICO" || formData.rol === "CONTRATISTA") && (
-                <div className="pt-6 border-t border-gray-100">
+                <div className="pt-6 border-t border-gray-100 space-y-6">
+                    {/* Permiso de Video */}
+                    <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
+                        <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="M23 7a2 2 0 0 0-2.45-1.45L16 7V5a2 2 0 0 0-2-2H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2l4.55 1.45A2 2 0 0 0 23 17V7z"/></svg>
+                            Permisos de Multimedia
+                        </h3>
+                        <div className="flex items-start space-x-3 pt-2">
+                            <input
+                                id="allowVideoUpload"
+                                type="checkbox"
+                                checked={formData.allowVideoUpload || false}
+                                onChange={e => setFormData(prev => ({ ...prev, allowVideoUpload: e.target.checked }))}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer mt-1"
+                            />
+                            <div className="grid gap-1.5 leading-none">
+                                <Label htmlFor="allowVideoUpload" className="cursor-pointer font-medium text-slate-800">
+                                    Permitir subir videos (máx. 15 segundos)
+                                </Label>
+                                <p className="text-xs text-slate-500">
+                                    Habilita al técnico a grabar y subir videos cortos para reportar fugas, ruidos o detalles técnicos. Los videos se auto-eliminarán a los 60 días para ahorrar espacio.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
                         <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>

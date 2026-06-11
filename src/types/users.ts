@@ -24,6 +24,7 @@ export interface User {
     clientId?: string; // For CLIENTE role, binds them to a specific tenant
     activo: boolean;
     vehicle?: UserVehicle; // Optional vehicle assigned to technician
+    allowVideoUpload?: boolean; // Permission to upload videos up to 15 seconds
     lastLocation?: {
         lat: number;
         lng: number;

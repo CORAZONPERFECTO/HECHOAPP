@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
 import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play } from "lucide-react";
-import { Ticket, TicketPhoto } from "@/types/schema";
+import { Ticket, TicketPhoto, TicketVideo } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
+import { VideoUploader } from "@/components/technician/video-uploader";
 import { PermissionRequest } from "@/components/technician/permission-request";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
@@ -118,19 +119,23 @@ export default function TechnicianTicketPage() {
     const [isInterventionOpen, setIsInterventionOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("info");
     const [newMaterialText, setNewMaterialText] = useState("");
-
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [authLoading, setAuthLoading] = useState(true);
     const [permissionsGranted, setPermissionsGranted] = useState(false);
     const [userRole, setUserRole] = useState<string>("");
+    const [allowVideoUpload, setAllowVideoUpload] = useState<boolean>(false);
+    const [technicianName, setTechnicianName] = useState<string>("");
 
     useEffect(() => {
         if (user) {
             getDoc(doc(db, "users", user.uid)).then((docSnap) => {
                 if (docSnap.exists()) {
-                    setUserRole(docSnap.data().rol || docSnap.data().role || "");
+                    const userData = docSnap.data();
+                    setUserRole(userData.rol || userData.role || "");
+                    setAllowVideoUpload(!!userData.allowVideoUpload);
+                    setTechnicianName(userData.nombre || userData.name || user.displayName || user.email || "Técnico");
                 }
             }).catch(console.error);
         }
@@ -300,6 +305,25 @@ export default function TechnicianTicketPage() {
         } catch (error) {
             console.error("Error auto-saving photos:", error);
             alert("Error al guardar la foto en la nube. Por favor intente de nuevo.");
+        }
+    };
+
+    const handleVideoUpdate = async (newVideos: TicketVideo[]) => {
+        if (!ticket) return;
+
+        // Optimistic update
+        setTicket(prev => prev ? { ...prev, videos: newVideos } : null);
+
+        // Auto-save specifically for videos
+        try {
+            const docRef = doc(db, "tickets", ticket.id!);
+            await updateDoc(docRef, {
+                videos: newVideos,
+                updatedAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error("Error auto-saving videos:", error);
+            alert("Error al guardar el video en la nube. Por favor intente de nuevo.");
         }
     };
 
@@ -658,7 +682,7 @@ export default function TechnicianTicketPage() {
                     </TabsContent>
 
                     {/* Fotos Tab */}
-                    <TabsContent value="fotos">
+                    <TabsContent value="fotos" className="space-y-4">
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base">Evidencias Fotográficas</CardTitle>
@@ -687,6 +711,15 @@ export default function TechnicianTicketPage() {
                                 />
                             </CardContent>
                         </Card>
+
+                        {allowVideoUpload && (
+                            <VideoUploader
+                                videos={ticket.videos || []}
+                                onChange={handleVideoUpdate}
+                                ticketId={ticket.id}
+                                technicianName={technicianName}
+                            />
+                        )}
                     </TabsContent>
 
                     {/* Materiales Tab */}
