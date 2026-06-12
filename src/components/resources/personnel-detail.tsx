@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Save, Share2, Trash2, Upload, FileText, Phone, Mail } from "lucide-react";
-import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from "next/image";
+import { useEffect } from "react";
 
 interface PersonnelDetailProps {
     person: PersonnelResource | null;
@@ -38,6 +39,27 @@ export function PersonnelDetail({ person, onBack, onSave }: PersonnelDetailProps
         documents: [],
         active: true
     });
+
+    const [users, setUsers] = useState<{ id: string; nombre: string; email: string }[]>([]);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const snap = await getDocs(query(collection(db, "users"), where("activo", "==", true)));
+                const list = snap.docs
+                    .filter(doc => doc.data().rol === 'TECNICO' || doc.data().rol === 'CONTRATISTA')
+                    .map(doc => ({
+                        id: doc.id,
+                        nombre: doc.data().nombre || doc.data().name || doc.data().email || "Usuario",
+                        email: doc.data().email || ""
+                    }));
+                setUsers(list);
+            } catch (error) {
+                console.error("Error loading users for linking:", error);
+            }
+        };
+        fetchUsers();
+    }, []);
 
     const handleSave = async () => {
         if (!formData.fullName || !formData.cedula) {
@@ -192,6 +214,31 @@ export function PersonnelDetail({ person, onBack, onSave }: PersonnelDetailProps
                                 placeholder="Ej: Juan Pérez"
                             />
                         </div>
+
+                        {(formData.type === "TECNICO" || formData.type === "CONTRATISTA") && (
+                            <div className="space-y-2">
+                                <Label>Usuario Enlazado (Cuenta de Acceso)</Label>
+                                <Select
+                                    value={formData.userId || "none"}
+                                    onValueChange={(val) => setFormData({ ...formData, userId: val === "none" ? undefined : val })}
+                                >
+                                    <SelectTrigger className="bg-white">
+                                        <SelectValue placeholder="Ninguno (Selecciona cuenta de acceso...)" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white">
+                                        <SelectItem value="none">Ninguno (Sin cuenta de acceso)</SelectItem>
+                                        {users.map(u => (
+                                            <SelectItem key={u.id} value={u.id}>
+                                                {u.nombre} ({u.email})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[11px] text-gray-500">
+                                    Vincula este expediente con la cuenta de acceso del técnico para que él y sus administradores puedan ver sus documentos y compartir su solicitud de acceso en los tickets.
+                                </p>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
