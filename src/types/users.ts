@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'GERENTE_TICKETS' | 'TECNICO' | 'CONTRATISTA' | 'CLIENTE';
+export type UserRole = 'ADMIN' | 'SUPERVISOR' | 'GERENTE' | 'GERENTE_TICKETS' | 'TECNICO' | 'CONTRATISTA' | 'CLIENTE' | 'PROPERTY_MANAGER';
 export type ClientType = 'RESIDENCIAL' | 'COMERCIAL' | 'INDUSTRIAL';
 export type PersonnelType = 'EMPLEADO' | 'CONTRATISTA' | 'TECNICO' | 'AYUDANTE' | 'GERENTE' | 'ADMINISTRATIVO';
 
@@ -22,6 +22,8 @@ export interface User {
     telefono?: string;
     rol: UserRole;
     clientId?: string; // For CLIENTE role, binds them to a specific tenant
+    assignedLocations?: string[]; // For PROPERTY_MANAGER, holds the list of assigned location IDs
+    allowedDeviceIds?: string[]; // For restricting logins to specific devices (e.g. max 2 per team)
     activo: boolean;
     vehicle?: UserVehicle; // Optional vehicle assigned to technician
     allowVideoUpload?: boolean; // Permission to upload videos up to 15 seconds

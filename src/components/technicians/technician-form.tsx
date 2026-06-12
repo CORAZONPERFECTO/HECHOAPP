@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { serverTimestamp, doc, setDoc } from "firebase/firestore";
-import { db, firebaseConfig } from "@/lib/firebase";
+import { serverTimestamp, doc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { db, firebaseConfig, auth } from "@/lib/firebase";
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { User, UserRole } from "@/types/schema";
@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Save, Trash2, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { deleteDoc } from "firebase/firestore";
 import { Badge } from "@/components/ui/badge";
 
 interface TechnicianFormProps {
@@ -37,12 +36,82 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         rol: initialData?.rol || "TECNICO",
         activo: initialData?.activo ?? true,
         allowVideoUpload: initialData?.allowVideoUpload ?? false,
+        assignedLocations: initialData?.assignedLocations || [],
+        allowedDeviceIds: initialData?.allowedDeviceIds || [],
     });
     const [password, setPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [passwordSaving, setPasswordSaving] = useState(false);
     const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+    const [deviceResetting, setDeviceResetting] = useState(false);
+    
+    const handleResetDevices = async () => {
+        if (!initialData?.id || !confirm("¿Estás seguro de que deseas desvincular todos los dispositivos de este usuario? El técnico tendrá que volver a iniciar sesión desde su teléfono para registrarlo nuevamente.")) return;
+        
+        setDeviceResetting(true);
+        try {
+            const userRef = doc(db, "users", initialData.id);
+            await setDoc(userRef, { allowedDeviceIds: [] }, { merge: true });
+            setFormData(prev => ({ ...prev, allowedDeviceIds: [] }));
+            alert("Dispositivos restablecidos con éxito.");
+        } catch (e: any) {
+            console.error("Error resetting devices:", e);
+            alert("Error al restablecer dispositivos: " + e.message);
+        } finally {
+            setDeviceResetting(false);
+        }
+    };
+
+    const [allLocations, setAllLocations] = useState<any[]>([]);
+    const [allClients, setAllClients] = useState<any[]>([]);
+    const [locationsLoading, setLocationsLoading] = useState(false);
+    const [locationSearch, setLocationSearch] = useState("");
+
+    useEffect(() => {
+        if (formData.rol !== "PROPERTY_MANAGER") return;
+
+        const fetchData = async () => {
+            setLocationsLoading(true);
+            try {
+                const clientsSnap = await getDocs(collection(db, "clients"));
+                const clientsList = clientsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setAllClients(clientsList);
+
+                const locsSnap = await getDocs(collection(db, "locations"));
+                const locsList = locsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setAllLocations(locsList);
+            } catch (error) {
+                console.error("Error loading clients and locations:", error);
+            } finally {
+                setLocationsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [formData.rol]);
+
+    const filteredLocationsToShow = allLocations
+        .map(loc => {
+            const client = allClients.find(c => c.id === loc.clientId);
+            return {
+                ...loc,
+                clientName: client ? client.nombreComercial : "Cliente Desconocido"
+            };
+        })
+        .filter(loc => {
+            const search = locationSearch.toLowerCase();
+            return (
+                loc.nombre?.toLowerCase().includes(search) ||
+                loc.clientName?.toLowerCase().includes(search)
+            );
+        })
+        .sort((a, b) => {
+            const clientComp = a.clientName.localeCompare(b.clientName);
+            if (clientComp !== 0) return clientComp;
+            return (a.nombre || "").localeCompare(b.nombre || "");
+        });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,9 +171,13 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
 
         setLoading(true);
         try {
+            const idToken = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/admin/delete-user", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`
+                },
                 body: JSON.stringify({ uid: initialData.id }),
             });
 
@@ -136,9 +209,13 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         setPasswordSaving(true);
         setPasswordSuccess(false);
         try {
+            const idToken = await auth.currentUser?.getIdToken();
             const res = await fetch("/api/admin/set-password", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`
+                },
                 body: JSON.stringify({ uid: initialData.id, newPassword }),
             });
 
@@ -225,6 +302,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                             <SelectItem value="TECNICO">🔧 Técnico de Campo</SelectItem>
                             <SelectItem value="CONTRATISTA">👷‍♂️ Contratista Externo</SelectItem>
                             <SelectItem value="CLIENTE">👤 Cliente</SelectItem>
+                            <SelectItem value="PROPERTY_MANAGER">🏢 Gestor de Propiedades (Property Manager)</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -316,6 +394,116 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                                     placeholder="4500"
                                 />
                             </div>
+                        </div>
+                    </div>
+
+                    {isEditing && (
+                        <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
+                            <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                                Dispositivos Móviles Vinculados
+                            </h3>
+                            <p className="text-sm text-slate-500">
+                                Para evitar accesos no autorizados, el inicio de sesión del técnico está restringido a un máximo de 2 dispositivos activos (flotilla).
+                            </p>
+                            
+                            <div className="space-y-2">
+                                {(!formData.allowedDeviceIds || formData.allowedDeviceIds.length === 0) ? (
+                                    <p className="text-xs text-slate-400 italic">No hay ningún dispositivo vinculado. El técnico se registrará automáticamente al iniciar sesión desde su teléfono.</p>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        <span className="text-xs font-semibold text-slate-600 block">Dispositivos registrados ({formData.allowedDeviceIds.length}/2):</span>
+                                        <ul className="text-xs text-slate-700 bg-white border rounded p-2 divide-y font-mono text-[10px]">
+                                            {formData.allowedDeviceIds.map((devId: string, idx: number) => (
+                                                <li key={idx} className="py-1.5 flex justify-between items-center">
+                                                    <span>ID: {devId}</span>
+                                                    <Badge className="bg-blue-50 text-blue-700 border-blue-100 text-[9px] scale-90">Activo</Badge>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+
+                            {formData.allowedDeviceIds && formData.allowedDeviceIds.length > 0 && (
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={handleResetDevices}
+                                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-1.5 mt-2"
+                                    disabled={deviceResetting}
+                                >
+                                    {deviceResetting ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                    )}
+                                    Restablecer Dispositivos
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {formData.rol === "PROPERTY_MANAGER" && (
+                <div className="pt-6 border-t border-gray-100 space-y-6">
+                    <div className="bg-slate-50 p-5 rounded-lg border border-slate-200 space-y-4">
+                        <h3 className="text-md font-semibold text-slate-800 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            Villas Asignadas (Gestor)
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                            Selecciona las villas/ubicaciones que este gestor podrá visualizar y supervisar.
+                        </p>
+
+                        <Input
+                            placeholder="Buscar por villa o cliente..."
+                            value={locationSearch}
+                            onChange={(e) => setLocationSearch(e.target.value)}
+                            className="bg-white mb-2"
+                        />
+
+                        {locationsLoading ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500 py-4 justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Cargando villas...
+                            </div>
+                        ) : (
+                            <div className="max-h-60 overflow-y-auto border bg-white rounded-md p-3 space-y-2">
+                                {filteredLocationsToShow.length === 0 ? (
+                                    <p className="text-xs text-gray-500 text-center py-2">No se encontraron villas.</p>
+                                ) : (
+                                    filteredLocationsToShow.map((loc) => {
+                                        const isChecked = (formData.assignedLocations || []).includes(loc.id);
+                                        return (
+                                            <label key={loc.id} className="flex items-start gap-2.5 p-1.5 hover:bg-slate-50 rounded cursor-pointer text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                        const current = formData.assignedLocations || [];
+                                                        const next = e.target.checked
+                                                            ? [...current, loc.id]
+                                                            : current.filter(id => id !== loc.id);
+                                                        setFormData(prev => ({ ...prev, assignedLocations: next }));
+                                                    }}
+                                                    className="h-4 w-4 rounded text-blue-600 border-gray-300 focus:ring-blue-500 mt-0.5 cursor-pointer"
+                                                />
+                                                <div className="leading-tight">
+                                                    <span className="font-medium text-gray-900">{loc.nombre}</span>
+                                                    <span className="block text-[11px] text-gray-400">
+                                                        Cliente: {loc.clientName || "Desconocido"}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        )}
+                        <div className="text-xs text-gray-400 font-medium">
+                            {(formData.assignedLocations || []).length} villa(s) seleccionada(s).
                         </div>
                     </div>
                 </div>

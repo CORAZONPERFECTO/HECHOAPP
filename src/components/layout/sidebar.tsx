@@ -47,6 +47,7 @@ const adminMenuItems = [
     { label: "Control Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
     { label: "Tareas Logísticas", icon: Truck, href: "/admin/logistics", roles: ["ADMIN", "SUPERVISOR"] },
     { label: "Usuarios", icon: Users, href: "/technicians", roles: ["ADMIN"] },
+    { label: "Villas Gestor", icon: Building2, href: "/property-manager", roles: ["PROPERTY_MANAGER", "ADMIN", "SUPERVISOR"] },
 ];
 
 export function Sidebar() {
@@ -215,7 +216,7 @@ export function Sidebar() {
                             )}
                         >
                             <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm shrink-0">
-                                {userRole === "TECNICO" ? "T" : userRole === "CONTRATISTA" ? "C" : userRole === "GERENTE_TICKETS" ? "GT" : "A"}
+                                {userRole === "TECNICO" ? "T" : userRole === "CONTRATISTA" ? "C" : userRole === "GERENTE_TICKETS" ? "GT" : userRole === "PROPERTY_MANAGER" ? "PM" : "A"}
                             </div>
                             {!collapsed && (
                                 <div className="flex-1 min-w-0 text-left">

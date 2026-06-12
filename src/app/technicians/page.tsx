@@ -18,6 +18,7 @@ const ROL_LABELS: Record<string, string> = {
     TECNICO: "Técnico",
     CONTRATISTA: "Contratista",
     CLIENTE: "Cliente",
+    PROPERTY_MANAGER: "Gestor de Propiedades",
 };
 
 const ROL_COLORS: Record<string, string> = {
@@ -28,6 +29,7 @@ const ROL_COLORS: Record<string, string> = {
     TECNICO: "bg-green-100 text-green-700 border-green-200",
     CONTRATISTA: "bg-orange-100 text-orange-700 border-orange-200",
     CLIENTE: "bg-gray-100 text-gray-700 border-gray-200",
+    PROPERTY_MANAGER: "bg-cyan-100 text-cyan-700 border-cyan-200",
 };
 
 const FILTER_TABS = [
@@ -38,6 +40,7 @@ const FILTER_TABS = [
     { label: "Técnicos", value: "TECNICO" },
     { label: "Contratistas", value: "CONTRATISTA" },
     { label: "Clientes", value: "CLIENTE" },
+    { label: "Gestores", value: "PROPERTY_MANAGER" },
 ];
 
 export default function UsersPage() {

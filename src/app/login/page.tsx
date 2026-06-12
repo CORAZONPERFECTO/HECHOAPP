@@ -3,8 +3,9 @@
 import { useState, Suspense } from "react";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getOrCreateDeviceId } from "@/lib/device";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,29 +81,39 @@ function LoginForm() {
             const userCredential = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
             const user = userCredential.user;
 
+            // Cargar perfil del usuario inmediatamente para validación de seguridad
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const userData = userDoc.data();
+            const rawRole = userData?.rol || userData?.role || "";
+            const normalizedRole = String(rawRole).toUpperCase().trim();
+            const finalRole = (normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO") ? "TECNICO" : normalizedRole;
+
+            // 🔒 Control de Dispositivos Móviles Vinculados (Device Binding)
+            if (finalRole === "TECNICO" || finalRole === "CONTRATISTA") {
+                const deviceId = getOrCreateDeviceId();
+                const allowedDevices: string[] = userData?.allowedDeviceIds || [];
+
+                if (!allowedDevices.includes(deviceId)) {
+                    if (allowedDevices.length < 2) {
+                        // Registrar este nuevo dispositivo
+                        const newDevices = [...allowedDevices, deviceId];
+                        await setDoc(doc(db, "users", user.uid), { allowedDeviceIds: newDevices }, { merge: true });
+                    } else {
+                        // Límite alcanzado, bloquear acceso inmediatamente
+                        const { signOut } = await import("firebase/auth");
+                        await signOut(auth);
+                        setError("Límite de dispositivos alcanzado (Máx 2). Comunícate con tu supervisor para restablecer tus dispositivos vinculados.");
+                        setLoading(false);
+                        return;
+                    }
+                }
+            }
+
             // 🔑 Smart role detection — route based on role, not just redirect URL
             let destination = redirectUrl === "/" ? null : redirectUrl; // respect explicit redirect
 
             if (!destination || destination === "/") {
-                // No specific redirect — detect from role
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    const userData = userDoc.data();
-                    const rawRole = userData?.rol || userData?.role || "";
-                    const normalizedRole = String(rawRole).toUpperCase().trim();
-                    
-                    // Asegurar que si de alguna forma se guardó como "Técnico" o "TECNICO", vaya al mismo lado
-                    const finalRole = normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO" ? "TECNICO" : normalizedRole;
-                    
-                    destination = ROLE_DESTINATIONS[finalRole] || "/";
-                } catch {
-                    // Admin super user fallback
-                    if (user.email?.toLowerCase() === "lcaa27@gmail.com") {
-                        destination = "/";
-                    } else {
-                        destination = redirectUrl || "/";
-                    }
-                }
+                destination = ROLE_DESTINATIONS[finalRole] || "/";
             }
 
             router.push(destination);
@@ -130,7 +141,7 @@ function LoginForm() {
 
             // Check / write user profile in Firestore if it doesn't exist
             const userDocRef = doc(db, "users", user.uid);
-            const userSnap = await getDoc(userDocRef);
+            let userSnap = await getDoc(userDocRef);
             if (!userSnap.exists()) {
                 const { setDoc, serverTimestamp } = await import("firebase/firestore");
                 await setDoc(userDocRef, {
@@ -141,26 +152,40 @@ function LoginForm() {
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp()
                 });
+                userSnap = await getDoc(userDocRef);
+            }
+
+            const userData = userSnap.data();
+            const rawRole = userData?.rol || userData?.role || "";
+            const normalizedRole = String(rawRole).toUpperCase().trim();
+            const finalRole = (normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO") ? "TECNICO" : normalizedRole;
+
+            // 🔒 Control de Dispositivos Móviles Vinculados (Device Binding)
+            if (finalRole === "TECNICO" || finalRole === "CONTRATISTA") {
+                const deviceId = getOrCreateDeviceId();
+                const allowedDevices: string[] = userData?.allowedDeviceIds || [];
+
+                if (!allowedDevices.includes(deviceId)) {
+                    if (allowedDevices.length < 2) {
+                        // Registrar este nuevo dispositivo
+                        const newDevices = [...allowedDevices, deviceId];
+                        await setDoc(doc(db, "users", user.uid), { allowedDeviceIds: newDevices }, { merge: true });
+                    } else {
+                        // Límite alcanzado, bloquear acceso inmediatamente
+                        const { signOut } = await import("firebase/auth");
+                        await signOut(auth);
+                        setError("Límite de dispositivos alcanzado (Máx 2). Comunícate con tu supervisor para restablecer tus dispositivos vinculados.");
+                        setLoading(false);
+                        return;
+                    }
+                }
             }
 
             // Route based on role
             let destination = redirectUrl === "/" ? null : redirectUrl;
 
             if (!destination || destination === "/") {
-                try {
-                    const freshDoc = await getDoc(userDocRef);
-                    const userData = freshDoc.data();
-                    const rawRole = userData?.rol || userData?.role || "";
-                    const normalizedRole = String(rawRole).toUpperCase().trim();
-                    const finalRole = normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO" ? "TECNICO" : normalizedRole;
-                    destination = ROLE_DESTINATIONS[finalRole] || "/";
-                } catch {
-                    if (user.email?.toLowerCase() === "lcaa27@gmail.com") {
-                        destination = "/";
-                    } else {
-                        destination = redirectUrl || "/";
-                    }
-                }
+                destination = ROLE_DESTINATIONS[finalRole] || "/";
             }
 
             router.push(destination);

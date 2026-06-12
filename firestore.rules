@@ -13,6 +13,18 @@ service cloud.firestore {
       return userDoc == null ? null : (userDoc.data.rol != null ? userDoc.data.rol : userDoc.data.role);
     }
 
+    // Obtener las ubicaciones asignadas al gestor
+    function getAssignedLocations() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.assignedLocations != null ? userDoc.data.assignedLocations : [];
+    }
+
+    // Obtener el ID de cliente (tenant) asociado al usuario
+    function getUserClientId() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc == null ? null : userDoc.data.clientId;
+    }
+
     // Comprobar si es un rol gerencial o admin
     function isManager() {
       let role = getUserRole();
@@ -25,14 +37,45 @@ service cloud.firestore {
       );
     }
 
+    // Comprobar si es personal interno (incluyendo técnicos)
+    function isStaff() {
+      let role = getUserRole();
+      return isAuth() && (
+        (request.auth.token.email != null && request.auth.token.email == 'lcaa27@gmail.com') ||
+        role == 'ADMIN' || 
+        role == 'GERENTE' || 
+        role == 'GERENTE_TICKETS' || 
+        role == 'SUPERVISOR' ||
+        role == 'TECNICO' ||
+        role == 'CONTRATISTA'
+      );
+    }
+
     // 1) REGLAS DE SEGURIDAD ESTRICTA: Colección de Usuarios
     // Impide que un TECNICO (o cualquier rol no admin) lea o modifique perfiles de otros
     match /users/{userId} {
-      allow read, write: if isAuth() && (request.auth.uid == userId || isManager());
+      allow read: if isAuth() && (request.auth.uid == userId || isManager());
+      allow create: if isAuth() && isManager();
+      allow delete: if isAuth() && isManager();
+      allow update: if isAuth() && (
+        isManager() || 
+        (
+          request.auth.uid == userId && 
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rol', 'clientId', 'assignedLocations', 'activo', 'allowVideoUpload']) &&
+          (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['allowedDeviceIds']) ||
+            (
+              request.resource.data.allowedDeviceIds.size() <= 2 &&
+              request.resource.data.allowedDeviceIds.hasAll(resource.data.get('allowedDeviceIds', []))
+            )
+          )
+        )
+      );
       
       // Permitir acceso a subcolecciones (ej. notificaciones) solo al dueño o admin
       match /{document=**} {
-        allow read, write: if isAuth() && (request.auth.uid == userId || isManager());
+        allow read: if isAuth() && (request.auth.uid == userId || isManager());
+        allow write: if isAuth() && (request.auth.uid == userId || isManager());
       }
     }
 
@@ -61,25 +104,34 @@ service cloud.firestore {
     // El stock y alertas son modificados por los técnicos al consumir materiales en transacciones
     match /inventory_stock/{stockId} {
       allow read: if isAuth();
-      allow write: if isAuth();
+      allow write: if isStaff();
     }
     
     match /inventory_alerts/{alertId} {
       allow read: if isAuth();
-      allow write: if isAuth();
+      allow write: if isStaff();
     }
     
     // Los movimientos pueden ser creados por técnicos, pero nunca modificados ni eliminados por ellos
     match /inventory_movements/{movementId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isStaff();
       allow update, delete: if isManager();
     }
     
     // 4) TICKETS Y SUBCOLECCIONES
-    // Técnicos pueden leer todos pero solo actualizar los asignados a ellos
+    // Acceso restringido según el rol del usuario (Administración, Técnico Asignado, Cliente Propietario o Gestor de Villa)
     match /tickets/{ticketId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (
+        isManager() || 
+        (resource != null && (
+          resource.data.technicianId == request.auth.uid || 
+          resource.data.tecnicoAsignadoId == request.auth.uid ||
+          (resource.data.clientId != null && resource.data.clientId == getUserClientId()) ||
+          (resource.data.locationId != null && resource.data.locationId in getAssignedLocations()) ||
+          (resource.data.villaId != null && resource.data.villaId in getAssignedLocations())
+        ))
+      );
       allow create: if isManager();
       allow update: if isManager() || (isAuth() && (
         resource.data.technicianId == request.auth.uid || 
@@ -88,7 +140,19 @@ service cloud.firestore {
       allow delete: if isManager();
       
       match /{document=**} {
-        allow read: if isAuth();
+        allow read: if isAuth() && (
+          isManager() || 
+          (
+            let parentTicketDoc = get(/databases/$(database)/documents/tickets/$(ticketId));
+            parentTicketDoc != null && (
+              parentTicketDoc.data.technicianId == request.auth.uid || 
+              parentTicketDoc.data.tecnicoAsignadoId == request.auth.uid ||
+              (parentTicketDoc.data.clientId != null && parentTicketDoc.data.clientId == getUserClientId()) ||
+              (parentTicketDoc.data.locationId != null && parentTicketDoc.data.locationId in getAssignedLocations()) ||
+              (parentTicketDoc.data.villaId != null && parentTicketDoc.data.villaId in getAssignedLocations())
+            )
+          )
+        );
         allow create, update: if isManager() || (isAuth() && (
           get(/databases/$(database)/documents/tickets/$(ticketId)).data.technicianId == request.auth.uid || 
           get(/databases/$(database)/documents/tickets/$(ticketId)).data.tecnicoAsignadoId == request.auth.uid
@@ -122,7 +186,7 @@ service cloud.firestore {
     // Historial y Control de Kilometraje de Vehículos
     match /vehicleMileageLogs/{logId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isStaff();
       allow update, delete: if isManager();
     }
 
@@ -147,13 +211,35 @@ service cloud.firestore {
     }
     
     // 7) FALLBACK SEGURO PARA OTRAS COLECCIONES
+    // Reglas para ubicaciones, equipos e intervenciones específicas de gestores
+    match /locations/{locationId} {
+      allow read: if isAuth() && (isManager() || locationId in getAssignedLocations());
+      allow write: if isManager();
+    }
+
+    match /equipment/{equipmentId} {
+      allow read: if isAuth() && (
+        isManager() || 
+        (resource != null && (resource.data.locationId in getAssignedLocations() || resource.data.villaId in getAssignedLocations()))
+      );
+      allow write: if isManager();
+    }
+
+    match /interventions/{interventionId} {
+      allow read: if isAuth() && (
+        isManager() || 
+        (resource != null && resource.data.locationId in getAssignedLocations())
+      );
+      allow write: if isManager() || isAuth();
+    }
+
     match /{colId}/{docId} {
-      allow read: if isAuth() && colId != 'users' && colId != 'personnel';
-      allow write: if isManager() && colId != 'users' && colId != 'personnel';
+      allow read: if isAuth() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
+      allow write: if isManager() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
       
       match /{document=**} {
-        allow read: if isAuth() && colId != 'users' && colId != 'personnel';
-        allow write: if isManager() && colId != 'users' && colId != 'personnel';
+        allow read: if isAuth() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
+        allow write: if isManager() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
       }
     }
   }
