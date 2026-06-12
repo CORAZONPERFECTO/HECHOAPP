@@ -26,6 +26,7 @@ import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { StatusActionButtons } from "@/components/technician/status-action-buttons";
+import { TechnicianDocumentsCard } from "@/components/tickets/technician-documents-card";
 import { FloatingActionButtons } from "@/components/technician/floating-action-buttons";
 import { EquipmentHistoryModal } from "@/components/technician/equipment-history-modal";
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
@@ -635,6 +636,13 @@ export default function TicketDetailPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {ticket.technicianId && (
+                            <TechnicianDocumentsCard
+                                technicianId={ticket.technicianId}
+                                ticket={ticket}
+                            />
+                        )}
 
                         {/* Historial de Visitas */}
                         {ticket.visits && ticket.visits.length > 0 && (

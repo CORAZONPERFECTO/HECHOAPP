@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
 import { VideoUploader } from "@/components/technician/video-uploader";
+import { TechnicianDocumentsCard } from "@/components/tickets/technician-documents-card";
 import { PermissionRequest } from "@/components/technician/permission-request";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
@@ -547,6 +548,13 @@ export default function TechnicianTicketPage() {
                                 </a>
                             </CardContent>
                         </Card>
+
+                        {ticket.technicianId && (
+                            <TechnicianDocumentsCard
+                                technicianId={ticket.technicianId}
+                                ticket={ticket}
+                            />
+                        )}
 
                         {/* Historial de Equipo (RIT) */}
                         {ticket.equipmentId && (
