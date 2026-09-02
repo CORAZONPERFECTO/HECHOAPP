@@ -646,25 +646,128 @@ export default function TechnicianTicketPage() {
                     </TabsContent>
 
                     {/* Checklist Tab */}
-                    <TabsContent value="checklist">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Checklist de Servicio</CardTitle>
+                    <TabsContent value="checklist" className="space-y-4">
+                        {/* Mis Tareas Pendientes Section */}
+                        <Card className="border-blue-200 bg-blue-50/10 shadow-sm">
+                            <CardHeader className="pb-2 bg-blue-50/30">
+                                <CardTitle className="text-base text-blue-900 flex items-center gap-2">
+                                    <ListChecks className="h-5 w-5 text-blue-600" />
+                                    Mis Tareas Asignadas Pendientes
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <ChecklistRenderer
-                                    items={ticket.checklist || []}
-                                    onItemChange={async (id, checked) => {
-                                        const newChecklist = ticket.checklist.map(item => item.id === id ? { ...item, checked } : item);
-                                        setTicket(prev => prev ? { ...prev, checklist: newChecklist } : null);
-                                        try {
-                                            await updateDoc(doc(db, "tickets", ticket.id!), { checklist: newChecklist });
-                                        } catch (err) { console.error("Error saving checklist:", err); }
-                                    }}
-                                    readOnly={false}
-                                />
+                            <CardContent className="pt-4">
+                                {(() => {
+                                    const myPending = (ticket.checklist || []).filter(
+                                        item => item.assignedToId === user?.uid && !item.checked
+                                    );
+                                    if (myPending.length === 0) {
+                                        return (
+                                            <div className="text-center py-4 text-emerald-600 font-medium text-sm flex items-center justify-center gap-2">
+                                                <CheckCircle className="h-5 w-5 text-emerald-500" />
+                                                ¡Excelente! No tienes tareas asignadas pendientes.
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="space-y-3">
+                                            {myPending.map((item) => (
+                                                <div key={item.id} className="flex items-start space-x-3 p-3 rounded-lg border border-blue-200 bg-white hover:bg-blue-50/30 transition-colors">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`my-${item.id}`}
+                                                        checked={item.checked}
+                                                        onChange={async (e) => {
+                                                            const newChecklist = ticket.checklist.map(chk =>
+                                                                chk.id === item.id ? { ...chk, checked: e.target.checked } : chk
+                                                            );
+                                                            setTicket(prev => prev ? { ...prev, checklist: newChecklist } : null);
+                                                            try {
+                                                                await updateDoc(doc(db, "tickets", ticket.id!), { checklist: newChecklist });
+                                                            } catch (err) {
+                                                                console.error("Error saving checklist:", err);
+                                                            }
+                                                        }}
+                                                        className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <div className="grid gap-1.5 leading-none flex-1 min-w-0">
+                                                        <label
+                                                            htmlFor={`my-${item.id}`}
+                                                            className="text-sm font-semibold text-blue-950 leading-relaxed cursor-pointer break-words"
+                                                        >
+                                                            {item.text}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
+
+                        {/* Todas las Tareas Section */}
+                        <Card className="border-slate-200 shadow-sm">
+                            <CardHeader className="pb-2 bg-slate-50/50">
+                                <CardTitle className="text-base text-slate-800">Checklist General de Servicio</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                {(!ticket.checklist || ticket.checklist.length === 0) ? (
+                                    <p className="text-sm text-gray-500 italic text-center py-4">No hay tareas en el checklist de este ticket.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {ticket.checklist.map((item) => (
+                                            <div key={item.id} className="flex items-start justify-between p-3 rounded-lg border bg-white hover:bg-slate-50 transition-colors gap-3">
+                                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`gen-${item.id}`}
+                                                        checked={item.checked}
+                                                        onChange={async (e) => {
+                                                            const newChecklist = ticket.checklist.map(chk =>
+                                                                chk.id === item.id ? { ...chk, checked: e.target.checked } : chk
+                                                            );
+                                                            setTicket(prev => prev ? { ...prev, checklist: newChecklist } : null);
+                                                            try {
+                                                                await updateDoc(doc(db, "tickets", ticket.id!), { checklist: newChecklist });
+                                                            } catch (err) {
+                                                                console.error("Error saving checklist:", err);
+                                                            }
+                                                        }}
+                                                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <div className="grid gap-1 leading-none flex-1 min-w-0">
+                                                        <label
+                                                            htmlFor={`gen-${item.id}`}
+                                                            className={`text-sm font-medium leading-relaxed cursor-pointer break-words ${item.checked ? 'line-through text-gray-400' : 'text-gray-800'}`}
+                                                        >
+                                                            {item.text}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="shrink-0 flex items-center">
+                                                    {item.assignedToId === user?.uid ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                                            Para mí
+                                                        </span>
+                                                    ) : item.assignedToId ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 max-w-[120px] truncate" title={item.assignedToName}>
+                                                            👤 {item.assignedToName}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-50 text-gray-400 border">
+                                                            General
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Checklist de Materiales y Herramientas (Existing) */}
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-base text-blue-700">Preparación de Materiales y Herramientas</CardTitle>

@@ -28,9 +28,9 @@ const processImage = async (file: File, location?: string): Promise<Blob> => {
             const ctx = canvas.getContext('2d');
             if (!ctx) { resolve(file); return; }
 
-            // Resize to max 1280px for faster upload on mobile
+            // Resize to max 2048px (2K) to preserve crisp text and details (crucial for technicians' work audits)
             let { width, height } = img;
-            const MAX = 1280;
+            const MAX = 2048;
             if (width > MAX || height > MAX) {
                 if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
                 else { width = Math.round(width * MAX / height); height = MAX; }
@@ -60,7 +60,8 @@ const processImage = async (file: File, location?: string): Promise<Blob> => {
             }
             ctx.fillText(`🕐 ${timeStr}  📅 ${dateStr}`, pad, y);
 
-            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.82);
+            // Use 0.90 quality to prevent compression artifacts in texts and labels
+            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.90);
         };
 
         img.onerror = () => resolve(file);

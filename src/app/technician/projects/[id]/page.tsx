@@ -7,7 +7,7 @@ import { auth, db } from "@/lib/firebase";
 import { Project, ProjectZone, ProjectArea, ProjectTaller } from "@/types/projects";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Loader2, Camera, Building2, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Loader2, Camera, Building2, AlertTriangle, ShieldAlert, FileText, Download } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +60,17 @@ export default function TechnicianProjectDetailPage() {
     const [blocking, setBlocking] = useState(false);
     const [blockedByContractor, setBlockedByContractor] = useState("");
     const [customContractor, setCustomContractor] = useState("");
+
+    const daysRemaining = useMemo(() => {
+        if (!project || !project.createdAt) return null;
+        const retentionMonths = project.documentRetentionMonths || 18;
+        const createdAt = (project.createdAt as any).toDate ? (project.createdAt as any).toDate() : new Date(project.createdAt as any);
+        const expirationDate = new Date(createdAt);
+        expirationDate.setMonth(expirationDate.getMonth() + retentionMonths);
+        const today = new Date();
+        const timeDiff = expirationDate.getTime() - today.getTime();
+        return Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    }, [project]);
 
     const groupedZones = useMemo(() => {
         const groups: Record<string, ProjectZone[]> = {};
@@ -144,14 +155,70 @@ export default function TechnicianProjectDetailPage() {
         };
     }, [projectId, isOnline]);
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+    const compressImageTaller = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setEvidencePhoto(reader.result as string);
+            reader.onload = (e) => { img.src = e.target?.result as string; };
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    const fallbackReader = new FileReader();
+                    fallbackReader.onloadend = () => resolve(fallbackReader.result as string);
+                    fallbackReader.readAsDataURL(file);
+                    return;
+                }
+
+                // Resize to max 2048px (2K) to keep high details of machinery/labels
+                let { width, height } = img;
+                const MAX = 2048;
+                if (width > MAX || height > MAX) {
+                    if (width > height) {
+                        height = Math.round(height * MAX / width);
+                        width = MAX;
+                    } else {
+                        width = Math.round(width * MAX / height);
+                        height = MAX;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Compress using 90% JPEG quality to ensure legibility of diagnostics
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+                resolve(dataUrl);
+            };
+            img.onerror = () => {
+                const fallbackReader = new FileReader();
+                fallbackReader.onloadend = () => resolve(fallbackReader.result as string);
+                fallbackReader.readAsDataURL(file);
+            };
+            reader.onerror = () => {
+                const fallbackReader = new FileReader();
+                fallbackReader.onloadend = () => resolve(fallbackReader.result as string);
+                fallbackReader.readAsDataURL(file);
             };
             reader.readAsDataURL(file);
+        });
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            try {
+                const compressedBase64 = await compressImageTaller(file);
+                setEvidencePhoto(compressedBase64);
+            } catch (err) {
+                console.error("Error compressing photo:", err);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setEvidencePhoto(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            }
         }
     };
 
@@ -394,6 +461,75 @@ export default function TechnicianProjectDetailPage() {
             </div>
 
             <div className="px-4 space-y-3">
+                {/* Sección de Documentos para Técnico */}
+                <Card className="border-slate-200 shadow-sm rounded-xl bg-white overflow-hidden">
+                    <div className="p-3.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                        <h3 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                            <FileText className="h-4 w-4 text-slate-800" />
+                            Documentos del Proyecto
+                        </h3>
+                        {project.documentRetentionMonths && (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                                Retención: {project.documentRetentionMonths} meses
+                            </span>
+                        )}
+                    </div>
+                    <CardContent className="p-3.5 space-y-2.5">
+                        {project.evidenceDeleted ? (
+                            <p className="text-[11px] text-red-600 font-semibold text-center bg-red-50/50 p-2.5 rounded-lg border border-red-100">
+                                🔒 Las evidencias y documentos de este proyecto han sido eliminadas.
+                            </p>
+                        ) : !project.documents || project.documents.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 font-medium text-center py-2">
+                                No hay documentos cargados en este proyecto.
+                            </p>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                                {(['PLANO', 'REQUERIMIENTO', 'PROCESO', 'TABLA_ERRORES'] as const).map(type => {
+                                    const docFile = project.documents?.find(d => d.type === type);
+                                    let typeTitle = "";
+                                    if (type === "PLANO") typeTitle = "Planos";
+                                    else if (type === "REQUERIMIENTO") typeTitle = "Requerimientos";
+                                    else if (type === "PROCESO") typeTitle = "Procesos";
+                                    else if (type === "TABLA_ERRORES") typeTitle = "Tabla de Errores";
+
+                                    if (!docFile) return null;
+
+                                    return (
+                                        <div key={type} className="border border-slate-100 rounded-lg p-2.5 bg-slate-50/50 flex flex-col justify-between h-20">
+                                            <div>
+                                                <span className="text-[10px] font-bold text-slate-800 block truncate">{typeTitle}</span>
+                                                <span className="text-[9px] text-slate-400 block truncate" title={docFile.name}>
+                                                    {docFile.name}
+                                                </span>
+                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                asChild
+                                                className="w-full bg-white text-[9px] h-6 hover:bg-slate-50 font-bold border-slate-200 p-0"
+                                            >
+                                                <a href={docFile.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1">
+                                                    <Download className="h-2.5 w-2.5" /> Descargar
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 30 && !project.evidenceDeleted && (
+                            <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-2 flex items-start gap-1.5">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                <span className="text-[9px] leading-normal font-semibold">
+                                    Atención: Los documentos del proyecto vencerán en {daysRemaining} días y ya no estarán disponibles.
+                                </span>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {groupedZones.map((group) => {
                     const isGroupExpanded = expandedGroup === group.name;
                     const groupProgress = group.totalTalleres > 0 ? (group.completedTalleres / group.totalTalleres) * 100 : 0;

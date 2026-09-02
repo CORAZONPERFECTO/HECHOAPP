@@ -17,6 +17,36 @@ interface StartServiceCardProps {
     onStart: () => void;
 }
 
+const compressImageFacade = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => { img.src = e.target?.result as string; };
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { resolve(file); return; }
+
+            // Max resolution 2048px (2K) to keep high details
+            let { width, height } = img;
+            const MAX = 2048;
+            if (width > MAX || height > MAX) {
+                if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+                else { width = Math.round(width * MAX / height); height = MAX; }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.90);
+        };
+        img.onerror = () => resolve(file);
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+};
+
 export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
     const [loading, setLoading] = useState(false);
     const [startMileage, setStartMileage] = useState("");
@@ -39,9 +69,17 @@ export function StartServiceCard({ ticket, onStart }: StartServiceCardProps) {
 
         setLoading(true);
         try {
+            // Compress facade photo
+            let blob: Blob = file;
+            try {
+                blob = await compressImageFacade(file);
+            } catch (err) {
+                console.warn("Facade photo compression failed, using original:", err);
+            }
+
             // 1. Upload photo
             const storageRef = ref(storage, `tickets/${ticket.id}/photos/facade_${Date.now()}`);
-            await uploadBytes(storageRef, file);
+            await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
             const downloadUrl = await getDownloadURL(storageRef);
 
             const newPhoto: TicketPhoto = {

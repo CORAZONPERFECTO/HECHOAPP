@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, PackageCheck, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2, PackageCheck, AlertTriangle, QrCode } from "lucide-react";
 import { getProducts, getLocations, registerMovement, getStockByLocation } from "@/lib/inventory-service";
 import { InventoryProduct, InventoryLocation, InventoryMovement, InventoryStock } from "@/types/inventory";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 
 interface TicketMaterialsConsumptionProps {

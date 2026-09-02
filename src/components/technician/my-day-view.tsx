@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, Timestamp, arrayUnion } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, Timestamp, arrayUnion, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { Ticket, User } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
-    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2, Package, Wrench
+    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2, Package, Wrench, ListChecks
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
@@ -39,7 +39,7 @@ export function MyDayView() {
     const { toast } = useToast();
 
     const [showCheckoutWarning, setShowCheckoutWarning] = useState(false);
-    const [checkoutIssues, setCheckoutIssues] = useState<{ name: string; details: string; type: 'STAGNANT' | 'TOOL' }[]>([]);
+    const [checkoutIssues, setCheckoutIssues] = useState<{ name: string; details: string; type: 'STAGNANT' | 'TOOL' | 'CHECKLIST' }[]>([]);
     const [isCheckingShiftEnd, setIsCheckingShiftEnd] = useState(false);
 
     useEffect(() => {
@@ -190,8 +190,45 @@ export function MyDayView() {
             const locs = await getLocations();
             const assignedLoc = locs.find(l => l.responsibleUserId === currentUserId);
             
-            const issues: { name: string; details: string; type: 'STAGNANT' | 'TOOL' }[] = [];
+            const issues: { name: string; details: string; type: 'STAGNANT' | 'TOOL' | 'CHECKLIST' }[] = [];
 
+            // 1. Audit pending checklist tasks assigned to the current technician
+            const allTicketsSnap = await getDocs(query(
+                collection(db, "tickets"),
+                where("technicianId", "==", currentUserId)
+            ));
+            
+            const todayStr = new Date().toISOString().split("T")[0];
+            const allTickets = allTicketsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ticket));
+            
+            // Filter: active tickets OR tickets completed today
+            const relevantTickets = allTickets.filter(t => {
+                if (t.status !== "CANCELLED") {
+                    if (["OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_PARTS"].includes(t.status)) {
+                        return true;
+                    }
+                    if (t.status === "COMPLETED" && t.updatedAt) {
+                        const ticketDateStr = t.updatedAt.toDate 
+                            ? t.updatedAt.toDate().toISOString().split("T")[0]
+                            : new Date(t.updatedAt.seconds * 1000).toISOString().split("T")[0];
+                        return ticketDateStr === todayStr;
+                    }
+                }
+                return false;
+            });
+
+            relevantTickets.forEach(ticket => {
+                const pendingTasks = (ticket.checklist || []).filter(item => item.assignedToId === currentUserId && !item.checked);
+                if (pendingTasks.length > 0) {
+                    issues.push({
+                        name: `Tareas Pendientes - Ticket #${ticket.ticketNumber || ticket.id.substring(0, 6)}`,
+                        details: `Tienes ${pendingTasks.length} tarea(s) sin marcar como completada(s) en ${ticket.clientName}: ${pendingTasks.map(t => t.text).join(", ")}`,
+                        type: 'CHECKLIST'
+                    });
+                }
+            });
+
+            // 2. Audit stagnant inventory
             if (assignedLoc) {
                 const stock = await getStockByLocation(assignedLoc.id);
                 const prods = await getProducts();
@@ -216,7 +253,7 @@ export function MyDayView() {
                 });
             }
 
-            // MOCK: Add a check for standard critical tools checklist confirmation
+            // 3. Audit tools
             issues.push({
                 name: "Herramientas de Trabajo",
                 details: "Asegúrate de haber guardado el Juego de Manómetros y la Bomba de Vacío en tu vehículo.",
@@ -571,6 +608,8 @@ export function MyDayView() {
                                         <div className="mt-0.5">
                                             {issue.type === 'STAGNANT' ? (
                                                 <Package className="h-4 w-4 text-orange-500" />
+                                            ) : issue.type === 'CHECKLIST' ? (
+                                                <ListChecks className="h-4 w-4 text-rose-500 animate-pulse" />
                                             ) : (
                                                 <Wrench className="h-4 w-4 text-blue-500" />
                                             )}

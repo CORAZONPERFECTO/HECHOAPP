@@ -55,6 +55,9 @@ export interface ChecklistItem {
     id: string;
     text: string;
     checked: boolean;
+    assignedToId?: string;
+    assignedToName?: string;
+    assignedAt?: string;
 }
 
 export interface TicketVisit {

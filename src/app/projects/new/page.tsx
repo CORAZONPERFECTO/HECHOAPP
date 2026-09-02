@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Plus, Save, Trash2, GripVertical, CheckCircle2, ChevronRight, Settings2, Copy, Grid3X3, X } from "lucide-react";
 import Link from "next/link";
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, serverTimestamp, writeBatch, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { DEFAULT_TALLERES_TEMPLATES, ProjectTallerTemplate, ProjectZone, ProjectArea, ProjectTaller, Project } from "@/types/projects";
 import { MatrixGeneratorModal } from "@/components/projects/matrix-generator-modal";
+import { useEffect } from "react";
+import { Loader2, ShieldCheck, User } from "lucide-react";
 
 export default function NewProjectPage() {
     const router = useRouter();
@@ -26,6 +28,36 @@ export default function NewProjectPage() {
         location: "",
         description: "",
     });
+
+    // Technicians & Retention lifecycle states
+    const [technicians, setTechnicians] = useState<{ id: string; nombre: string; email: string }[]>([]);
+    const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+    const [documentRetentionMonths, setDocumentRetentionMonths] = useState<number>(18);
+    const [techsLoading, setTechsLoading] = useState(false);
+    const [techSearch, setTechSearch] = useState("");
+
+    useEffect(() => {
+        const fetchTechs = async () => {
+            setTechsLoading(true);
+            try {
+                const usersSnap = await getDocs(collection(db, "users"));
+                const techList = usersSnap.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() } as any))
+                    .filter(u => u.rol === "TECNICO" || u.role === "TECNICO" || u.rol === "CONTRATISTA");
+                setTechnicians(techList);
+            } catch (err) {
+                console.error("Error loading technicians:", err);
+            } finally {
+                setTechsLoading(false);
+            }
+        };
+        fetchTechs();
+    }, []);
+
+    const filteredTechs = technicians.filter(t => 
+        t.nombre?.toLowerCase().includes(techSearch.toLowerCase()) || 
+        t.email?.toLowerCase().includes(techSearch.toLowerCase())
+    );
 
     // Step 2: Templates Configuration
     const [templates, setTemplates] = useState<ProjectTallerTemplate[]>(
@@ -186,6 +218,11 @@ export default function NewProjectPage() {
                 createdBy: user.uid,
                 createdAt: serverTimestamp() as any,
                 updatedAt: serverTimestamp() as any,
+                assignedTechnicianIds: selectedTechs,
+                documentRetentionMonths: documentRetentionMonths,
+                documents: [],
+                documentsRetentionNotificationSent: false,
+                evidenceDeleted: false
             };
 
             batch.set(projectRef, newProject);
@@ -290,6 +327,80 @@ export default function NewProjectPage() {
                                 placeholder="Instalación de sistemas VRF para torre residencial de 10 niveles."
                                 className="text-xs border-slate-200 focus-visible:ring-slate-400 min-h-[80px]"
                             />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                            {/* Selector de Flotilla (Técnicos) */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <User className="h-4 w-4 text-slate-500" /> Asignar Técnicos (Flotilla)
+                                </Label>
+                                <Input
+                                    placeholder="Buscar técnico..."
+                                    value={techSearch}
+                                    onChange={(e) => setTechSearch(e.target.value)}
+                                    className="text-xs h-8 bg-slate-50"
+                                />
+                                {techsLoading ? (
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 justify-center py-4">
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando técnicos...
+                                    </div>
+                                ) : (
+                                    <div className="border border-slate-200 rounded-lg p-2 max-h-36 overflow-y-auto space-y-1 bg-white">
+                                        {filteredTechs.length === 0 ? (
+                                            <p className="text-xs text-slate-400 text-center py-2">No se encontraron técnicos.</p>
+                                        ) : (
+                                            filteredTechs.map(tech => {
+                                                const isChecked = selectedTechs.includes(tech.id);
+                                                return (
+                                                    <label key={tech.id} className="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer text-xs">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedTechs([...selectedTechs, tech.id]);
+                                                                } else {
+                                                                    setSelectedTechs(selectedTechs.filter(id => id !== tech.id));
+                                                                }
+                                                            }}
+                                                            className="h-3.5 w-3.5 rounded text-slate-900 border-slate-300 focus:ring-slate-400 cursor-pointer"
+                                                        />
+                                                        <div className="leading-tight">
+                                                            <span className="font-medium text-slate-700">{tech.nombre}</span>
+                                                            <span className="block text-[10px] text-slate-400">{tech.email}</span>
+                                                        </div>
+                                                    </label>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                )}
+                                <span className="text-[10px] text-slate-400 font-medium block">
+                                    {selectedTechs.length} técnicos seleccionados.
+                                </span>
+                            </div>
+
+                            {/* Vida Útil de Documentos (Retención) */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <ShieldCheck className="h-4 w-4 text-slate-500" /> Vida Útil de Documentos
+                                </Label>
+                                <select
+                                    value={documentRetentionMonths}
+                                    onChange={(e) => setDocumentRetentionMonths(Number(e.target.value))}
+                                    className="w-full text-xs h-9 border border-slate-200 rounded-lg px-2.5 bg-white focus-visible:ring-1 focus-visible:ring-slate-400 font-semibold text-slate-800"
+                                >
+                                    <option value={12}>12 Meses (1 Año)</option>
+                                    <option value={18}>18 Meses (1.5 Años) - Recomendado</option>
+                                    <option value={24}>24 Meses (2 Años)</option>
+                                    <option value={36}>36 Meses (3 Años)</option>
+                                    <option value={60}>60 Meses (5 Años)</option>
+                                </select>
+                                <p className="text-[10px] text-slate-400 leading-normal">
+                                    Los archivos (planos, requerimientos, procesos, tablas de errores) asociados al proyecto se purgarán automáticamente tras este periodo. Se notificará 1 mes antes de expirar.
+                                </p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

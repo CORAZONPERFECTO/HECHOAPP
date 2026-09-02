@@ -3,8 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus, DEFAULT_TALLERES_TEMPLATES, BlockReportAudit } from "@/types/projects";
+import { db, storage, auth } from "@/lib/firebase";
+import { Project, ProjectZone, ProjectArea, ProjectTaller, ProjectStatus, DEFAULT_TALLERES_TEMPLATES, BlockReportAudit, ProjectDocument } from "@/types/projects";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Clock, Loader2, Image as ImageIcon, User, Calendar, Trash2, Grid3X3, FileText, Printer, ShieldAlert, AlertTriangle, Edit, Plus, Pencil, Building2 } from "lucide-react";
@@ -45,7 +48,7 @@ export default function AdminProjectDetailPage() {
     const [showMatrixModal, setShowMatrixModal] = useState(false);
 
     // Technicians list state
-    const [technicians, setTechnicians] = useState<{ id: string; name: string }[]>([]);
+    const [technicians, setTechnicians] = useState<{ id: string; name: string; email?: string }[]>([]);
 
     // Edit project state
     const [isEditingProject, setIsEditingProject] = useState(false);
@@ -53,6 +56,26 @@ export default function AdminProjectDetailPage() {
     const [editClientName, setEditClientName] = useState("");
     const [editStatus, setEditStatus] = useState<ProjectStatus>('PLANNING');
     const [editEstimatedDate, setEditEstimatedDate] = useState("");
+    const [editAssignedTechs, setEditAssignedTechs] = useState<string[]>([]);
+    const [editRetentionMonths, setEditRetentionMonths] = useState<number>(18);
+    const [editTechSearch, setEditTechSearch] = useState("");
+
+    // Document lifecycle and backup states
+    const [downloadingZip, setDownloadingZip] = useState(false);
+    const [deletingEvidences, setDeletingEvidences] = useState(false);
+
+    // Warning and expiration calculation
+    const { daysRemaining, expirationDate } = useMemo(() => {
+        if (!project || !project.createdAt) return { daysRemaining: null, expirationDate: null };
+        const retentionMonths = project.documentRetentionMonths || 18;
+        const createdAt = (project.createdAt as any).toDate ? (project.createdAt as any).toDate() : new Date(project.createdAt as any);
+        const expirationDate = new Date(createdAt);
+        expirationDate.setMonth(expirationDate.getMonth() + retentionMonths);
+        const today = new Date();
+        const timeDiff = expirationDate.getTime() - today.getTime();
+        const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        return { daysRemaining, expirationDate };
+    }, [project]);
 
     useEffect(() => {
         if (!projectId) return;
@@ -217,10 +240,14 @@ export default function AdminProjectDetailPage() {
             try {
                 const usersSnap = await getDocs(collection(db, "users"));
                 const techs = usersSnap.docs
-                    .filter(doc => doc.data().role === "TECNICO")
+                    .filter(doc => {
+                        const r = doc.data().rol || doc.data().role || "";
+                        return r === "TECNICO" || r === "CONTRATISTA";
+                    })
                     .map(doc => ({
                         id: doc.id,
-                        name: doc.data().name || doc.data().email || "Técnico sin nombre",
+                        name: doc.data().nombre || doc.data().name || doc.data().email || "Técnico sin nombre",
+                        email: doc.data().email || ""
                     }));
                 setTechnicians(techs);
             } catch (error) {
@@ -235,6 +262,9 @@ export default function AdminProjectDetailPage() {
         setEditProjectName(project.name);
         setEditClientName(project.clientName || "");
         setEditStatus(project.status);
+        setEditAssignedTechs(project.assignedTechnicianIds || []);
+        setEditRetentionMonths(project.documentRetentionMonths || 18);
+        setEditTechSearch("");
         if (project.estimatedCompletionDate) {
             const date = (project.estimatedCompletionDate as any).toDate 
                 ? (project.estimatedCompletionDate as any).toDate() 
@@ -253,6 +283,8 @@ export default function AdminProjectDetailPage() {
                 name: editProjectName,
                 clientName: editClientName,
                 status: editStatus,
+                assignedTechnicianIds: editAssignedTechs,
+                documentRetentionMonths: editRetentionMonths,
                 updatedAt: serverTimestamp()
             };
             if (editEstimatedDate) {
@@ -871,6 +903,271 @@ export default function AdminProjectDetailPage() {
     };
 
     useEffect(() => {
+        if (!project) return;
+
+        const checkDocumentExpiration = async () => {
+            if (project.evidenceDeleted || !project.documents || project.documents.length === 0) return;
+
+            const retentionMonths = project.documentRetentionMonths || 18;
+            const createdAt = project.createdAt ? 
+                ((project.createdAt as any).toDate ? (project.createdAt as any).toDate() : new Date(project.createdAt as any)) : 
+                new Date();
+            
+            const expirationDate = new Date(createdAt);
+            expirationDate.setMonth(expirationDate.getMonth() + retentionMonths);
+            
+            const today = new Date();
+            const timeDiff = expirationDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+            if (daysRemaining <= 0) {
+                console.log("Project documents expired. Purging...");
+                try {
+                    for (const docFile of project.documents) {
+                        try {
+                            const fileRef = ref(storage, docFile.fileUrl);
+                            await deleteObject(fileRef);
+                        } catch (err) {
+                            console.warn("Error deleting file from storage:", err);
+                        }
+                    }
+                    const projectRef = doc(db, "projects", projectId);
+                    await updateDoc(projectRef, {
+                        documents: []
+                    });
+                } catch (err) {
+                    console.error("Error purging expired documents:", err);
+                }
+            }
+            else if (daysRemaining > 0 && daysRemaining <= 30 && !project.documentsRetentionNotificationSent) {
+                console.log(`Documents will expire in ${daysRemaining} days. Triggering notifications...`);
+                try {
+                    const usersSnap = await getDocs(collection(db, "users"));
+                    const managers = usersSnap.docs
+                        .filter(d => ['ADMIN', 'SUPERVISOR'].includes(d.data().rol || d.data().role))
+                        .map(d => d.id);
+                    
+                    const recipients = new Set([...managers, project.createdBy]);
+                    
+                    const batch = writeBatch(db);
+                    
+                    recipients.forEach(userId => {
+                        if (!userId) return;
+                        const notifRef = doc(collection(db, "users", userId, "notifications"));
+                        batch.set(notifRef, {
+                            title: `Expiración de documentos: ${project.name}`,
+                            body: `Los planos y requerimientos del proyecto vencerán en ${daysRemaining} días (${expirationDate.toLocaleDateString()}). Descarga un respaldo ZIP antes de que se eliminen.`,
+                            read: false,
+                            createdAt: serverTimestamp(),
+                            link: `/projects/${projectId}`
+                        });
+                    });
+                    
+                    const projectRef = doc(db, "projects", projectId);
+                    batch.update(projectRef, {
+                        documentsRetentionNotificationSent: true
+                    });
+                    
+                    await batch.commit();
+                } catch (err) {
+                    console.error("Error triggering expiration notification:", err);
+                }
+            }
+        };
+
+        checkDocumentExpiration();
+    }, [project, db, storage, projectId]);
+
+    const handleUploadDocument = async (type: 'PLANO' | 'REQUERIMIENTO' | 'PROCESO' | 'TABLA_ERRORES', e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        const user = auth.currentUser;
+        if (!user) {
+            alert("Debes estar autenticado");
+            return;
+        }
+
+        try {
+            const storagePath = `projects/${projectId}/documents/${type}_${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, storagePath);
+            await uploadBytes(storageRef, file);
+            const downloadUrl = await getDownloadURL(storageRef);
+
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            const userName = userDoc.exists() ? (userDoc.data().nombre || userDoc.data().name) : user.email;
+
+            const docId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+            const newDoc: ProjectDocument = {
+                id: docId,
+                name: file.name,
+                type: type,
+                fileUrl: downloadUrl,
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: user.uid,
+                uploadedByName: userName || "Usuario"
+            };
+
+            const projectRef = doc(db, "projects", projectId);
+            const currentDocs = project?.documents || [];
+            await updateDoc(projectRef, {
+                documents: [...currentDocs, newDoc]
+            });
+
+            alert("Documento subido y registrado con éxito.");
+        } catch (error: any) {
+            console.error("Error uploading document:", error);
+            alert("Hubo un error al subir el documento: " + error.message);
+        }
+    };
+
+    const handleDeleteDocument = async (docId: string, fileUrl: string) => {
+        if (!confirm("¿Estás seguro de que deseas eliminar este documento?")) return;
+
+        try {
+            try {
+                const fileRef = ref(storage, fileUrl);
+                await deleteObject(fileRef);
+            } catch (err) {
+                console.warn("Storage delete failed (it might be already deleted):", err);
+            }
+
+            const projectRef = doc(db, "projects", projectId);
+            const updatedDocs = (project?.documents || []).filter(d => d.id !== docId);
+            await updateDoc(projectRef, {
+                documents: updatedDocs
+            });
+
+            alert("Documento eliminado.");
+        } catch (error: any) {
+            console.error("Error deleting document:", error);
+            alert("Hubo un error al eliminar el documento: " + error.message);
+        }
+    };
+
+    const handleDownloadRespaldoZIP = async () => {
+        if (!project) return;
+        setDownloadingZip(true);
+        try {
+            const zip = new JSZip();
+
+            const dateStr = new Date().toLocaleDateString();
+            const creatorStr = project.createdBy || "Sistema";
+            const summaryText = `RESUMEN DE RESPALDO DE PROYECTO\nNombre del Proyecto: ${project.name}\nCliente: ${project.clientName || 'N/A'}\nUbicación: ${project.location || 'N/A'}\nDescripción: ${project.description || 'N/A'}\nEstado: ${project.status}\nProgreso Hitos: ${project.completedTalleres} / ${project.totalTalleres} (${(project.progressPercentage || 0).toFixed(1)}%)\nRespaldado el: ${dateStr}\nCreado por: ${creatorStr}\n`;
+            zip.file("resumen_proyecto.txt", summaryText);
+
+            if (project.documents && project.documents.length > 0) {
+                for (const docFile of project.documents) {
+                    try {
+                        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(docFile.fileUrl)}`;
+                        const res = await fetch(proxyUrl);
+                        if (!res.ok) throw new Error("Fetch failed");
+                        const blob = await res.blob();
+                        
+                        let folderName = "Otros";
+                        if (docFile.type === "PLANO") folderName = "Planos";
+                        else if (docFile.type === "REQUERIMIENTO") folderName = "Requerimientos";
+                        else if (docFile.type === "PROCESO") folderName = "Procesos";
+                        else if (docFile.type === "TABLA_ERRORES") folderName = "Tabla_Errores";
+
+                        zip.folder(folderName)?.file(docFile.name, blob);
+                    } catch (err) {
+                        console.error(`Error adding document ${docFile.name} to zip:`, err);
+                    }
+                }
+            }
+
+            for (const zone of zones) {
+                const zoneNameClean = (zone.name || "Zona").replace(/[\\/:*?"<>|]/g, "_");
+                for (const area of zone.areas) {
+                    const areaNameClean = (area.name || "Area").replace(/[\\/:*?"<>|]/g, "_");
+                    for (const taller of area.talleres) {
+                        if (taller.status === "COMPLETED" && taller.evidencePhotoUrl) {
+                            try {
+                                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(taller.evidencePhotoUrl)}`;
+                                const res = await fetch(proxyUrl);
+                                if (!res.ok) throw new Error("Fetch failed");
+                                const blob = await res.blob();
+
+                                let ext = "jpg";
+                                if (taller.evidencePhotoUrl.includes(".png")) ext = "png";
+                                else if (taller.evidencePhotoUrl.includes(".mp4")) ext = "mp4";
+                                
+                                const fileName = `${(taller.name || "Hito").replace(/[\\/:*?"<>|]/g, "_")}_evidencia.${ext}`;
+                                zip.folder("Zonas")
+                                   ?.folder(zoneNameClean)
+                                   ?.folder(areaNameClean)
+                                   ?.file(fileName, blob);
+                            } catch (err) {
+                                console.error(`Error adding evidence photo for ${taller.name} in zip:`, err);
+                            }
+                        }
+                    }
+                }
+            }
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const zipName = `${(project.name || "Proyecto").replace(/[\\/:*?"<>|]/g, "_")}_respaldo.zip`;
+            saveAs(content, zipName);
+        } catch (error) {
+            console.error("Error generating backup zip:", error);
+            alert("Hubo un error al generar el archivo ZIP de respaldo.");
+        } finally {
+            setDownloadingZip(false);
+        }
+    };
+
+    const handleDeleteEvidences = async () => {
+        if (!project) return;
+        if (!confirm("¿Estás seguro de que deseas eliminar permanentemente todas las evidencias multimedia (fotos/videos) y documentos de este proyecto finalizado? Esta acción liberará espacio de almacenamiento y no se puede deshacer.")) return;
+        if (!confirm("Esta es la última confirmación. ¿Deseas purgar de forma permanente todas las evidencias del proyecto?")) return;
+
+        setDeletingEvidences(true);
+        try {
+            const batch = writeBatch(db);
+
+            if (project.documents && project.documents.length > 0) {
+                for (const docFile of project.documents) {
+                    try {
+                        const fileRef = ref(storage, docFile.fileUrl);
+                        await deleteObject(fileRef);
+                    } catch (err) {
+                        console.warn("Storage deletion error during purge:", err);
+                    }
+                }
+            }
+
+            const projectRef = doc(db, "projects", projectId);
+            batch.update(projectRef, {
+                documents: [],
+                evidenceDeleted: true
+            });
+
+            const zonesSnap = await getDocs(query(collection(db, "projectZones"), where("projectId", "==", projectId)));
+            zonesSnap.docs.forEach(docSnap => {
+                const zoneData = docSnap.data() as ProjectZone;
+                const updatedAreas = zoneData.areas.map(area => {
+                    const updatedTalleres = area.talleres.map(taller => ({
+                        ...taller,
+                        evidencePhotoUrl: undefined
+                    }));
+                    return { ...area, talleres: updatedTalleres };
+                });
+                batch.update(doc(db, "projectZones", docSnap.id), {
+                    areas: updatedAreas
+                });
+            });
+
+            await batch.commit();
+            alert("Evidencias del proyecto eliminadas con éxito.");
+        } catch (error) {
+            console.error("Error purging project evidences:", error);
+            alert("Hubo un error al eliminar las evidencias del proyecto.");
+        } finally {
+            setDeletingEvidences(false);
+        }
+    };
+
+    useEffect(() => {
         if (!projectId) return;
 
         // Fetch Project Master
@@ -946,6 +1243,19 @@ export default function AdminProjectDetailPage() {
                         .print-shadow-none { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
                     }
                 `}} />
+
+                {/* Banner de Advertencia de Vencimiento de Documentación */}
+                {daysRemaining !== null && daysRemaining <= 30 && daysRemaining > 0 && !project.evidenceDeleted && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 text-amber-800 animate-pulse no-print">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                            <h4 className="font-bold text-xs">Advertencia de Expiración de Documentación</h4>
+                            <p className="text-[11px] mt-0.5 leading-normal">
+                                Los planos y requerimientos de este proyecto expirarán en <strong>{daysRemaining} días</strong> (Fecha de vencimiento: {expirationDate?.toLocaleDateString()}). Por favor, descarga un respaldo completo en ZIP antes de su eliminación permanente.
+                            </p>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Header Superior - Classic Navy */}
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
@@ -1039,6 +1349,125 @@ export default function AdminProjectDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
+                </div>
+
+                {/* MÓDULO DE DOCUMENTACIÓN DEL PROYECTO */}
+                <Card className="border border-slate-200 shadow-sm rounded-xl bg-white mt-6 no-print">
+                    <CardHeader className="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <CardTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-slate-900" />
+                                Documentación y Retención del Proyecto
+                            </CardTitle>
+                            <p className="text-[11px] text-slate-400 mt-1">
+                                Vida útil configurada: <strong className="text-slate-700">{project.documentRetentionMonths || 18} meses</strong>. 
+                                Expiración: <strong className="text-slate-700">{expirationDate?.toLocaleDateString()}</strong> 
+                                ({daysRemaining !== null ? (daysRemaining > 0 ? `${daysRemaining} días restantes` : 'Expirado') : ''}).
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={handleDownloadRespaldoZIP}
+                                disabled={downloadingZip}
+                                className="bg-slate-950 text-white hover:bg-slate-800 text-xs font-semibold h-8"
+                            >
+                                {downloadingZip ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                ) : (
+                                    <svg className="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                )}
+                                Descargar Respaldo (ZIP)
+                            </Button>
+                            
+                            {(project.status === "COMPLETED" || project.status === "CANCELLED") && !project.evidenceDeleted && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={handleDeleteEvidences}
+                                    disabled={deletingEvidences}
+                                    className="border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold h-8"
+                                >
+                                    {deletingEvidences ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                    ) : (
+                                        <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                                    )}
+                                    Eliminar Evidencias
+                                </Button>
+                            )}
+                        </div>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-4">
+                        {project.evidenceDeleted ? (
+                            <div className="bg-red-50 border border-red-100 rounded-lg p-4 text-center text-red-800 text-xs font-semibold">
+                                🔒 Las evidencias de este proyecto (planos, requerimientos, procesos y fotos de hitos) han sido eliminadas definitivamente por el administrador.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {(['PLANO', 'REQUERIMIENTO', 'PROCESO', 'TABLA_ERRORES'] as const).map(type => {
+                                    const docFile = project.documents?.find(d => d.type === type);
+                                    let typeTitle = "";
+                                    let typeDesc = "";
+                                    if (type === "PLANO") { typeTitle = "Planos de Obra"; typeDesc = "Plano técnico general (.pdf, .dwg)"; }
+                                    else if (type === "REQUERIMIENTO") { typeTitle = "Requerimientos"; typeDesc = "Pliego de condiciones o diseño (.pdf, .docx)"; }
+                                    else if (type === "PROCESO") { typeTitle = "Procesos"; typeDesc = "Instrucciones o manual de montaje"; }
+                                    else if (type === "TABLA_ERRORES") { typeTitle = "Tabla de Errores"; typeDesc = "Códigos de falla y protocolo"; }
+
+                                    return (
+                                        <div key={type} className="border border-slate-100 rounded-xl p-4 bg-slate-50 flex flex-col justify-between h-44">
+                                            <div>
+                                                <h4 className="text-xs font-bold text-slate-800">{typeTitle}</h4>
+                                                <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">{typeDesc}</p>
+                                            </div>
+                                            
+                                            {docFile ? (
+                                                <div className="space-y-2.5 mt-4">
+                                                    <div className="bg-white border border-slate-200 rounded p-1.5 flex items-center justify-between gap-2">
+                                                        <span className="text-[10px] font-medium text-slate-600 truncate max-w-[120px]" title={docFile.name}>
+                                                            {docFile.name}
+                                                        </span>
+                                                        <button 
+                                                            onClick={() => handleDeleteDocument(docFile.id, docFile.fileUrl)}
+                                                            className="text-red-500 hover:text-red-700 text-[10px] font-semibold shrink-0"
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </div>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        asChild
+                                                        className="w-full bg-white text-[10px] h-7 hover:bg-slate-50 font-bold border-slate-200"
+                                                    >
+                                                        <a href={docFile.fileUrl} target="_blank" rel="noopener noreferrer">
+                                                            Descargar
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-4">
+                                                    <label className="w-full border border-dashed border-slate-300 hover:border-slate-400 bg-white rounded-lg p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors h-20">
+                                                        <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                                        <span className="text-[10px] font-bold text-slate-500 mt-1">Subir Archivo</span>
+                                                        <input 
+                                                            type="file" 
+                                                            className="hidden" 
+                                                            onChange={(e) => handleUploadDocument(type, e)}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {/* Panel de Bloqueos y Auditoría de Contratistas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 print:hidden">
                     {/* Hitos Bloqueados */}
@@ -1556,7 +1985,6 @@ export default function AdminProjectDetailPage() {
                         })
                     )}
                 </div>
-            </div>
 
             {/* Photo Viewer Modal */}
             <Dialog open={!!viewingPhoto} onOpenChange={(open) => !open && setViewingPhoto(null)}>
@@ -1641,6 +2069,58 @@ export default function AdminProjectDetailPage() {
                                 onChange={(e) => setEditEstimatedDate(e.target.value)} 
                                 className="text-xs h-9"
                             />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700 uppercase">Asignar Técnicos (Flotilla)</Label>
+                            <Input
+                                placeholder="Buscar técnico..."
+                                value={editTechSearch}
+                                onChange={(e) => setEditTechSearch(e.target.value)}
+                                className="text-xs h-8 bg-slate-50"
+                            />
+                            <div className="border border-slate-200 rounded p-2 max-h-24 overflow-y-auto space-y-1 bg-white mt-1">
+                                {technicians.filter(t => t.name.toLowerCase().includes(editTechSearch.toLowerCase())).length === 0 ? (
+                                    <p className="text-[10px] text-slate-400 text-center py-2">No se encontraron técnicos.</p>
+                                ) : (
+                                    technicians
+                                        .filter(t => t.name.toLowerCase().includes(editTechSearch.toLowerCase()))
+                                        .map(tech => {
+                                            const isChecked = editAssignedTechs.includes(tech.id);
+                                            return (
+                                                <label key={tech.id} className="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer text-[11px]">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                    setEditAssignedTechs([...editAssignedTechs, tech.id]);
+                                                            } else {
+                                                                    setEditAssignedTechs(editAssignedTechs.filter(id => id !== tech.id));
+                                                            }
+                                                        }}
+                                                        className="h-3 w-3 rounded text-slate-900 border-slate-300 focus:ring-slate-400 cursor-pointer"
+                                                    />
+                                                    <span className="text-slate-700 truncate">{tech.name}</span>
+                                                </label>
+                                            );
+                                        })
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="retentionMonths" className="text-xs font-bold text-slate-700 uppercase">Vida Útil de Documentos</Label>
+                            <select
+                                id="retentionMonths"
+                                value={editRetentionMonths}
+                                onChange={(e) => setEditRetentionMonths(Number(e.target.value))}
+                                className="w-full text-xs h-9 bg-white border border-slate-200 rounded px-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 font-semibold"
+                            >
+                                <option value={12}>12 Meses (1 Año)</option>
+                                <option value={18}>18 Meses (1.5 Años)</option>
+                                <option value={24}>24 Meses (2 Años)</option>
+                                <option value={36}>36 Meses (3 Años)</option>
+                                <option value={60}>60 Meses (5 Años)</option>
+                            </select>
                         </div>
                     </div>
                     <DialogFooter className="gap-2">

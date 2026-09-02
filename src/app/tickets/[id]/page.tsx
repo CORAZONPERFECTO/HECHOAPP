@@ -32,7 +32,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,6 +56,8 @@ export default function TicketDetailPage() {
     const [showNewVisitModal, setShowNewVisitModal] = useState(false);
     const [newVisitTechId, setNewVisitTechId] = useState("");
     const [newVisitDate, setNewVisitDate] = useState("");
+    const [newTaskText, setNewTaskText] = useState("");
+    const [newTaskAssignedId, setNewTaskAssignedId] = useState("unassigned");
 
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
 
@@ -208,6 +210,95 @@ export default function TicketDetailPage() {
     const updateTicket = (updated: Ticket) => {
         setTicket(updated);
         setIsDirty(true);
+    };
+
+    const handleAddChecklistItem = async () => {
+        if (!ticket || !newTaskText.trim()) return;
+        
+        const selectedTech = technicians.find(t => t.id === newTaskAssignedId);
+        const newItem = {
+            id: `chk-${Date.now()}`,
+            text: newTaskText.trim(),
+            checked: false,
+            assignedToId: newTaskAssignedId === "unassigned" ? undefined : newTaskAssignedId,
+            assignedToName: newTaskAssignedId === "unassigned" ? undefined : selectedTech?.name,
+            assignedAt: newTaskAssignedId === "unassigned" ? undefined : new Date().toISOString()
+        };
+        
+        const newChecklist = [...(ticket.checklist || []), newItem];
+        updateTicket({ ...ticket, checklist: newChecklist });
+        setNewTaskText("");
+        setNewTaskAssignedId("unassigned");
+        
+        // Log to timeline
+        try {
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'CHECKLIST_UPDATE',
+                description: `Agregó la tarea: "${newItem.text}"` + (newItem.assignedToName ? ` asignada a ${newItem.assignedToName}` : ""),
+                timestamp: serverTimestamp()
+            });
+        } catch (err) {
+            console.error("Error logging event:", err);
+        }
+    };
+
+    const handleDeleteChecklistItem = async (itemId: string, itemText: string) => {
+        if (!ticket) return;
+        if (!confirm(`¿Estás seguro de eliminar la tarea "${itemText}"?`)) return;
+        const newChecklist = (ticket.checklist || []).filter(item => item.id !== itemId);
+        updateTicket({ ...ticket, checklist: newChecklist });
+        
+        // Log to timeline
+        try {
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'CHECKLIST_UPDATE',
+                description: `Eliminó la tarea: "${itemText}"`,
+                timestamp: serverTimestamp()
+            });
+        } catch (err) {
+            console.error("Error logging event:", err);
+        }
+    };
+
+    const handleReassignChecklistItem = async (itemId: string, techId: string) => {
+        if (!ticket) return;
+        const selectedTech = technicians.find(t => t.id === techId);
+        const prevItem = (ticket.checklist || []).find(item => item.id === itemId);
+        
+        const newChecklist = (ticket.checklist || []).map(item => {
+            if (item.id === itemId) {
+                return {
+                    ...item,
+                    assignedToId: techId === "unassigned" ? undefined : techId,
+                    assignedToName: techId === "unassigned" ? undefined : selectedTech?.name,
+                    assignedAt: techId === "unassigned" ? undefined : new Date().toISOString()
+                };
+            }
+            return item;
+        });
+        
+        updateTicket({ ...ticket, checklist: newChecklist });
+        
+        // Log to timeline
+        try {
+            const assigneeStr = techId === "unassigned" ? "Sin asignar" : selectedTech?.name;
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'CHECKLIST_UPDATE',
+                description: `Reasignó la tarea "${prevItem?.text}" a: ${assigneeStr}`,
+                timestamp: serverTimestamp()
+            });
+        } catch (err) {
+            console.error("Error logging event:", err);
+        }
     };
 
     // Auto-save functionality
@@ -759,20 +850,125 @@ export default function TicketDetailPage() {
                     </TabsContent>
 
                     <TabsContent value="checklist" className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Lista de Verificación</CardTitle>
+                        <Card className="border-slate-200 shadow-sm">
+                            <CardHeader className="pb-3 border-b bg-slate-50/50">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <ListChecks className="h-5 w-5 text-blue-600" />
+                                    Panel de Tareas del Servicio
+                                </CardTitle>
+                                <CardDescription>Agrega tareas específicas y asígnalas a los técnicos para el día.</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <ChecklistRenderer
-                                    items={ticket.checklist || []}
-                                    onItemChange={(id, checked) => {
-                                        const newChecklist = ticket.checklist.map(item =>
-                                            item.id === id ? { ...item, checked } : item
-                                        );
-                                        updateTicket({ ...ticket, checklist: newChecklist });
-                                    }}
-                                />
+                            <CardContent className="pt-6 space-y-6">
+                                {/* Formulario para agregar */}
+                                <div className="p-4 bg-slate-50 border rounded-xl space-y-3">
+                                    <Label className="font-semibold text-slate-800 text-xs uppercase tracking-wider">Nueva Tarea Pendiente</Label>
+                                    <div className="flex flex-col md:flex-row gap-3">
+                                        <div className="flex-1">
+                                            <Input
+                                                placeholder="Ej. Realizar vacío del sistema, Limpiar condensador..."
+                                                value={newTaskText}
+                                                onChange={(e) => setNewTaskText(e.target.value)}
+                                                className="bg-white h-10"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleAddChecklistItem();
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="w-full md:w-64">
+                                            <Select
+                                                value={newTaskAssignedId}
+                                                onValueChange={setNewTaskAssignedId}
+                                            >
+                                                <SelectTrigger className="bg-white h-10 text-xs">
+                                                    <SelectValue placeholder="Asignar a..." />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-white">
+                                                    <SelectItem value="unassigned">👥 Sin Asignar (Cualquiera)</SelectItem>
+                                                    {technicians.map(t => (
+                                                        <SelectItem key={t.id} value={t.id}>
+                                                            🔧 {t.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button
+                                            onClick={handleAddChecklistItem}
+                                            disabled={!newTaskText.trim()}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white h-10 px-5 gap-2 shrink-0"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Agregar
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {/* Lista de tareas */}
+                                <div className="space-y-3">
+                                    {(!ticket.checklist || ticket.checklist.length === 0) ? (
+                                        <div className="text-center py-6 text-slate-500 italic text-sm">
+                                            No hay tareas en la lista. Agrega una arriba.
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y border rounded-xl overflow-hidden bg-white">
+                                            {ticket.checklist.map((item) => (
+                                                <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 gap-3 hover:bg-slate-50/50 transition-colors">
+                                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={item.checked}
+                                                            onChange={(e) => {
+                                                                const newChecklist = ticket.checklist.map(chk =>
+                                                                    chk.id === item.id ? { ...chk, checked: e.target.checked } : chk
+                                                                );
+                                                                updateTicket({ ...ticket, checklist: newChecklist });
+                                                            }}
+                                                            className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <span className={`text-sm font-medium leading-relaxed break-words ${item.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                                                            {item.text}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                                                        {/* Dropdown de asignación en caliente */}
+                                                        <div className="w-48">
+                                                            <Select
+                                                                value={item.assignedToId || "unassigned"}
+                                                                onValueChange={(val) => handleReassignChecklistItem(item.id, val)}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-[11px] bg-slate-50 border-slate-200">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent className="bg-white">
+                                                                    <SelectItem value="unassigned">👥 Sin asignar</SelectItem>
+                                                                    {technicians.map(t => (
+                                                                        <SelectItem key={t.id} value={t.id}>
+                                                                            🔧 {t.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        {/* Botón de borrar */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleDeleteChecklistItem(item.id, item.text)}
+                                                            className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 shrink-0"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>

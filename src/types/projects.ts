@@ -51,6 +51,17 @@ export interface ProjectTaller {
     blockReportedBy?: string;
 }
 
+export interface ProjectDocument {
+    id: string;
+    name: string;
+    type: 'PLANO' | 'REQUERIMIENTO' | 'PROCESO' | 'TABLA_ERRORES';
+    fileUrl: string;
+    uploadedAt: Timestamp | Date | string;
+    uploadedBy: string;
+    uploadedByName?: string;
+    size?: number;
+}
+
 export interface Project {
     id: string;
     name: string; // e.g. "Torre Bella Vista"
@@ -74,8 +85,12 @@ export interface Project {
     createdAt: Timestamp | Date;
     updatedAt: Timestamp | Date;
 
-    // Access control
+    // Access control and documents lifecycle
     assignedTechnicianIds?: string[];
+    documentRetentionMonths?: number;
+    documents?: ProjectDocument[];
+    documentsRetentionNotificationSent?: boolean;
+    evidenceDeleted?: boolean;
 }
 
 // Pre-diseños (Plantillas Base)

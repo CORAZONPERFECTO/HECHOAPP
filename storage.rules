@@ -15,6 +15,48 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
+
+    // Allow authenticated users to upload project blueprints, requirements, and taller evidences
+    match /projects/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to upload purchase receipts and invoices
+    match /receipts/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to manage company branding assets (logos)
+    match /company/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to upload HVAC error source tables and manuals
+    match /error_sources/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to upload supplier quotes
+    match /supplier_quotes/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to upload HVAC equipment documentation and photos
+    match /hvac/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Allow payment proofs
+    match /payments/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
     
     // Default deny all other paths
     match /{allPaths=**} {
