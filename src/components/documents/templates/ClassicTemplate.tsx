@@ -1,171 +1,368 @@
 import React from 'react';
-import { Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { DocumentData } from '@/lib/document-generator';
-import { themes } from './DocumentTheme';
-
-const theme = themes.classic;
+import { HECHO_LOGO_BASE64, HECHO_SELLO_BASE64, DEFAULT_COMPANY_DETAILS } from '@/lib/company-branding';
 
 const styles = StyleSheet.create({
     page: {
-        fontFamily: theme.fontMain,
-        fontSize: theme.fontSize.body,
-        padding: 40,
-        lineHeight: 1.5,
+        fontFamily: 'Helvetica',
+        fontSize: 8,
+        paddingTop: 24,
+        paddingBottom: 24,
+        paddingHorizontal: 28,
+        lineHeight: 1.3,
         flexDirection: 'column',
+        color: '#111827',
     },
+    // Top Header
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-        paddingBottom: 10,
-    },
-    logoContainer: {
-        width: '40%',
-    },
-    logo: {
-        width: 120,
-        height: 'auto',
-        objectFit: 'contain',
+        alignItems: 'flex-start',
+        marginBottom: 12,
     },
     companyInfo: {
-        width: '50%',
-        textAlign: 'right',
-        fontSize: 9,
+        width: '58%',
     },
     companyName: {
-        fontSize: 14,
-        fontFamily: theme.fontBold,
-        marginBottom: 4,
+        fontSize: 12,
+        fontFamily: 'Helvetica-Bold',
+        color: '#000000',
+        marginBottom: 1,
     },
-    documentTitleBlock: {
-        marginTop: 10,
-        marginBottom: 20,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    mainTitle: {
-        fontSize: 18,
-        fontFamily: theme.fontBold,
-        textTransform: 'uppercase',
-    },
-    metaBlock: {
-        textAlign: 'right',
-    },
-    metaText: {
-        fontSize: 10,
-    },
-    clientBlock: {
-        marginTop: 0,
-        marginBottom: 20,
-        padding: 10,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: '#eee',
-    },
-    clientLabel: {
-        fontFamily: theme.fontBold,
-        fontSize: 10,
+    companySubtitle: {
+        fontSize: 9.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#000000',
         marginBottom: 2,
     },
-    table: {
-        display: 'flex',
-        width: 'auto',
-        borderStyle: 'solid',
-        borderWidth: 1,
-        borderColor: '#bfbfbf',
-        marginBottom: 10,
+    companyTagline: {
+        fontSize: 7.5,
+        color: '#1f2937',
+        marginBottom: 1,
     },
-    tableRow: {
-        margin: 'auto',
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#bfbfbf',
-        minHeight: 24,
-        alignItems: 'center',
+    companyRncAddress: {
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#1f2937',
     },
-    tableHeader: {
-        backgroundColor: '#e6e6e6',
-        fontFamily: theme.fontBold,
-        fontSize: 9,
+    logoContainer: {
+        width: '38%',
+        alignItems: 'flex-end',
     },
-    tableColDesc: {
-        width: '50%',
-        padding: 5,
-        borderRightWidth: 1,
-        borderRightColor: '#bfbfbf',
+    logo: {
+        width: 110,
+        height: 38,
+        objectFit: 'contain',
     },
-    tableColQty: {
-        width: '10%',
-        padding: 5,
-        borderRightWidth: 1,
-        borderRightColor: '#bfbfbf',
+
+    // Main Green Title Block
+    titleBlock: {
+        textAlign: 'center',
+        marginVertical: 4,
+        paddingBottom: 4,
+    },
+    mainTitle: {
+        fontSize: 16,
+        fontFamily: 'Helvetica-Bold',
+        color: '#166534',
+        textTransform: 'uppercase',
+        letterSpacing: 1.2,
         textAlign: 'center',
     },
-    tableColPrice: {
-        width: '20%',
-        padding: 5,
+    subTitle: {
+        fontSize: 8.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#15803d',
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    docNumber: {
+        fontSize: 9,
+        fontFamily: 'Helvetica-Bold',
+        color: '#111827',
+        textAlign: 'center',
+        marginTop: 2,
+        marginBottom: 4,
+    },
+
+    // Client & Meta Table (2 columns grid)
+    metaTable: {
+        borderWidth: 1,
+        borderColor: '#9ca3af',
+        borderRadius: 2,
+        marginBottom: 8,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#d1d5db',
+        minHeight: 16,
+        alignItems: 'center',
+    },
+    metaRowLast: {
+        flexDirection: 'row',
+        minHeight: 16,
+        alignItems: 'center',
+    },
+    metaColLabel: {
+        width: '15%',
+        paddingVertical: 2,
+        paddingHorizontal: 5,
+        fontFamily: 'Helvetica-Bold',
+        fontSize: 7.5,
+        color: '#111827',
+        backgroundColor: '#f9fafb',
+    },
+    metaColValue: {
+        width: '35%',
+        paddingVertical: 2,
+        paddingHorizontal: 5,
+        fontSize: 7.5,
+        color: '#111827',
         borderRightWidth: 1,
-        borderRightColor: '#bfbfbf',
-        textAlign: 'right',
+        borderRightColor: '#d1d5db',
     },
-    tableColTotal: {
-        width: '20%',
-        padding: 5,
-        textAlign: 'right',
+    metaColValueRight: {
+        width: '35%',
+        paddingVertical: 2,
+        paddingHorizontal: 5,
+        fontSize: 7.5,
+        color: '#111827',
     },
+
+    // Objeto Section
+    sectionHeading: {
+        fontSize: 8.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#166534',
+        textTransform: 'uppercase',
+        marginTop: 4,
+        marginBottom: 2,
+    },
+    objetoText: {
+        fontSize: 7.5,
+        color: '#1f2937',
+        marginBottom: 6,
+        lineHeight: 1.25,
+    },
+
+    // Items Table
+    itemsTable: {
+        borderWidth: 1,
+        borderColor: '#166534',
+        marginBottom: 6,
+    },
+    tableHeaderRow: {
+        flexDirection: 'row',
+        backgroundColor: '#166534',
+        minHeight: 18,
+        alignItems: 'center',
+    },
+    headerCell: {
+        color: '#ffffff',
+        fontFamily: 'Helvetica-Bold',
+        fontSize: 7.5,
+        paddingVertical: 2,
+        paddingHorizontal: 4,
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e5e7eb',
+        minHeight: 16,
+        alignItems: 'center',
+    },
+    tableRowEven: {
+        backgroundColor: '#fdfdfd',
+    },
+    cellNo: {
+        width: '6%',
+        textAlign: 'center',
+        fontSize: 7.5,
+        borderRightWidth: 1,
+        borderRightColor: '#e5e7eb',
+        paddingVertical: 3,
+    },
+    cellDesc: {
+        width: '54%',
+        fontSize: 7.5,
+        borderRightWidth: 1,
+        borderRightColor: '#e5e7eb',
+        paddingVertical: 3,
+        paddingHorizontal: 5,
+    },
+    cellQty: {
+        width: '10%',
+        textAlign: 'center',
+        fontSize: 7.5,
+        borderRightWidth: 1,
+        borderRightColor: '#e5e7eb',
+        paddingVertical: 3,
+    },
+    cellPrice: {
+        width: '15%',
+        textAlign: 'right',
+        fontSize: 7.5,
+        borderRightWidth: 1,
+        borderRightColor: '#e5e7eb',
+        paddingVertical: 3,
+        paddingHorizontal: 5,
+    },
+    cellTotal: {
+        width: '15%',
+        textAlign: 'right',
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        paddingVertical: 3,
+        paddingHorizontal: 5,
+    },
+
+    // Totals Box
     totalsContainer: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        marginTop: 10,
+        marginBottom: 6,
     },
-    totalsTable: {
+    totalsBox: {
         width: '40%',
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
     },
-    totalRow: {
+    totalLine: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 4,
+        paddingVertical: 2.5,
+        paddingHorizontal: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    totalLineGrand: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 3.5,
+        paddingHorizontal: 6,
+        backgroundColor: '#f0fdf4',
     },
     totalLabel: {
-        fontFamily: theme.fontBold,
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#374151',
     },
     totalValue: {
-        textAlign: 'right',
+        fontSize: 7.5,
+        color: '#111827',
     },
-    grandTotal: {
-        fontFamily: theme.fontBold,
-        fontSize: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#000',
-        paddingTop: 4,
-        marginTop: 4,
+    grandTotalLabel: {
+        fontSize: 8.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#166534',
     },
-    footer: {
-        marginTop: 40,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#ccc',
-    },
-    notes: {
+    grandTotalValue: {
         fontSize: 9,
-        fontStyle: 'italic',
-        color: '#555',
+        fontFamily: 'Helvetica-Bold',
+        color: '#166534',
     },
-    signatures: {
-        marginTop: 50,
+
+    // Notas Importantes
+    notesContainer: {
+        marginTop: 2,
+        marginBottom: 6,
+    },
+    noteItem: {
+        fontSize: 7.2,
+        color: '#374151',
+        marginBottom: 1.5,
+        lineHeight: 1.2,
+    },
+
+    // Datos de Pago Banner
+    paymentBanner: {
+        backgroundColor: '#f8fafc',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        paddingVertical: 3,
+        paddingHorizontal: 6,
+        marginVertical: 4,
+        textAlign: 'center',
+    },
+    paymentText: {
+        fontSize: 6.8,
+        fontFamily: 'Helvetica-Bold',
+        color: '#1e293b',
+        textAlign: 'center',
+    },
+
+    // Signatures
+    signaturesRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginTop: 8,
+        marginBottom: 8,
+        paddingHorizontal: 20,
     },
-    signatureBlock: {
-        width: '40%',
-        borderTopWidth: 1,
-        borderTopColor: '#000',
-        paddingTop: 10,
+    signatureBlockLeft: {
+        width: '45%',
         alignItems: 'center',
+    },
+    signatureBlockRight: {
+        width: '45%',
+        alignItems: 'center',
+    },
+    signatureHeader: {
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#1f2937',
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    signatureLine: {
+        width: '80%',
+        borderBottomWidth: 1,
+        borderBottomColor: '#4b5563',
+        marginBottom: 4,
+        marginTop: 25,
+    },
+    signName: {
+        fontSize: 7.8,
+        fontFamily: 'Helvetica-Bold',
+        color: '#111827',
+    },
+    signRole: {
+        fontSize: 7,
+        color: '#4b5563',
+    },
+    signCompany: {
+        fontSize: 7,
+        fontFamily: 'Helvetica-Bold',
+        color: '#166534',
+    },
+    selloImage: {
+        width: 105,
+        height: 52,
+        objectFit: 'contain',
+    },
+
+    // Footer
+    pageFooter: {
+        marginTop: 'auto',
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        paddingTop: 4,
+        textAlign: 'center',
+    },
+    footerCompanyLine: {
+        fontSize: 6.5,
+        fontFamily: 'Helvetica-Bold',
+        color: '#4b5563',
+        textAlign: 'center',
+        marginBottom: 1,
+    },
+    footerDisclaimer: {
+        fontSize: 6,
+        fontStyle: 'italic',
+        color: '#9ca3af',
+        textAlign: 'center',
     },
 });
 
@@ -174,129 +371,190 @@ interface Props {
 }
 
 export const ClassicTemplate: React.FC<Props> = ({ data }) => {
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-DO', {
-            style: 'currency',
-            currency: data.currency || 'DOP',
-        }).format(amount);
+    const isUSD = data.currency === 'USD';
+    const currencyPrefix = isUSD ? 'US$' : 'RD$';
+
+    const formatNumber = (amount: number) => {
+        return (amount || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
     };
 
-    return (
-        <Page size="A4" style={styles.page}>
+    const formatDateSpanish = (d: Date) => {
+        try {
+            return new Intl.DateTimeFormat('es-DO', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            }).format(d);
+        } catch {
+            return d.toLocaleDateString();
+        }
+    };
 
+    const docTitle = data.type === 'COTIZACIÓN' ? 'PRESUPUESTO' : data.type;
+    const clientName = data.client.name || 'Cliente General';
+    const clientLocation = data.client.address || 'Punta Cana, Rep. Dominicana';
+    const formattedDate = formatDateSpanish(data.date || new Date());
+    
+    // Subtitle / Scope derived from items or notes
+    const itemSummary = data.items.map(i => i.description).slice(0, 2).join(' y ');
+    const displaySubtitle = data.notes?.split('\n')[0] || itemSummary || 'Servicios Técnicos Especializados';
+
+    const logoSrc = data.company.logoUrl && data.company.logoUrl.startsWith('http') 
+        ? data.company.logoUrl 
+        : HECHO_LOGO_BASE64;
+
+    const stampSrc = HECHO_SELLO_BASE64;
+
+    return (
+        <Page size="LETTER" style={styles.page}>
             {/* Header */}
             <View style={styles.headerContainer}>
-                <View style={styles.logoContainer}>
-                    {/* Logo Placeholder - Replace with actual Image logic if URL exists */}
-                    {data.company.logoUrl ? (
-                        // Note: react-pdf Image requires a valid URL or base64. 
-                        // We assume the generator passes a proxy URL if needed, similar to current export-utils
-                        <Image src={data.company.logoUrl} style={styles.logo} />
-                    ) : (
-                        <Text style={{ fontSize: 20, fontFamily: theme.fontBold }}>{data.company.name}</Text>
-                    )}
-                </View>
                 <View style={styles.companyInfo}>
-                    <Text style={styles.companyName}>{data.company.name}</Text>
-                    {data.company.rnc && <Text>RNC: {data.company.rnc}</Text>}
-                    <Text>{data.company.address}</Text>
-                    <Text>{data.company.phone} | {data.company.email}</Text>
+                    <Text style={styles.companyName}>{data.company.name || DEFAULT_COMPANY_DETAILS.name}</Text>
+                    <Text style={styles.companySubtitle}>{DEFAULT_COMPANY_DETAILS.subtitle}</Text>
+                    <Text style={styles.companyTagline}>{DEFAULT_COMPANY_DETAILS.tagline}</Text>
+                    <Text style={styles.companyRncAddress}>
+                        RNC: {data.company.rnc || DEFAULT_COMPANY_DETAILS.rnc} | {data.company.address || DEFAULT_COMPANY_DETAILS.address}
+                    </Text>
+                </View>
+                <View style={styles.logoContainer}>
+                    <Image src={logoSrc} style={styles.logo} />
                 </View>
             </View>
 
             {/* Title & Document Meta */}
-            <View style={styles.documentTitleBlock}>
-                <View>
-                    <Text style={styles.mainTitle}>{data.type}</Text>
-                    {data.status && <Text style={{ fontSize: 10, color: '#666', marginTop: 4 }}>Estado: {data.status}</Text>}
+            <View style={styles.titleBlock}>
+                <Text style={styles.mainTitle}>{docTitle}</Text>
+                {displaySubtitle && <Text style={styles.subTitle}>{displaySubtitle}</Text>}
+                <Text style={styles.docNumber}>No. {data.number}</Text>
+            </View>
+
+            {/* 2-Column Metadata Grid */}
+            <View style={styles.metaTable}>
+                <View style={styles.metaRow}>
+                    <Text style={styles.metaColLabel}>Cliente:</Text>
+                    <Text style={styles.metaColValue}>{clientName}</Text>
+                    <Text style={styles.metaColLabel}>Fecha:</Text>
+                    <Text style={styles.metaColValueRight}>{formattedDate}</Text>
                 </View>
-                <View style={styles.metaBlock}>
-                    <Text style={styles.metaText}>No. {data.number}</Text>
-                    <Text style={styles.metaText}>Fecha: {data.date.toLocaleDateString()}</Text>
-                    {data.validUntil && <Text style={styles.metaText}>Válida hasta: {data.validUntil.toLocaleDateString()}</Text>}
-                    {data.dueDate && <Text style={styles.metaText}>Vence: {data.dueDate.toLocaleDateString()}</Text>}
+                <View style={styles.metaRow}>
+                    <Text style={styles.metaColLabel}>Ubicación:</Text>
+                    <Text style={styles.metaColValue}>{clientLocation}</Text>
+                    <Text style={styles.metaColLabel}>Pago:</Text>
+                    <Text style={styles.metaColValueRight}>50% anticipo, 50% contra entrega</Text>
+                </View>
+                <View style={styles.metaRowLast}>
+                    <Text style={styles.metaColLabel}>Validez:</Text>
+                    <Text style={styles.metaColValue}>15 días</Text>
+                    <Text style={styles.metaColLabel}>Entrega:</Text>
+                    <Text style={styles.metaColValueRight}>Coordinar con cliente</Text>
                 </View>
             </View>
 
-            {/* Client Info */}
-            <View style={styles.clientBlock}>
-                <Text style={styles.clientLabel}>CLIENTE:</Text>
-                <Text style={{ fontFamily: theme.fontBold }}>{data.client.name}</Text>
-                {data.client.rnc && <Text>RNC/Cédula: {data.client.rnc}</Text>}
-                {data.client.address && <Text>{data.client.address}</Text>}
-                {data.client.phone && <Text>Tel: {data.client.phone}</Text>}
+            {/* OBJETO DEL PRESUPUESTO */}
+            <View>
+                <Text style={styles.sectionHeading}>OBJETO DEL {docTitle}</Text>
+                <Text style={styles.objetoText}>
+                    {data.items.map(item => `${item.quantity} ${item.description}`).join('. ')}. Servicios ejecutados por técnicos especializados con garantía de calidad.
+                </Text>
             </View>
 
             {/* Items Table */}
-            <View style={styles.table}>
-                <View style={[styles.tableRow, styles.tableHeader]}>
-                    <View style={styles.tableColDesc}><Text>DESCRIPCIÓN</Text></View>
-                    <View style={styles.tableColQty}><Text>CANT.</Text></View>
-                    <View style={styles.tableColPrice}><Text>PRECIO</Text></View>
-                    <View style={styles.tableColTotal}><Text>TOTAL</Text></View>
+            <View style={styles.itemsTable}>
+                <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.headerCell, { width: '6%', textAlign: 'center' }]}>No.</Text>
+                    <Text style={[styles.headerCell, { width: '54%' }]}>Descripción del Servicio</Text>
+                    <Text style={[styles.headerCell, { width: '10%', textAlign: 'center' }]}>Cant.</Text>
+                    <Text style={[styles.headerCell, { width: '15%', textAlign: 'right' }]}>Precio Unit. {currencyPrefix}</Text>
+                    <Text style={[styles.headerCell, { width: '15%', textAlign: 'right' }]}>Total {currencyPrefix}</Text>
                 </View>
 
                 {data.items.map((item, index) => (
-                    <View style={styles.tableRow} key={index}>
-                        <View style={styles.tableColDesc}><Text>{item.description}</Text></View>
-                        <View style={styles.tableColQty}><Text>{item.quantity}</Text></View>
-                        <View style={styles.tableColPrice}><Text>{formatCurrency(item.unitPrice)}</Text></View>
-                        <View style={styles.tableColTotal}><Text>{formatCurrency(item.total)}</Text></View>
+                    <View style={[styles.tableRow, index % 2 === 1 ? styles.tableRowEven : {}]} key={index}>
+                        <Text style={styles.cellNo}>{index + 1}</Text>
+                        <Text style={styles.cellDesc}>{item.description}</Text>
+                        <Text style={styles.cellQty}>{item.quantity}</Text>
+                        <Text style={styles.cellPrice}>{formatNumber(item.unitPrice)}</Text>
+                        <Text style={styles.cellTotal}>{formatNumber(item.total)}</Text>
                     </View>
                 ))}
             </View>
 
-            {/* Totals */}
+            {/* Totals Table */}
             <View style={styles.totalsContainer}>
-                <View style={styles.totalsTable}>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Subtotal:</Text>
-                        <Text style={styles.totalValue}>{formatCurrency(data.subtotal)}</Text>
+                <View style={styles.totalsBox}>
+                    <View style={styles.totalLine}>
+                        <Text style={styles.totalLabel}>Sub-total {currencyPrefix}</Text>
+                        <Text style={styles.totalValue}>{formatNumber(data.subtotal)}</Text>
                     </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>ITBIS/Impuestos:</Text>
-                        <Text style={styles.totalValue}>{formatCurrency(data.taxTotal)}</Text>
+                    <View style={styles.totalLine}>
+                        <Text style={styles.totalLabel}>ITBIS</Text>
+                        <Text style={styles.totalValue}>
+                            {data.taxTotal > 0 ? `${currencyPrefix} ${formatNumber(data.taxTotal)}` : 'No incluido'}
+                        </Text>
                     </View>
-                    {data.discountTotal > 0 && (
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>Descuento:</Text>
-                            <Text style={styles.totalValue}>-{formatCurrency(data.discountTotal)}</Text>
-                        </View>
-                    )}
-                    <View style={[styles.totalRow, styles.grandTotal]}>
-                        <Text style={styles.totalLabel}>TOTAL:</Text>
-                        <Text style={styles.totalValue}>{formatCurrency(data.total)}</Text>
+                    <View style={styles.totalLineGrand}>
+                        <Text style={styles.grandTotalLabel}>TOTAL A PAGAR {currencyPrefix}</Text>
+                        <Text style={styles.grandTotalValue}>{formatNumber(data.total)}</Text>
                     </View>
                 </View>
             </View>
 
-            {/* Signatures */}
-            <View style={styles.signatures}>
-                <View style={styles.signatureBlock}>
-                    <Text>Autorizado por</Text>
+            {/* NOTAS IMPORTANTES */}
+            <View style={styles.notesContainer}>
+                <Text style={styles.sectionHeading}>NOTAS IMPORTANTES</Text>
+                <Text style={styles.noteItem}>
+                    1. Alcance: {data.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}.
+                </Text>
+                <Text style={styles.noteItem}>
+                    2. Garantía: 30 días de garantía en mano de obra y servicios técnicos realizados.
+                </Text>
+                <Text style={styles.noteItem}>
+                    3. ITBIS: {data.taxTotal > 0 ? 'Los precios incluyen el 18% de ITBIS de ley.' : 'Los precios no incluyen ITBIS (aplica al facturar formalmente).' }
+                </Text>
+                <Text style={styles.noteItem}>
+                    4. Forma de pago: 50% de anticipo al confirmar y 50% restante contra entrega y verificación del servicio.
+                </Text>
+                <Text style={styles.noteItem}>
+                    5. Validez: Esta cotización tiene una validez de 15 días a partir de la fecha de emisión.
+                </Text>
+            </View>
+
+            {/* DATOS DE PAGO */}
+            <View style={styles.paymentBanner}>
+                <Text style={styles.paymentText}>
+                    DATOS DE PAGO: HECHO SRL RNC 131-94753-2 | BanReservas: 960-3657-898 | Johanna Guzmán 829-649-2702 | info@hecho.do
+                </Text>
+            </View>
+
+            {/* Signatures & Seal */}
+            <View style={styles.signaturesRow}>
+                <View style={styles.signatureBlockLeft}>
+                    <Text style={styles.signatureHeader}>PREPARADO POR</Text>
+                    <View style={styles.signatureLine} />
+                    <Text style={styles.signName}>{DEFAULT_COMPANY_DETAILS.manager}</Text>
+                    <Text style={styles.signRole}>{DEFAULT_COMPANY_DETAILS.managerTitle}</Text>
+                    <Text style={styles.signCompany}>{DEFAULT_COMPANY_DETAILS.name}</Text>
                 </View>
-                <View style={styles.signatureBlock}>
-                    <Text>Recibido por</Text>
+
+                <View style={styles.signatureBlockRight}>
+                    <Text style={styles.signatureHeader}>SELLO Y FIRMA</Text>
+                    <Image src={stampSrc} style={styles.selloImage} />
                 </View>
             </View>
 
-            {/* Footer / Notes */}
-            {(data.notes || data.terms) && (
-                <View style={styles.footer}>
-                    {data.notes && (
-                        <View style={{ marginBottom: 10 }}>
-                            <Text style={[styles.clientLabel, { marginBottom: 2 }]}>Notas:</Text>
-                            <Text style={styles.notes}>{data.notes}</Text>
-                        </View>
-                    )}
-                    {data.terms && (
-                        <View>
-                            <Text style={[styles.clientLabel, { marginBottom: 2 }]}>Términos y Condiciones:</Text>
-                            <Text style={styles.notes}>{data.terms}</Text>
-                        </View>
-                    )}
-                </View>
-            )}
+            {/* Bottom Footer */}
+            <View style={styles.pageFooter}>
+                <Text style={styles.footerCompanyLine}>
+                    HECHO SRL | RNC 131-94753-2 | Punta Cana, Rep. Dominicana | Tel: 829-649-2702 | info@hecho.do | BanReservas 960-3657-898
+                </Text>
+                <Text style={styles.footerDisclaimer}>
+                    Documento generado el {new Date().toLocaleDateString('es-DO')} — Este presupuesto no constituye factura fiscal. Gracias por su preferencia.
+                </Text>
+            </View>
         </Page>
     );
 };

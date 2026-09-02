@@ -360,10 +360,10 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
     const buildDocumentData = (quoteNumber: string): DocumentData => {
         const company: CompanySettings = companySettings || {
             name: "HECHO SRL",
-            rnc: "131947532",
-            address: "Av. Principal, Punta Cana, Rep. Dom.",
-            phone: "+1 (809) 555-0199",
-            email: "contacto@hecho.do",
+            rnc: "131-94753-2",
+            address: "Punta Cana, Rep. Dominicana",
+            phone: "829-649-2702",
+            email: "info@hecho.do",
             logoUrl: "",
             website: "https://hecho.do"
         };
@@ -376,12 +376,12 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
             validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
             company: {
                 name: company.name || "HECHO SRL",
-                rnc: company.rnc || "131947532",
-                address: company.address || "",
-                phone: company.phone || "",
-                email: company.email || "",
+                rnc: company.rnc || "131-94753-2",
+                address: company.address || "Punta Cana, Rep. Dominicana",
+                phone: company.phone || "829-649-2702",
+                email: company.email || "info@hecho.do",
                 logoUrl: company.logoUrl || "",
-                website: company.website || ""
+                website: company.website || "https://hecho.do"
             },
             client: {
                 name: quoteResult?.clientName || "Cliente General",
