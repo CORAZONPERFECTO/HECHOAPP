@@ -25,29 +25,55 @@ if (!admin.apps.length) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { uid, newPassword } = await req.json();
+        const { uid, newPassword, newEmail, displayName } = await req.json();
 
-        if (!uid || !newPassword) {
+        if (!uid) {
             return NextResponse.json(
-                { error: "UID y nueva contraseña son requeridos." },
+                { error: "UID es requerido." },
                 { status: 400 }
             );
         }
 
-        if (newPassword.length < 6) {
-            return NextResponse.json(
-                { error: "La contraseña debe tener al menos 6 caracteres." },
-                { status: 400 }
-            );
+        const updatePayload: any = {};
+        if (newPassword) {
+            if (newPassword.length < 6) {
+                return NextResponse.json(
+                    { error: "La contraseña debe tener al menos 6 caracteres." },
+                    { status: 400 }
+                );
+            }
+            updatePayload.password = newPassword;
         }
 
-        // Use Firebase Admin SDK to update password directly (no email required)
-        await admin.auth().updateUser(uid, { password: newPassword });
+        if (newEmail) {
+            updatePayload.email = newEmail.trim().toLowerCase();
+        }
 
-        return NextResponse.json({ success: true, message: "Contraseña actualizada correctamente." });
+        if (displayName) {
+            updatePayload.displayName = displayName;
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+            await admin.auth().updateUser(uid, updatePayload);
+        }
+
+        // Keep Firestore in sync
+        if (newEmail || displayName) {
+            const firestoreUpdate: any = {
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (newEmail) firestoreUpdate.email = newEmail.trim().toLowerCase();
+            if (displayName) {
+                firestoreUpdate.nombre = displayName;
+                firestoreUpdate.displayName = displayName;
+            }
+            await admin.firestore().collection("users").doc(uid).set(firestoreUpdate, { merge: true });
+        }
+
+        return NextResponse.json({ success: true, message: "Datos actualizados correctamente en Auth y Base de Datos." });
 
     } catch (error: any) {
-        console.error("Error updating password:", error);
+        console.error("Error updating user auth:", error);
 
         if (error.code === "auth/user-not-found") {
             return NextResponse.json(
@@ -56,8 +82,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        if (error.code === "auth/email-already-exists") {
+            return NextResponse.json(
+                { error: "El correo electrónico ya está registrado con otra cuenta." },
+                { status: 400 }
+            );
+        }
+
         return NextResponse.json(
-            { error: error.message || "Error interno al cambiar la contraseña." },
+            { error: error.message || "Error interno al actualizar datos del usuario." },
             { status: 500 }
         );
     }

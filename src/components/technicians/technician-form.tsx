@@ -135,10 +135,26 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                 uid = userCredential.user.uid;
 
                 // We don't need to sign out the secondary auth, it doesn't affect the main one
+            } else if (uid && (formData.email !== initialData?.email || formData.nombre !== initialData?.nombre)) {
+                // Sync updated email or name to Firebase Auth via admin endpoint
+                try {
+                    await fetch("/api/admin/set-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            uid,
+                            newEmail: formData.email,
+                            displayName: formData.nombre
+                        })
+                    });
+                } catch (authSyncErr) {
+                    console.warn("Could not sync to Auth:", authSyncErr);
+                }
             }
 
             const userData = {
                 ...formData,
+                displayName: formData.nombre,
                 updatedAt: serverTimestamp(),
             };
 
@@ -257,8 +273,12 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                         onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                         placeholder="juan@ejemplo.com"
                         required
-                        disabled={isEditing} // Prevent changing email for consistency with Auth
                     />
+                    {isEditing && (
+                        <p className="text-[11px] text-gray-500">
+                            Si cambias el correo, se actualizará también el usuario de inicio de sesión en Firebase Auth.
+                        </p>
+                    )}
                 </div>
 
                 {!isEditing && (
