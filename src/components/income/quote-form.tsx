@@ -39,10 +39,11 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
 
     const { items: erpItems, getPriceForItem, loading: catalogLoading } = useErpCatalog();
 
-    const [formData, setFormData] = useState<Partial<Quote>>({
+    const [formData, setFormData] = useState<Partial<Quote> & { documentType?: string; isProforma?: boolean; isPurchaseOrder?: boolean; number?: string }>({
         party_name: initialData?.party_name || (initialData as any)?.clientName || "",
         clientId: initialData?.clientId || "",
         status: initialData?.status || "Draft",
+        documentType: (initialData as any)?.documentType || ((initialData as any)?.isPurchaseOrder ? "PURCHASE_ORDER" : ((initialData as any)?.isProforma ? "PROFORMA" : "QUOTE")),
         items: initialData?.items || [],
         note: initialData?.note || "",
         valid_till: initialData?.valid_till || in15days(),
@@ -50,6 +51,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
         currency: initialData?.currency || "DOP",
         selling_price_list: initialData?.selling_price_list || "Standard Selling",
         timeline: initialData?.timeline || [],
+        number: (initialData as any)?.number || (initialData as any)?.name || "",
     });
 
     // Local subtotal (before ERP tax calculation)
@@ -122,8 +124,15 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("No authenticated user");
 
+            const isPO = formData.documentType === "PURCHASE_ORDER";
+            const isPF = formData.documentType === "PROFORMA";
+            const seqType = isPO ? "OC" : (isPF ? "FP" : "CT");
+
             const quoteData = {
                 ...formData,
+                documentType: formData.documentType || "QUOTE",
+                isProforma: isPF,
+                isPurchaseOrder: isPO,
                 // ERP-aligned totals (approximate until ERP calculates)
                 net_total: totals.subtotal,
                 total_taxes_and_charges: totals.taxTotal,
@@ -134,11 +143,13 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
 
             if (isEditing && initialData?.id) {
                 await updateDoc(doc(db, "quotes", initialData.id), quoteData);
-                toast({ title: "Cotización guardada" });
+                toast({ title: "Documento guardado" });
             } else {
+                const generatedNumber = await generateNextNumber(seqType);
                 const newQuoteData = {
                     ...quoteData,
-                    number: await generateNextNumber("COT"),
+                    number: generatedNumber,
+                    name: generatedNumber,
                     status: "Draft",
                     docstatus: 0,
                     createdBy: currentUser.uid,
@@ -149,18 +160,18 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                         timestamp: new Date().toISOString(),
                         userId: currentUser.uid,
                         userName: currentUser.displayName || "Usuario",
-                        note: "Cotización creada"
+                        note: "Documento creado"
                     }]
                 };
                 const ref = await addDoc(collection(db, "quotes"), newQuoteData);
                 setSavedId(ref.id);
-                toast({ title: "Cotización creada", description: "Usa 'Enviar a ERPNext' para sincronizarla." });
+                toast({ title: "Documento creado con éxito", description: `Número asignado: ${generatedNumber}` });
             }
             router.push("/income/quotes");
             router.refresh();
         } catch (error) {
             console.error("Error saving quote:", error);
-            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar la cotización." });
+            toast({ variant: "destructive", title: "Error", description: "No se pudo guardar el documento." });
         } finally {
             setLoading(false);
         }
@@ -191,22 +202,30 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8 bg-white p-8 rounded-lg shadow">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="space-y-2">
+                    <Label>Tipo de Documento</Label>
+                    <Select
+                        value={formData.documentType || "QUOTE"}
+                        onValueChange={(val: any) => setFormData(prev => ({
+                            ...prev,
+                            documentType: val,
+                            isProforma: val === "PROFORMA",
+                            isPurchaseOrder: val === "PURCHASE_ORDER"
+                        }))}
+                    >
+                        <SelectTrigger><SelectValue placeholder="Tipo de Documento" /></SelectTrigger>
+                        <SelectContent className="bg-white shadow-xl">
+                            <SelectItem value="QUOTE">📋 Presupuesto (Cotización)</SelectItem>
+                            <SelectItem value="PROFORMA">📑 Factura Proforma</SelectItem>
+                            <SelectItem value="PURCHASE_ORDER">📦 Orden de Compra</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <div className="space-y-2 md:col-span-2">
                     <Label>Cliente</Label>
                     <ClientSelector value={formData.clientId} onSelect={handleClientSelect} />
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Número de Cotización</Label>
-                    <Input
-                        value={(formData as any).number || ""}
-                        onChange={e => setFormData(prev => ({ ...prev, number: e.target.value }))}
-                        placeholder={isEditing ? "COT-000000" : "(Auto-generado al guardar)"}
-                        required={isEditing}
-                        disabled={!isEditing}
-                        className={!isEditing ? "bg-gray-100 text-gray-500" : ""}
-                    />
                 </div>
 
                 <div className="space-y-2">
@@ -216,7 +235,7 @@ export function QuoteForm({ initialData, isEditing = false }: QuoteFormProps) {
                         onValueChange={(val: "DOP" | "USD") => setFormData(prev => ({ ...prev, currency: val }))}
                     >
                         <SelectTrigger><SelectValue placeholder="Seleccionar moneda" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white shadow-xl">
                             <SelectItem value="DOP">Peso Dominicano (DOP)</SelectItem>
                             <SelectItem value="USD">Dólar Estadounidense (USD)</SelectItem>
                         </SelectContent>

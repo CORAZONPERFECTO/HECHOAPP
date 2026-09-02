@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DateRange } from "react-day-picker";
 import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { VoiceQuoteModal } from "@/components/income/quotes/voice-quote-modal";
+import { formatDocumentNumber } from "@/lib/document-generator";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -79,17 +80,24 @@ export default function QuotesPage() {
 
     // Filter quotes
     const filteredQuotes = quotes.filter(quote => {
-        // 1. Status Filter
+        const q = quote as any;
+        const isPO = q.documentType === "PURCHASE_ORDER" || q.isPurchaseOrder;
+        const isPF = !isPO && (q.documentType === "PROFORMA" || q.isProforma);
+        const isPresupuesto = !isPO && !isPF;
+
+        // 1. Status / Type Filter
         if (statusFilter !== "ALL") {
-            const isProforma = (quote as any).isProforma || (quote as any).documentType === "PROFORMA";
-            if (statusFilter === "PROFORMA" && !isProforma) return false;
-            if (statusFilter !== "PROFORMA" && quote.status?.toUpperCase() !== statusFilter.toUpperCase()) return false;
+            if (statusFilter === "QUOTE" && !isPresupuesto) return false;
+            if (statusFilter === "PROFORMA" && !isPF) return false;
+            if (statusFilter === "PURCHASE_ORDER" && !isPO) return false;
+            if (!["QUOTE", "PROFORMA", "PURCHASE_ORDER"].includes(statusFilter)) {
+                if (quote.status?.toUpperCase() !== statusFilter.toUpperCase()) return false;
+            }
         }
 
         // 2. Date Filter
         if (!dateRange?.from) return true;
         let quoteDate: Date;
-        const q = quote as any;
         if (q.createdAt?.toDate) quoteDate = q.createdAt.toDate();
         else if (q.createdAt?.seconds) quoteDate = new Date(q.createdAt.seconds * 1000);
         else if (q.transaction_date) quoteDate = new Date(q.transaction_date);
@@ -119,34 +127,33 @@ export default function QuotesPage() {
         }
     };
 
-    // Toggle Proforma / Quote status on a row
-    const handleToggleProformaRow = async (quoteItem: any, e: React.MouseEvent) => {
+    // Change document type on a row
+    const handleChangeTypeRow = async (quoteItem: any, newType: 'QUOTE' | 'PROFORMA' | 'PURCHASE_ORDER', e: React.MouseEvent) => {
         e.stopPropagation();
         try {
-            const currentIsProforma = quoteItem.isProforma || quoteItem.documentType === 'PROFORMA';
-            const newIsProforma = !currentIsProforma;
-            const newDocType = newIsProforma ? 'PROFORMA' : 'QUOTE';
+            const isProforma = newType === 'PROFORMA';
+            const isPurchaseOrder = newType === 'PURCHASE_ORDER';
+            const typeLabel = newType === 'PROFORMA' ? 'Factura Proforma' : (newType === 'PURCHASE_ORDER' ? 'Orden de Compra' : 'Presupuesto');
 
             await updateDoc(doc(db, "quotes", quoteItem.id), {
-                isProforma: newIsProforma,
-                documentType: newDocType,
+                documentType: newType,
+                isProforma,
+                isPurchaseOrder,
                 timeline: arrayUnion({
-                    status: newIsProforma ? "PROFORMA" : "PRESUPUESTO",
+                    status: newType,
                     timestamp: Timestamp.now(),
                     userId: auth.currentUser?.uid || "system",
                     userName: auth.currentUser?.displayName || "Usuario",
-                    note: newIsProforma
-                        ? "Documento convertido a Factura Proforma"
-                        : "Documento revertido a Presupuesto / Cotización"
+                    note: `Tipo de documento cambiado a ${typeLabel}`
                 })
             });
 
             toast({
-                title: newIsProforma ? "📑 Convertido a Factura Proforma" : "📋 Revertido a Presupuesto",
-                description: `Cotización ${quoteItem.number || quoteItem.name} actualizada.`
+                title: `📄 Tipo cambiado a ${typeLabel}`,
+                description: `Documento ${quoteItem.number || quoteItem.name} actualizado con éxito.`
             });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Error", description: error.message });
+            toast({ variant: "destructive", title: "Error al cambiar tipo", description: error.message });
         }
     };
 
@@ -155,17 +162,31 @@ export default function QuotesPage() {
             header: "Número",
             accessorKey: "number" as keyof Quote,
             className: "font-bold text-gray-900",
-            cell: (item: any) => item.number || item.name || `COT-${item.id.slice(0, 6).toUpperCase()}`,
+            cell: (item: any) => {
+                const docType = item.documentType === 'PURCHASE_ORDER' || item.isPurchaseOrder
+                    ? 'OC'
+                    : (item.documentType === 'PROFORMA' || item.isProforma ? 'FP' : 'CT');
+                return formatDocumentNumber(item.number || item.name, item.transaction_date, item.id, docType);
+            },
         },
         {
             header: "Tipo",
             cell: (item: any) => {
-                const isProforma = item.isProforma || item.documentType === "PROFORMA";
-                return isProforma ? (
-                    <span className="text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-300 px-2 py-0.5 rounded-full">
-                        PROFORMA
-                    </span>
-                ) : (
+                if (item.documentType === "PURCHASE_ORDER" || item.isPurchaseOrder) {
+                    return (
+                        <span className="text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 px-2 py-0.5 rounded-full">
+                            ORDEN DE COMPRA
+                        </span>
+                    );
+                }
+                if (item.documentType === "PROFORMA" || item.isProforma) {
+                    return (
+                        <span className="text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-300 px-2 py-0.5 rounded-full">
+                            PROFORMA
+                        </span>
+                    );
+                }
+                return (
                     <span className="text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full">
                         PRESUPUESTO
                     </span>
@@ -208,19 +229,26 @@ export default function QuotesPage() {
                                 <MoreHorizontal className="h-4 w-4 text-gray-500" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-white shadow-lg">
+                        <DropdownMenuContent align="end" className="w-56 bg-white shadow-xl">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => router.push(`/income/quotes/${item.id}`)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => router.push(`/income/quotes/${item.id}`)} className="cursor-pointer font-medium">
                                 <Eye className="mr-2 h-4 w-4 text-blue-500" />
                                 Ver Detalle / PDF
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => handleToggleProformaRow(item, e)} className="cursor-pointer">
-                                <FileText className="mr-2 h-4 w-4 text-purple-500" />
-                                {(item.isProforma || item.documentType === 'PROFORMA') ? 'Cambiar a Presupuesto' : 'Convertir a Proforma'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/income/quotes/${item.id}/edit`)} className="cursor-pointer">
+                            <DropdownMenuItem onClick={() => router.push(`/income/quotes/${item.id}/edit`)} className="cursor-pointer font-medium">
                                 <Edit className="mr-2 h-4 w-4 text-amber-500" />
                                 Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel className="text-xs text-gray-400 font-semibold uppercase">Cambiar Tipo</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={(e) => handleChangeTypeRow(item, 'QUOTE', e)} className="cursor-pointer">
+                                📋 Cambiar a Presupuesto
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleChangeTypeRow(item, 'PROFORMA', e)} className="cursor-pointer text-purple-700">
+                                📑 Cambiar a Factura Proforma
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => handleChangeTypeRow(item, 'PURCHASE_ORDER', e)} className="cursor-pointer text-blue-700">
+                                📦 Cambiar a Orden de Compra
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
@@ -247,23 +275,25 @@ export default function QuotesPage() {
                             Volver
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Cotizaciones</h1>
-                            <p className="text-gray-500">Gestiona propuestas, presupuestos y facturas proforma</p>
+                            <h1 className="text-2xl font-bold text-gray-900">Cotizaciones y Documentos</h1>
+                            <p className="text-gray-500">Gestiona presupuestos, facturas proforma y órdenes de compra</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Estado" />
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Estado o Tipo" />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Todos los Estados</SelectItem>
-                                <SelectItem value="PROFORMA">Facturas Proforma</SelectItem>
-                                <SelectItem value="Draft">Borrador</SelectItem>
-                                <SelectItem value="SENT">Enviada</SelectItem>
-                                <SelectItem value="ACCEPTED">Aceptada</SelectItem>
-                                <SelectItem value="CONVERTED">Facturada</SelectItem>
-                                <SelectItem value="Cancelled">Cancelada</SelectItem>
+                            <SelectContent className="bg-white shadow-xl">
+                                <SelectItem value="ALL">Todos los Documentos</SelectItem>
+                                <SelectItem value="QUOTE">📋 Solo Presupuestos</SelectItem>
+                                <SelectItem value="PROFORMA">📑 Solo Proformas</SelectItem>
+                                <SelectItem value="PURCHASE_ORDER">📦 Solo Órdenes de Compra</SelectItem>
+                                <SelectItem value="Draft">Borradores</SelectItem>
+                                <SelectItem value="SENT">Enviadas</SelectItem>
+                                <SelectItem value="ACCEPTED">Aceptadas</SelectItem>
+                                <SelectItem value="CONVERTED">Facturadas</SelectItem>
+                                <SelectItem value="Cancelled">Canceladas</SelectItem>
                             </SelectContent>
                         </Select>
 

@@ -1,14 +1,15 @@
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type SequenceType = 'COT' | 'CT' | 'FACT' | 'FACTPF' | 'OC' | 'COND';
+export type SequenceType = 'COT' | 'CT' | 'FACT' | 'FACTPF' | 'FP' | 'OC' | 'COND';
 
 const SEQUENCE_CONFIG: Record<SequenceType, { prefix: string; padding: number }> = {
     'COT': { prefix: 'CT', padding: 3 },
     'CT': { prefix: 'CT', padding: 3 },
-    'FACT': { prefix: 'FACT', padding: 3 },
-    'FACTPF': { prefix: 'FACTPF', padding: 3 },
+    'FP': { prefix: 'FP', padding: 3 },
+    'FACTPF': { prefix: 'FP', padding: 3 },
     'OC': { prefix: 'OC', padding: 3 },
+    'FACT': { prefix: 'FACT', padding: 3 },
     'COND': { prefix: 'COND', padding: 3 },
 };
 

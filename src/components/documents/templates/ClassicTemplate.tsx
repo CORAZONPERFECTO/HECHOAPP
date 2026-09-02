@@ -406,6 +406,9 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
     if (data.type === 'FACTURA PROFORMA') {
         docTitle = 'FACTURA PROFORMA';
         displaySubtitle = 'Comprobante Comercial Proforma';
+    } else if (data.type === 'ORDEN DE COMPRA') {
+        docTitle = 'ORDEN DE COMPRA';
+        displaySubtitle = 'Documento Oficial de Adquisición y Suministro';
     } else if (data.type === 'FACTURA') {
         docTitle = 'FACTURA DE VENTA';
         displaySubtitle = 'Comprobante Fiscal de Venta';

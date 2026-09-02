@@ -17,7 +17,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
 import { DocumentExportButton } from "@/components/documents/document-export-button";
-import { mapQuoteToDocument } from "@/lib/document-generator";
+import { mapQuoteToDocument, formatDocumentNumber } from "@/lib/document-generator";
 import { CompanySettings } from "@/types/schema";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { SupplierQuotesWidget } from "@/components/income/quotes/supplier-quotes-widget";
@@ -25,6 +25,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
@@ -165,47 +166,48 @@ export default function QuoteDetailPage() {
         }
     };
 
-    // ─── Convert to Proforma / Presupuesto Toggle ─────────────────────────────
-    const [togglingProforma, setTogglingProforma] = useState(false);
+    // ─── Change Document Type (Presupuesto / Proforma / Orden de Compra) ─────
+    const [changingType, setChangingType] = useState(false);
 
-    const handleToggleProforma = async () => {
+    const handleChangeDocumentType = async (newType: 'QUOTE' | 'PROFORMA' | 'PURCHASE_ORDER') => {
         if (!quote) return;
-        setTogglingProforma(true);
+        setChangingType(true);
         try {
-            const currentIsProforma = (quote as any).isProforma || (quote as any).documentType === 'PROFORMA';
-            const newIsProforma = !currentIsProforma;
-            const newDocType = newIsProforma ? 'PROFORMA' : 'QUOTE';
+            const isProforma = newType === 'PROFORMA';
+            const isPurchaseOrder = newType === 'PURCHASE_ORDER';
+
+            const typeLabel = newType === 'PROFORMA'
+                ? 'Factura Proforma'
+                : (newType === 'PURCHASE_ORDER' ? 'Orden de Compra' : 'Presupuesto');
 
             await updateDoc(doc(db, "quotes", id), {
-                isProforma: newIsProforma,
-                documentType: newDocType,
+                documentType: newType,
+                isProforma,
+                isPurchaseOrder,
                 timeline: arrayUnion({
-                    status: newIsProforma ? "PROFORMA" : "PRESUPUESTO",
+                    status: newType,
                     timestamp: Timestamp.now(),
                     userId: auth.currentUser?.uid || "system",
                     userName: auth.currentUser?.displayName || "Usuario",
-                    note: newIsProforma
-                        ? "Documento convertido a Factura Proforma"
-                        : "Documento revertido a Presupuesto / Cotización"
+                    note: `Tipo de documento cambiado a ${typeLabel}`
                 })
             });
 
             setQuote((prev: any) => prev ? {
                 ...prev,
-                isProforma: newIsProforma,
-                documentType: newDocType
+                documentType: newType,
+                isProforma,
+                isPurchaseOrder,
             } : null);
 
             toast({
-                title: newIsProforma ? "📑 Convertido a Factura Proforma" : "📋 Revertido a Presupuesto",
-                description: newIsProforma
-                    ? "El documento ahora se emitirá como Factura Proforma comercial."
-                    : "El documento volvió a su formato estándar de Presupuesto."
+                title: `📄 Tipo cambiado a ${typeLabel}`,
+                description: `El documento ahora se emitirá y descargará como ${typeLabel}.`
             });
         } catch (error: any) {
-            toast({ variant: "destructive", title: "Error al actualizar", description: error.message });
+            toast({ variant: "destructive", title: "Error al actualizar tipo", description: error.message });
         } finally {
-            setTogglingProforma(false);
+            setChangingType(false);
         }
     };
 
@@ -223,6 +225,13 @@ export default function QuoteDetailPage() {
     }
 
     if (!quote) return null;
+
+    const currentDocType = (quote as any).documentType === 'PURCHASE_ORDER' || (quote as any).isPurchaseOrder
+        ? 'ORDEN DE COMPRA'
+        : ((quote as any).documentType === 'PROFORMA' || (quote as any).isProforma ? 'PROFORMA' : 'PRESUPUESTO');
+
+    const prefix = currentDocType === 'ORDEN DE COMPRA' ? 'OC' : (currentDocType === 'PROFORMA' ? 'FP' : 'CT');
+    const docFormattedNumber = formatDocumentNumber((quote as any).number || (quote as any).name, quote.transaction_date, quote.id, prefix);
 
     const erpUrl = (quote as any).erpQuotationId
         ? `https://erpnext-pld-nic.v.frappe.cloud/app/quotation/${(quote as any).erpQuotationId}`
@@ -243,13 +252,19 @@ export default function QuoteDetailPage() {
                     <div>
                         <div className="flex items-center gap-3 mb-1">
                             <h1 className="text-3xl font-bold text-gray-900">
-                                {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA') ? 'Factura Proforma' : 'Cotización'} {quote.name || (quote as any).number}
+                                {currentDocType === 'ORDEN DE COMPRA' ? 'Orden de Compra' : (currentDocType === 'PROFORMA' ? 'Factura Proforma' : 'Cotización')} {docFormattedNumber}
                             </h1>
-                            {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA') ? (
+                            {currentDocType === 'PROFORMA' && (
                                 <span className="text-xs bg-purple-100 text-purple-800 border border-purple-300 px-2.5 py-0.5 rounded-full font-bold">
                                     PROFORMA
                                 </span>
-                            ) : (
+                            )}
+                            {currentDocType === 'ORDEN DE COMPRA' && (
+                                <span className="text-xs bg-blue-100 text-blue-800 border border-blue-300 px-2.5 py-0.5 rounded-full font-bold">
+                                    ORDEN DE COMPRA
+                                </span>
+                            )}
+                            {currentDocType === 'PRESUPUESTO' && (
                                 <StatusBadge status={quote.status} type="quote" />
                             )}
                             {(quote as any).erpQuotationId && (
@@ -267,24 +282,36 @@ export default function QuoteDetailPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {/* Toggle Proforma Button */}
-                        <Button
-                            variant="outline"
-                            onClick={handleToggleProforma}
-                            disabled={togglingProforma}
-                            className={((quote as any).isProforma || (quote as any).documentType === 'PROFORMA')
-                                ? "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 gap-1.5 font-bold shadow-sm"
-                                : "border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5 font-medium shadow-sm"}
-                        >
-                            {togglingProforma ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileText className="h-4 w-4 text-purple-600" />
-                            )}
-                            {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA')
-                                ? "Cambiar a Presupuesto"
-                                : "Convertir a Proforma"}
-                        </Button>
+                        {/* Change Document Type Dropdown */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={changingType}
+                                    className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 gap-1.5 font-bold shadow-sm"
+                                >
+                                    {changingType ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-emerald-600" />}
+                                    Tipo: {
+                                        currentDocType === 'ORDEN DE COMPRA'
+                                            ? 'Orden de Compra'
+                                            : (currentDocType === 'PROFORMA' ? 'Factura Proforma' : 'Presupuesto')
+                                    }
+                                    <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 bg-white shadow-xl">
+                                <DropdownMenuLabel>Cambiar Tipo de Documento</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleChangeDocumentType('QUOTE')} className="cursor-pointer font-medium">
+                                    📋 Presupuesto (Cotización)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleChangeDocumentType('PROFORMA')} className="cursor-pointer font-medium text-purple-700">
+                                    📑 Factura Proforma
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleChangeDocumentType('PURCHASE_ORDER')} className="cursor-pointer font-medium text-blue-700">
+                                    📦 Orden de Compra
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
                         {quote && companySettings && (
                             <DocumentExportButton

@@ -472,6 +472,7 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
 
             const newQuoteDoc = {
                 number: sequenceNumber,
+                name: sequenceNumber,
                 party_name: quoteResult.clientName,
                 customer_name: quoteResult.clientName,
                 clientId: quoteResult.clientId || "",

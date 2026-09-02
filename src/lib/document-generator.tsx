@@ -63,13 +63,44 @@ export interface DocumentData {
  * Mappers to convert DB objects into DocumentData
  */
 
+export function formatDocumentNumber(rawNumber?: string, dateStr?: string, fallbackId?: string, prefix: string = 'CT'): string {
+    const raw = rawNumber?.trim() || '';
+    if (raw && (raw.startsWith('CT-') || raw.startsWith('FP-') || raw.startsWith('OC-') || raw.startsWith('FAC-'))) {
+        return raw;
+    }
+    const today = dateStr || '2026-09-02';
+    if (raw && raw.startsWith('COT-')) {
+        const numPart = raw.replace(/^COT-0*/, '').padStart(3, '0') || '001';
+        return `${prefix}-${today}-${numPart}`;
+    }
+    if (raw) return raw;
+    return `${prefix}-${today}-001`;
+}
+
 export function mapQuoteToDocument(quote: Quote, company: CompanySettings, overrideType?: DocumentData['type']): DocumentData {
     const q = quote as any; // legacy field access shim
-    const isProforma = q.isProforma || q.documentType === 'PROFORMA';
+    
+    let resolvedType: DocumentData['type'] = 'COTIZACIÓN';
+    let prefix = 'CT';
+    if (overrideType) {
+        resolvedType = overrideType;
+        if (resolvedType === 'ORDEN DE COMPRA') prefix = 'OC';
+        else if (resolvedType === 'FACTURA PROFORMA') prefix = 'FP';
+    } else if (q.documentType === 'PURCHASE_ORDER' || q.documentType === 'ORDEN DE COMPRA' || q.isPurchaseOrder) {
+        resolvedType = 'ORDEN DE COMPRA';
+        prefix = 'OC';
+    } else if (q.documentType === 'PROFORMA' || q.isProforma) {
+        resolvedType = 'FACTURA PROFORMA';
+        prefix = 'FP';
+    }
+
+    const dateFormatted = quote.transaction_date || (q.createdAt?.seconds ? new Date(q.createdAt.seconds * 1000).toISOString().split('T')[0] : '2026-09-02');
+    const docNumber = formatDocumentNumber(q.number || quote.name, dateFormatted, quote.id, prefix);
+
     const mappedBase = {
         id: quote.id,
-        type: overrideType || (isProforma ? ('FACTURA PROFORMA' as const) : ('COTIZACIÓN' as const)),
-        number: q.number || quote.name || '',
+        type: resolvedType,
+        number: docNumber,
         date: quote.transaction_date
             ? new Date(quote.transaction_date)
             : (q.issueDate instanceof Timestamp ? q.issueDate.toDate() : new Date()),

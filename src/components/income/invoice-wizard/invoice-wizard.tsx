@@ -239,7 +239,7 @@ const handleSave = async () => {
 
             const quoteDoc = {
                 // ── Campos ERP (fieldnames exactos) ──────────────────────
-                name: erpName || null,           // SAL-QTN-XXXX si ya se creó en ERP
+                name: erpName || generatedNumber,           // SAL-QTN-XXXX si ya se creó en ERP, o CT-YYYY-MM-DD-XXX
                 quotation_to: qf.quotation_to,
                 party_name: qf.party_name,
                 transaction_date: qf.transaction_date,
