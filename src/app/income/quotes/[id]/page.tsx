@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/income/status-badge";
 import {
     ArrowLeft, FileCheck, Mail, XCircle, CheckCircle,
-    ExternalLink, RefreshCw, Loader2, Send, Edit
+    ExternalLink, RefreshCw, Loader2, Send, Edit, Cloud, ChevronDown
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
@@ -21,7 +21,22 @@ import { mapQuoteToDocument } from "@/lib/document-generator";
 import { CompanySettings } from "@/types/schema";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { SupplierQuotesWidget } from "@/components/income/quotes/supplier-quotes-widget";
-
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function QuoteDetailPage() {
     const params = useParams();
@@ -34,6 +49,13 @@ export default function QuoteDetailPage() {
     const [loading, setLoading] = useState(true);
     const [converting, setConverting] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [syncingAlegra, setSyncingAlegra] = useState(false);
+
+    // Alegra Credentials Configuration Modal
+    const [alegraModalOpen, setAlegraModalOpen] = useState(false);
+    const [alegraEmail, setAlegraEmail] = useState("");
+    const [alegraToken, setAlegraToken] = useState("");
+    const [alegraAction, setAlegraAction] = useState<"invoice" | "estimate">("invoice");
 
     useEffect(() => {
         const fetchData = async () => {
@@ -98,6 +120,51 @@ export default function QuoteDetailPage() {
         }
     };
 
+    // ─── Sync to Alegra (Create Invoice or Estimate) ─────────────────────────
+    const handleSyncToAlegra = async (action: "invoice" | "estimate", customCredentials?: { email: string; token: string }) => {
+        if (!quote) return;
+        setSyncingAlegra(true);
+        try {
+            const res = await fetch("/api/alegra/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    quoteId: quote.id,
+                    action,
+                    customEmail: customCredentials?.email,
+                    customToken: customCredentials?.token
+                })
+            });
+
+            const json = await res.json();
+
+            if (!json.success) {
+                if (json.requiresConfig) {
+                    setAlegraAction(action);
+                    setAlegraModalOpen(true);
+                    return;
+                }
+                throw new Error(json.error || "Error al sincronizar con Alegra");
+            }
+
+            toast({
+                title: action === "invoice" ? "✅ Factura creada en Alegra" : "✅ Cotización enviada a Alegra",
+                description: `Número: ${json.data?.numberTemplate?.fullNumber || json.data?.id}`,
+            });
+
+            if (alegraModalOpen) setAlegraModalOpen(false);
+
+            // Refresh quote from Firestore
+            const snap = await getDoc(doc(db, "quotes", id));
+            if (snap.exists()) setQuote({ id: snap.id, ...snap.data() } as Quote);
+
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "❌ Error Alegra", description: error.message });
+        } finally {
+            setSyncingAlegra(false);
+        }
+    };
+
     if (loading) {
         return (
             <AppLayout>
@@ -117,6 +184,9 @@ export default function QuoteDetailPage() {
         ? `https://erpnext-pld-nic.v.frappe.cloud/app/quotation/${(quote as any).erpQuotationId}`
         : null;
 
+    const alegraInvoiceUrl = (quote as any).alegraInvoiceUrl || 
+        ((quote as any).alegraInvoiceId ? `https://app.alegra.com/invoice/view/id/${(quote as any).alegraInvoiceId}` : null);
+
     return (
         <AppLayout>
             <div className="space-y-6 max-w-5xl mx-auto">
@@ -133,6 +203,11 @@ export default function QuoteDetailPage() {
                             {(quote as any).erpQuotationId && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                                     ERP: {(quote as any).erpQuotationId}
+                                </span>
+                            )}
+                            {(quote as any).alegraInvoiceNumber && (
+                                <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                    <Cloud className="h-3 w-3" /> Alegra: {(quote as any).alegraInvoiceNumber}
                                 </span>
                             )}
                         </div>
@@ -154,6 +229,40 @@ export default function QuoteDetailPage() {
                         {quote.status !== "CONVERTED" && quote.status !== "Cancelled" && (
                             <Button variant="outline" onClick={() => router.push(`/income/quotes/${id}/edit`)} className="gap-2 hover:bg-gray-100">
                                 <Edit className="h-4 w-4" /> Editar
+                            </Button>
+                        )}
+
+                        {/* Alegra Integration Button */}
+                        {!(quote as any).alegraInvoiceNumber && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        disabled={syncingAlegra}
+                                        className="border-sky-300 text-sky-800 bg-sky-50/50 hover:bg-sky-100 gap-1.5 font-semibold"
+                                    >
+                                        {syncingAlegra ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4 text-sky-600" />}
+                                        Enviar a Alegra
+                                        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 bg-white">
+                                    <DropdownMenuItem onClick={() => handleSyncToAlegra("invoice")} className="cursor-pointer">
+                                        🧾 Crear Factura en Alegra
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleSyncToAlegra("estimate")} className="cursor-pointer">
+                                        📋 Crear Cotización en Alegra
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+
+                        {/* Open in Alegra */}
+                        {alegraInvoiceUrl && (
+                            <Button variant="outline" asChild className="gap-1.5 border-sky-300 text-sky-700 hover:bg-sky-50 font-semibold">
+                                <a href={alegraInvoiceUrl} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-4 w-4" /> Ver en Alegra
+                                </a>
                             </Button>
                         )}
 
@@ -286,6 +395,50 @@ export default function QuoteDetailPage() {
                             </div>
                         </Card>
 
+                        {/* Alegra Status Card */}
+                        {((quote as any).alegraInvoiceNumber || (quote as any).alegraEstimateNumber) && (
+                            <Card className="p-6 glass-card border-sky-200 bg-sky-50/50">
+                                <h3 className="font-semibold mb-3 text-sky-900 flex items-center gap-2">
+                                    <Cloud className="h-4 w-4 text-sky-600" /> Facturación Alegra
+                                </h3>
+                                <div className="space-y-2 text-sm">
+                                    {(quote as any).alegraInvoiceNumber && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-600">Factura:</span>
+                                            <a
+                                                href={(quote as any).alegraInvoiceUrl || `https://app.alegra.com/invoice/view/id/${(quote as any).alegraInvoiceId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sky-700 font-bold flex items-center gap-1 hover:underline"
+                                            >
+                                                {(quote as any).alegraInvoiceNumber}
+                                                <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        </div>
+                                    )}
+                                    {(quote as any).alegraEstimateNumber && (
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-gray-600">Cotización:</span>
+                                            <a
+                                                href={(quote as any).alegraEstimateUrl || `https://app.alegra.com/estimate/view/id/${(quote as any).alegraEstimateId}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sky-700 font-bold flex items-center gap-1 hover:underline"
+                                            >
+                                                {(quote as any).alegraEstimateNumber}
+                                                <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        </div>
+                                    )}
+                                    {(quote as any).alegraSyncedAt && (
+                                        <div className="text-xs text-gray-500">
+                                            Sincronizado: {new Date((quote as any).alegraSyncedAt.seconds * 1000).toLocaleString()}
+                                        </div>
+                                    )}
+                                </div>
+                            </Card>
+                        )}
+
                         {/* ERPNext Status Card */}
                         {((quote as any).erpQuotationId || (quote as any).erpInvoiceId) && (
                             <Card className="p-6 glass-card border-green-200 bg-green-50/50">
@@ -318,6 +471,58 @@ export default function QuoteDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Configuración Rápida de Credenciales de Alegra */}
+            <Dialog open={alegraModalOpen} onOpenChange={setAlegraModalOpen}>
+                <DialogContent className="max-w-md bg-white">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-sky-900">
+                            <Cloud className="h-5 w-5 text-sky-600" />
+                            Conectar con Alegra Contabilidad
+                        </DialogTitle>
+                        <DialogDescription>
+                            Ingresa tus credenciales de la API de Alegra (Configuración &gt; Integraciones &gt; API en tu cuenta de Alegra).
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div>
+                            <Label className="text-xs font-bold text-slate-700 mb-1 block">Correo de Usuario de Alegra</Label>
+                            <Input
+                                type="email"
+                                placeholder="tu-email@empresa.com"
+                                value={alegraEmail}
+                                onChange={(e) => setAlegraEmail(e.target.value)}
+                                className="h-9 text-xs"
+                            />
+                        </div>
+                        <div>
+                            <Label className="text-xs font-bold text-slate-700 mb-1 block">Token API de Alegra</Label>
+                            <Input
+                                type="password"
+                                placeholder="Token generado en Alegra"
+                                value={alegraToken}
+                                onChange={(e) => setAlegraToken(e.target.value)}
+                                className="h-9 text-xs"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="ghost" onClick={() => setAlegraModalOpen(false)} className="text-xs">
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={() => handleSyncToAlegra(alegraAction, { email: alegraEmail, token: alegraToken })}
+                            disabled={!alegraEmail || !alegraToken || syncingAlegra}
+                            className="bg-sky-600 hover:bg-sky-700 text-white text-xs gap-2 font-bold"
+                        >
+                            {syncingAlegra ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+                            {alegraAction === "invoice" ? "Crear Factura en Alegra" : "Crear Cotización en Alegra"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

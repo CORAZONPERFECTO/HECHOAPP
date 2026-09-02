@@ -88,17 +88,37 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
             });
         }
 
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 2048,
-                responseMimeType: "application/json"
-            }
-        });
+        const CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        let responseText = "";
+        let lastError: any = null;
 
-        const result = await model.generateContent({ contents: [{ role: "user", parts }] });
-        const responseText = result.response.text();
+        for (const modelName of CANDIDATE_MODELS) {
+            try {
+                console.log(`[Voice Quote Parser] Intentando con modelo: ${modelName}`);
+                const model = genAI.getGenerativeModel({
+                    model: modelName,
+                    generationConfig: {
+                        temperature: 0.2,
+                        maxOutputTokens: 2048,
+                        responseMimeType: "application/json"
+                    }
+                });
+
+                const result = await model.generateContent({ contents: [{ role: "user", parts }] });
+                responseText = result.response.text();
+                if (responseText) {
+                    console.log(`[Voice Quote Parser] Éxito con modelo ${modelName}`);
+                    break;
+                }
+            } catch (modelErr: any) {
+                console.warn(`[Voice Quote Parser] Falló modelo ${modelName}:`, modelErr.message);
+                lastError = modelErr;
+            }
+        }
+
+        if (!responseText) {
+            throw lastError || new Error("No se pudo obtener respuesta de ningún modelo de IA.");
+        }
 
         let parsedData: any = null;
         try {
