@@ -67,7 +67,7 @@ function fallbackRuleBasedParser(transcript: string, currencyPreference: string 
         net_total,
         total_taxes_and_charges,
         grand_total,
-        terms: "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.",
+        terms: "Validez de la oferta: 15 días. Forma de pago: 100% al confirmar. Garantía de 30 días en mano de obra.",
         notes: "Servicios ejecutados por técnicos especializados de HECHO SRL."
     };
 }
@@ -112,7 +112,7 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
    - "grand_total": net_total + total_taxes_and_charges.
 
 5. **Términos Comerciales y Notas**:
-   - "terms": Plazos y condiciones (ej: "Validez de la oferta: 15 días. Forma de pago: 50% anticipo al aprobar y 50% contra entrega. Garantía de 30 días en mano de obra.").
+   - "terms": Plazos y condiciones (ej: "Validez de la oferta: 15 días. Forma de pago: 100% al confirmar. Garantía de 30 días en mano de obra.").
    - "notes": Observaciones técnicas pertinentes, alcance del trabajo o recomendaciones preventivas.
 
 6. **Formato de Respuesta**:
@@ -134,7 +134,7 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
   "net_total": 2500,
   "total_taxes_and_charges": 450,
   "grand_total": 2950,
-  "terms": "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.",
+  "terms": "Validez de la oferta: 15 días. Forma de pago: 100% al confirmar. Garantía de 30 días en mano de obra.",
   "notes": "Incluye mano de obra calificada, revisión de presiones y termometría."
 }`;
 
@@ -245,7 +245,7 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
             net_total: netTotal,
             total_taxes_and_charges: taxTotal,
             grand_total: grandTotal,
-            terms: parsedData.terms || "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.",
+            terms: parsedData.terms || "Validez de la oferta: 15 días. Forma de pago: 100% al confirmar. Garantía de 30 días en mano de obra.",
             notes: parsedData.notes || "Servicios ejecutados por técnicos especializados con garantía de calidad."
         };
 

@@ -258,7 +258,7 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
                 net_total: Number(subtotal.toFixed(2)),
                 total_taxes_and_charges: Number(tax.toFixed(2)),
                 grand_total: Number(total.toFixed(2)),
-                terms: data.terms || "Validez: 15 días. 50% anticipo, 50% contra entrega.",
+                terms: data.terms || "Validez: 15 días. Forma de pago: 100% al confirmar.",
                 notes: data.notes || "Servicio profesional garantizado."
             });
 

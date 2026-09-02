@@ -418,7 +418,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
     // Dynamic payment terms display in metadata box
     const paymentTermsDisplay = data.terms && data.terms.trim()
         ? data.terms.split('.')[0]
-        : '50% anticipo, 50% contra entrega';
+        : '100% al confirmar';
 
     // Dynamically build notes list reflecting the user's customized terms and notes
     const dynamicNotes: string[] = [];
@@ -447,7 +447,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
         const termsClean = data.terms.trim();
         dynamicNotes.push(`Condiciones de pago y entrega: ${termsClean.endsWith('.') ? termsClean : termsClean + '.'}`);
     } else {
-        dynamicNotes.push('Forma de pago: 50% de anticipo al confirmar y 50% restante contra entrega y verificación del servicio.');
+        dynamicNotes.push('Forma de pago: 100% al confirmar el servicio.');
         dynamicNotes.push('Validez: Esta cotización tiene una validez de 15 días a partir de la fecha de emisión.');
     }
 
