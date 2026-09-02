@@ -413,7 +413,8 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
         if (!quoteResult) return;
         setGeneratingPdf(true);
         try {
-            const docData = buildDocumentData("COT-PREVIA");
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_Domingo' }).format(new Date());
+            const docData = buildDocumentData(`CT-${todayStr}-001`);
             const blob = await generateDocumentPDF(docData, "classic");
             saveAs(blob, `Cotizacion-${quoteResult.clientName.replace(/\s+/g, "_")}.pdf`);
             toast({ title: "📄 PDF Descargado", description: "El presupuesto fue generado exitosamente." });
@@ -430,7 +431,8 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
         if (!quoteResult) return;
         setGeneratingPdf(true);
         try {
-            const docData = buildDocumentData("COT-PREVIA");
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_Domingo' }).format(new Date());
+            const docData = buildDocumentData(`CT-${todayStr}-001`);
             const blob = await generateDocumentPDF(docData, "classic");
             const url = URL.createObjectURL(blob);
             setPdfPreviewUrl(url);

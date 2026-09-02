@@ -1,25 +1,48 @@
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type SequenceType = 'COT' | 'FACT' | 'FACTPF' | 'OC' | 'COND';
+export type SequenceType = 'COT' | 'CT' | 'FACT' | 'FACTPF' | 'OC' | 'COND';
 
-const SEQUENCE_CONFIG = {
-    'COT': { prefix: 'COT', padding: 6 },
-    'FACT': { prefix: 'FACT', padding: 6 },
-    'FACTPF': { prefix: 'FACTPF', padding: 6 },
-    'OC': { prefix: 'OC', padding: 6 },
-    'COND': { prefix: 'COND', padding: 6 },
+const SEQUENCE_CONFIG: Record<SequenceType, { prefix: string; padding: number }> = {
+    'COT': { prefix: 'CT', padding: 3 },
+    'CT': { prefix: 'CT', padding: 3 },
+    'FACT': { prefix: 'FACT', padding: 3 },
+    'FACTPF': { prefix: 'FACTPF', padding: 3 },
+    'OC': { prefix: 'OC', padding: 3 },
+    'COND': { prefix: 'COND', padding: 3 },
 };
 
 /**
- * Generates the next sequential number for a given document type using a Firestore transaction.
- * Safe for concurrent usage.
- * 
- * @param type The type of document (e.g., 'COT', 'FACT')
- * @returns The formatted sequence string (e.g., 'COT-000001')
+ * Returns current date formatted as YYYY-MM-DD in Dominican Republic timezone (UTC-4).
  */
-export async function generateNextNumber(type: SequenceType): Promise<string> {
-    const sequenceRef = doc(db, "sequences", type);
+function getTodayDateString(): string {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Santo_Domingo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(new Date());
+    } catch {
+        return new Date().toISOString().split('T')[0];
+    }
+}
+
+/**
+ * Generates the next sequential number for a given document type using a Firestore transaction.
+ * Formats as: {PREFIX}-{YYYY-MM-DD}-{001}
+ * Example: CT-2026-09-02-001, CT-2026-09-02-002
+ * Safe for concurrent and daily multi-user usage.
+ * 
+ * @param type The type of document (e.g., 'COT', 'CT', 'FACT')
+ * @returns The formatted sequence string (e.g., 'CT-2026-09-02-001')
+ */
+export async function generateNextNumber(type: SequenceType = 'CT'): Promise<string> {
+    const config = SEQUENCE_CONFIG[type] || SEQUENCE_CONFIG['CT'];
+    const prefix = config.prefix;
+    const todayStr = getTodayDateString();
+    const sequenceDocId = `${prefix}_${todayStr}`;
+    const sequenceRef = doc(db, "sequences", sequenceDocId);
 
     try {
         const newNumber = await runTransaction(db, async (transaction) => {
@@ -34,6 +57,8 @@ export async function generateNextNumber(type: SequenceType): Promise<string> {
 
             transaction.set(sequenceRef, {
                 current: next,
+                date: todayStr,
+                prefix: prefix,
                 updatedAt: serverTimestamp(),
                 type: type,
             }, { merge: true });
@@ -41,12 +66,11 @@ export async function generateNextNumber(type: SequenceType): Promise<string> {
             return next;
         });
 
-        const config = SEQUENCE_CONFIG[type];
-        return `${config.prefix}-${newNumber.toString().padStart(config.padding, '0')}`;
+        const paddedCount = newNumber.toString().padStart(config.padding, '0');
+        return `${prefix}-${todayStr}-${paddedCount}`;
     } catch (error) {
-        console.error(`Error generating sequence for ${type}:`, error);
-        // Fallback for offline or error cases (should ideally throw or handle gracefully)
-        const randomFallback = Math.floor(Math.random() * 10000);
-        return `${SEQUENCE_CONFIG[type].prefix}-ERR-${randomFallback}`;
+        console.error(`Error generating sequence for ${type} on ${todayStr}:`, error);
+        const randomFallback = Math.floor(Math.random() * 900) + 100;
+        return `${prefix}-${todayStr}-${randomFallback}`;
     }
 }
