@@ -7,8 +7,8 @@ const styles = StyleSheet.create({
     page: {
         fontFamily: 'Helvetica',
         fontSize: 8,
-        paddingTop: 26,
-        paddingBottom: 26,
+        paddingTop: 24,
+        paddingBottom: 24,
         paddingHorizontal: 28,
         lineHeight: 1.3,
         flexDirection: 'column',
@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 6,
         paddingBottom: 4,
     },
     companyInfo: {
@@ -55,37 +55,37 @@ const styles = StyleSheet.create({
     logo: {
         width: 125,
         height: 42,
-        objectFit: 'contain',
     },
 
     // Main Green Title Block
     titleBlock: {
         textAlign: 'center',
-        marginTop: 6,
-        marginBottom: 8,
+        marginTop: 8,
+        marginBottom: 12,
     },
     mainTitle: {
-        fontSize: 15,
+        fontSize: 16,
         fontFamily: 'Helvetica-Bold',
         color: '#166534',
         textTransform: 'uppercase',
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
         textAlign: 'center',
-        marginBottom: 2,
+        marginBottom: 4,
     },
     subTitle: {
         fontSize: 8.5,
         fontFamily: 'Helvetica-Bold',
         color: '#15803d',
         textAlign: 'center',
-        marginBottom: 2,
+        marginBottom: 4,
     },
     docNumber: {
-        fontSize: 9,
+        fontSize: 9.5,
         fontFamily: 'Helvetica-Bold',
         color: '#111827',
         textAlign: 'center',
-        marginTop: 1,
+        marginTop: 2,
+        marginBottom: 8,
     },
 
     // Client & Meta Table (2 columns grid)
@@ -344,7 +344,6 @@ const styles = StyleSheet.create({
     selloImage: {
         width: 110,
         height: 55,
-        objectFit: 'contain',
         backgroundColor: '#ffffff',
     },
 
@@ -419,6 +418,42 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
 
     const stampSrc = HECHO_SELLO_BASE64;
 
+    // Dynamic payment terms display in metadata box
+    const paymentTermsDisplay = data.terms && data.terms.trim()
+        ? data.terms.split('.')[0]
+        : '50% anticipo, 50% contra entrega';
+
+    // Dynamically build notes list reflecting the user's customized terms and notes
+    const dynamicNotes: string[] = [];
+    
+    if (data.notes && data.notes.trim()) {
+        const rawLines = data.notes.split(/\n|\.(?=\s[A-Z])/).map(l => l.trim()).filter(Boolean);
+        rawLines.forEach(line => {
+            const clean = line.replace(/^\d+[\.\)]\s*/, '');
+            if (clean) {
+                dynamicNotes.push(clean.endsWith('.') ? clean : `${clean}.`);
+            }
+        });
+    } else {
+        dynamicNotes.push(`Alcance: ${data.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}.`);
+        dynamicNotes.push('Garantía: 30 días de garantía en mano de obra y servicios técnicos realizados.');
+    }
+
+    // Add tax note
+    dynamicNotes.push(data.taxTotal > 0 
+        ? 'ITBIS: Los precios incluyen el 18% de ITBIS de ley.' 
+        : 'ITBIS: Los precios no incluyen ITBIS (aplica al facturar formalmente).'
+    );
+
+    // Add terms note
+    if (data.terms && data.terms.trim()) {
+        const termsClean = data.terms.trim();
+        dynamicNotes.push(`Condiciones de pago y entrega: ${termsClean.endsWith('.') ? termsClean : termsClean + '.'}`);
+    } else {
+        dynamicNotes.push('Forma de pago: 50% de anticipo al confirmar y 50% restante contra entrega y verificación del servicio.');
+        dynamicNotes.push('Validez: Esta cotización tiene una validez de 15 días a partir de la fecha de emisión.');
+    }
+
     return (
         <Page size="LETTER" style={styles.page}>
             {/* Header: Left Company Info | Right HECHO Logo */}
@@ -436,7 +471,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
                 </View>
             </View>
 
-            {/* Title & Document Meta */}
+            {/* Title & Document Meta with generous vertical spacing */}
             <View style={styles.titleBlock}>
                 <Text style={styles.mainTitle}>{docTitle}</Text>
                 {displaySubtitle ? <Text style={styles.subTitle}>{displaySubtitle}</Text> : null}
@@ -455,7 +490,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
                     <Text style={styles.metaColLabel}>Ubicación:</Text>
                     <Text style={styles.metaColValue}>{clientLocation}</Text>
                     <Text style={styles.metaColLabel}>Pago:</Text>
-                    <Text style={styles.metaColValueRight}>50% anticipo, 50% contra entrega</Text>
+                    <Text style={styles.metaColValueRight}>{paymentTermsDisplay}</Text>
                 </View>
                 <View style={styles.metaRowLast}>
                     <Text style={styles.metaColLabel}>Validez:</Text>
@@ -514,24 +549,14 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
                 </View>
             </View>
 
-            {/* NOTAS IMPORTANTES */}
+            {/* NOTAS IMPORTANTES (Dinámicas según lo editado por el usuario) */}
             <View style={styles.notesContainer}>
                 <Text style={styles.sectionHeading}>NOTAS IMPORTANTES</Text>
-                <Text style={styles.noteItem}>
-                    1. Alcance: {data.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}.
-                </Text>
-                <Text style={styles.noteItem}>
-                    2. Garantía: 30 días de garantía en mano de obra y servicios técnicos realizados.
-                </Text>
-                <Text style={styles.noteItem}>
-                    3. ITBIS: {data.taxTotal > 0 ? 'Los precios incluyen el 18% de ITBIS de ley.' : 'Los precios no incluyen ITBIS (aplica al facturar formalmente).' }
-                </Text>
-                <Text style={styles.noteItem}>
-                    4. Forma de pago: 50% de anticipo al confirmar y 50% restante contra entrega y verificación del servicio.
-                </Text>
-                <Text style={styles.noteItem}>
-                    5. Validez: Esta cotización tiene una validez de 15 días a partir de la fecha de emisión.
-                </Text>
+                {dynamicNotes.map((note, idx) => (
+                    <Text style={styles.noteItem} key={idx}>
+                        {idx + 1}. {note}
+                    </Text>
+                ))}
             </View>
 
             {/* DATOS DE PAGO */}

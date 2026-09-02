@@ -431,7 +431,10 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
         if (!quoteResult) return;
         setGeneratingPdf(true);
         try {
-            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_Domingo' }).format(new Date());
+            if (pdfPreviewUrl) {
+                URL.revokeObjectURL(pdfPreviewUrl);
+            }
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_DOMINGO' }).format(new Date());
             const docData = buildDocumentData(`CT-${todayStr}-001`);
             const blob = await generateDocumentPDF(docData, "classic");
             const url = URL.createObjectURL(blob);
