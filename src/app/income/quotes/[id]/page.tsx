@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/income/status-badge";
 import {
     ArrowLeft, FileCheck, Mail, XCircle, CheckCircle,
-    ExternalLink, RefreshCw, Loader2, Send, Edit, Cloud, ChevronDown
+    ExternalLink, RefreshCw, Loader2, Send, Edit, Cloud, ChevronDown, FileText
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { QuoteTimeline } from "@/components/income/quotes/quote-timeline";
@@ -165,6 +165,50 @@ export default function QuoteDetailPage() {
         }
     };
 
+    // ─── Convert to Proforma / Presupuesto Toggle ─────────────────────────────
+    const [togglingProforma, setTogglingProforma] = useState(false);
+
+    const handleToggleProforma = async () => {
+        if (!quote) return;
+        setTogglingProforma(true);
+        try {
+            const currentIsProforma = (quote as any).isProforma || (quote as any).documentType === 'PROFORMA';
+            const newIsProforma = !currentIsProforma;
+            const newDocType = newIsProforma ? 'PROFORMA' : 'QUOTE';
+
+            await updateDoc(doc(db, "quotes", id), {
+                isProforma: newIsProforma,
+                documentType: newDocType,
+                timeline: arrayUnion({
+                    status: newIsProforma ? "PROFORMA" : "PRESUPUESTO",
+                    timestamp: Timestamp.now(),
+                    userId: auth.currentUser?.uid || "system",
+                    userName: auth.currentUser?.displayName || "Usuario",
+                    note: newIsProforma
+                        ? "Documento convertido a Factura Proforma"
+                        : "Documento revertido a Presupuesto / Cotización"
+                })
+            });
+
+            setQuote((prev: any) => prev ? {
+                ...prev,
+                isProforma: newIsProforma,
+                documentType: newDocType
+            } : null);
+
+            toast({
+                title: newIsProforma ? "📑 Convertido a Factura Proforma" : "📋 Revertido a Presupuesto",
+                description: newIsProforma
+                    ? "El documento ahora se emitirá como Factura Proforma comercial."
+                    : "El documento volvió a su formato estándar de Presupuesto."
+            });
+        } catch (error: any) {
+            toast({ variant: "destructive", title: "Error al actualizar", description: error.message });
+        } finally {
+            setTogglingProforma(false);
+        }
+    };
+
     if (loading) {
         return (
             <AppLayout>
@@ -198,8 +242,16 @@ export default function QuoteDetailPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-3xl font-bold text-gray-900">Cotización {quote.name || (quote as any).number}</h1>
-                            <StatusBadge status={quote.status} type="quote" />
+                            <h1 className="text-3xl font-bold text-gray-900">
+                                {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA') ? 'Factura Proforma' : 'Cotización'} {quote.name || (quote as any).number}
+                            </h1>
+                            {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA') ? (
+                                <span className="text-xs bg-purple-100 text-purple-800 border border-purple-300 px-2.5 py-0.5 rounded-full font-bold">
+                                    PROFORMA
+                                </span>
+                            ) : (
+                                <StatusBadge status={quote.status} type="quote" />
+                            )}
                             {(quote as any).erpQuotationId && (
                                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                                     ERP: {(quote as any).erpQuotationId}
@@ -215,6 +267,25 @@ export default function QuoteDetailPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                        {/* Toggle Proforma Button */}
+                        <Button
+                            variant="outline"
+                            onClick={handleToggleProforma}
+                            disabled={togglingProforma}
+                            className={((quote as any).isProforma || (quote as any).documentType === 'PROFORMA')
+                                ? "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 gap-1.5 font-bold shadow-sm"
+                                : "border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5 font-medium shadow-sm"}
+                        >
+                            {togglingProforma ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <FileText className="h-4 w-4 text-purple-600" />
+                            )}
+                            {((quote as any).isProforma || (quote as any).documentType === 'PROFORMA')
+                                ? "Cambiar a Presupuesto"
+                                : "Convertir a Proforma"}
+                        </Button>
+
                         {quote && companySettings && (
                             <DocumentExportButton
                                 data={mapQuoteToDocument(quote, companySettings)}

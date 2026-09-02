@@ -397,19 +397,30 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
         }
     };
 
-    const docTitle = data.type === 'COTIZACIÓN' ? 'PRESUPUESTO' : data.type;
+    let docTitle = 'PRESUPUESTO';
+    let displaySubtitle = '';
     const clientName = data.client.name || 'Cliente General';
     const clientLocation = data.client.address || 'Punta Cana, Rep. Dominicana';
     const formattedDate = formatDateSpanish(data.date || new Date());
-    
-    // Concise Subtitle / Scope line (never a full paragraph)
-    let displaySubtitle = '';
-    if (data.items.length === 1) {
-        displaySubtitle = data.items[0].description.length > 55
-            ? data.items[0].description.slice(0, 52) + '...'
-            : data.items[0].description;
-    } else if (data.items.length > 1) {
-        displaySubtitle = 'Mantenimientos y Servicios Técnicos Especializados';
+
+    if (data.type === 'FACTURA PROFORMA') {
+        docTitle = 'FACTURA PROFORMA';
+        displaySubtitle = 'Comprobante Comercial Proforma';
+    } else if (data.type === 'FACTURA') {
+        docTitle = 'FACTURA DE VENTA';
+        displaySubtitle = 'Comprobante Fiscal de Venta';
+    } else if (data.type === 'COTIZACIÓN') {
+        docTitle = 'PRESUPUESTO';
+        if (data.items.length === 1) {
+            displaySubtitle = data.items[0].description.length > 55
+                ? data.items[0].description.slice(0, 52) + '...'
+                : data.items[0].description;
+        } else if (data.items.length > 1) {
+            displaySubtitle = 'Mantenimientos y Servicios Técnicos Especializados';
+        }
+    } else {
+        docTitle = data.type;
+        displaySubtitle = data.items.length > 0 ? data.items[0].description.slice(0, 50) : '';
     }
 
     const logoSrc = HECHO_LOGO_JPG_BASE64;

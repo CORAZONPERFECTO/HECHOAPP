@@ -63,11 +63,12 @@ export interface DocumentData {
  * Mappers to convert DB objects into DocumentData
  */
 
-export function mapQuoteToDocument(quote: Quote, company: CompanySettings): DocumentData {
+export function mapQuoteToDocument(quote: Quote, company: CompanySettings, overrideType?: DocumentData['type']): DocumentData {
     const q = quote as any; // legacy field access shim
+    const isProforma = q.isProforma || q.documentType === 'PROFORMA';
     const mappedBase = {
         id: quote.id,
-        type: 'COTIZACIÓN' as const,
+        type: overrideType || (isProforma ? ('FACTURA PROFORMA' as const) : ('COTIZACIÓN' as const)),
         number: q.number || quote.name || '',
         date: quote.transaction_date
             ? new Date(quote.transaction_date)
