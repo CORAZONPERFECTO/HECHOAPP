@@ -186,7 +186,7 @@ export default function TicketsPage() {
             accessorKey: "serviceType" as keyof Ticket,
             cell: (item: Ticket) => (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-700">
-                    {item.serviceType.replace(/_/g, ' ')}
+                    {(item.serviceType || 'Mantenimiento General').replace(/_/g, ' ')}
                 </span>
             )
         },

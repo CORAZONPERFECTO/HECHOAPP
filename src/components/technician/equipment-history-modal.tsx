@@ -97,7 +97,7 @@ export function EquipmentHistoryModal({ equipmentId, locationId }: EquipmentHist
                                             {new Date(ticket.createdAt.seconds * 1000).toLocaleDateString()}
                                         </div>
                                     </div>
-                                    <Badge variant="outline">{ticket.serviceType.replace(/_/g, " ")}</Badge>
+                                    <Badge variant="outline">{(ticket.serviceType || 'Servicio').replace(/_/g, " ")}</Badge>
                                 </div>
 
                                 {ticket.diagnosis && (

@@ -607,9 +607,9 @@ export default function TicketDetailPage() {
                                     <div>
                                         <span className="text-gray-500 block">Tipo de Servicio</span>
                                         <div className="flex flex-col gap-1">
-                                            <span className="font-medium">{ticket.serviceType.replace(/_/g, ' ')}</span>
+                                            <span className="font-medium">{(ticket.serviceType || 'Servicio General').replace(/_/g, ' ')}</span>
                                             {ticket.extraServices?.map(es => (
-                                                <span key={es} className="font-medium text-blue-600">+ {es.replace(/_/g, ' ')}</span>
+                                                <span key={es} className="font-medium text-blue-600">+ {(es || '').replace(/_/g, ' ')}</span>
                                             ))}
                                             {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
                                                 <Button 

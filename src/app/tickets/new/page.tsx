@@ -35,6 +35,7 @@ export default function NewTicketPage() {
     const [formData, setFormData] = useState<Partial<Ticket>>({
         status: 'OPEN',
         priority: 'MEDIUM',
+        serviceType: 'MANTENIMIENTO' as any,
         checklist: [],
         photos: [],
         locationArea: "",
@@ -184,6 +185,7 @@ export default function NewTicketPage() {
 
             const ticketData: any = {
                 ...formData,
+                serviceType: formData.serviceType || "MANTENIMIENTO",
                 number: ticketNumber,
                 ticketNumber: ticketNumber,
                 locationName: fullLocation || formData.locationName || "Ubicación no especificada",

@@ -58,7 +58,7 @@ export function UrgentTicketsList() {
                         >
                             <div className="overflow-hidden">
                                 <p className="font-medium text-gray-900 truncate">{ticket.clientName}</p>
-                                <p className="text-xs text-gray-500 truncate">{ticket.serviceType.replace(/_/g, ' ')}</p>
+                                <p className="text-xs text-gray-500 truncate">{(ticket.serviceType || 'Servicio').replace(/_/g, ' ')}</p>
                             </div>
                             <div className="flex items-center text-xs font-medium text-red-600 whitespace-nowrap">
                                 Ver
