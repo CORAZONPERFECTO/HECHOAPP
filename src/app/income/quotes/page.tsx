@@ -17,10 +17,13 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRange } from "react-day-picker";
 import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { VoiceQuoteModal } from "@/components/income/quotes/voice-quote-modal";
+import { Sparkles, Mic } from "lucide-react";
 
 export default function QuotesPage() {
     const [quotes, setQuotes] = useState<Quote[]>([]);
     const [loading, setLoading] = useState(true);
+    const [voiceModalOpen, setVoiceModalOpen] = useState(false);
     const router = useRouter();
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: addDays(new Date(), -30),
@@ -118,7 +121,16 @@ export default function QuotesPage() {
                             date={dateRange}
                             setDate={setDateRange}
                         />
-                        <Button asChild className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-md">
+                        <Button
+                            type="button"
+                            onClick={() => setVoiceModalOpen(true)}
+                            className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-md font-bold gap-2"
+                        >
+                            <Mic className="h-4 w-4 text-blue-200" />
+                            <Sparkles className="h-4 w-4 text-amber-300" />
+                            Cotizar por Voz (IA)
+                        </Button>
+                        <Button asChild className="bg-slate-900 hover:bg-slate-800 text-white shadow-md">
                             <Link href="/income/quotes/new">
                                 <Plus className="mr-2 h-4 w-4" />
                                 Nueva Cotización
@@ -148,6 +160,11 @@ export default function QuotesPage() {
                     </div>
                 )}
             </div>
+
+            <VoiceQuoteModal
+                open={voiceModalOpen}
+                onOpenChange={setVoiceModalOpen}
+            />
         </AppLayout>
     );
 }
