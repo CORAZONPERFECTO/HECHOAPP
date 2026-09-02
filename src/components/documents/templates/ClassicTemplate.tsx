@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { DocumentData } from '@/lib/document-generator';
-import { HECHO_LOGO_BASE64, HECHO_SELLO_BASE64, DEFAULT_COMPANY_DETAILS } from '@/lib/company-branding';
+import { HECHO_LOGO_BASE64, HECHO_LOGO_JPG_BASE64, HECHO_SELLO_BASE64, HECHO_SELLO_JPG_BASE64, DEFAULT_COMPANY_DETAILS } from '@/lib/company-branding';
 
 const styles = StyleSheet.create({
     page: {
@@ -414,9 +414,9 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
 
     const logoSrc = (data.company.logoUrl && data.company.logoUrl.startsWith('http'))
         ? data.company.logoUrl
-        : HECHO_LOGO_BASE64;
+        : HECHO_LOGO_JPG_BASE64;
 
-    const stampSrc = HECHO_SELLO_BASE64;
+    const stampSrc = HECHO_SELLO_JPG_BASE64;
 
     // Dynamic payment terms display in metadata box
     const paymentTermsDisplay = data.terms && data.terms.trim()

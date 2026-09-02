@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, StyleSheet, Image, Svg, Rect } from '@react-pdf/renderer';
 import { DocumentData } from '@/lib/document-generator';
-import { HECHO_LOGO_BASE64, HECHO_SELLO_BASE64 } from '@/lib/company-branding';
+import { HECHO_LOGO_BASE64, HECHO_LOGO_JPG_BASE64, HECHO_SELLO_BASE64, HECHO_SELLO_JPG_BASE64 } from '@/lib/company-branding';
 import { themes } from './DocumentTheme';
 
 const theme = themes.modern;
@@ -182,7 +182,7 @@ export const ModernTemplate: React.FC<Props> = ({ data }) => {
                 {data.company.logoUrl ? (
                     <Image src={data.company.logoUrl} style={styles.logo} />
                 ) : (
-                    <Image src={HECHO_LOGO_BASE64} style={styles.logo} />
+                    <Image src={HECHO_LOGO_JPG_BASE64} style={styles.logo} />
                 )}
             </View>
 

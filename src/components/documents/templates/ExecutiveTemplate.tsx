@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 import { DocumentData } from '@/lib/document-generator';
-import { HECHO_LOGO_BASE64, HECHO_SELLO_BASE64 } from '@/lib/company-branding';
+import { HECHO_LOGO_BASE64, HECHO_LOGO_JPG_BASE64, HECHO_SELLO_BASE64, HECHO_SELLO_JPG_BASE64 } from '@/lib/company-branding';
 import { themes } from './DocumentTheme';
 
 // Using Helvetica-Bold instead of downloading custom fonts for simplicity, 
@@ -233,7 +233,7 @@ export const ExecutiveTemplate: React.FC<Props> = ({ data }) => {
             {/* Header */}
             <View style={styles.headerSpace}>
                 <View style={styles.companyBlock}>
-                    <Image src={data.company.logoUrl || HECHO_LOGO_BASE64} style={{ width: 120, height: 40, marginBottom: 6, objectFit: 'contain' }} />
+                    <Image src={data.company.logoUrl || HECHO_LOGO_JPG_BASE64} style={{ width: 120, height: 40, marginBottom: 6, objectFit: 'contain' }} />
                     <Text style={styles.companyName}>{data.company.name}</Text>
                     <Text style={styles.companyDetail}>{data.company.address}</Text>
                     <Text style={styles.companyDetail}>{`Tel: ${data.company.phone} | Correo: ${data.company.email}`}</Text>
