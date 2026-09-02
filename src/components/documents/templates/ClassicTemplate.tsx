@@ -7,8 +7,8 @@ const styles = StyleSheet.create({
     page: {
         fontFamily: 'Helvetica',
         fontSize: 8,
-        paddingTop: 24,
-        paddingBottom: 24,
+        paddingTop: 26,
+        paddingBottom: 26,
         paddingHorizontal: 28,
         lineHeight: 1.3,
         flexDirection: 'column',
@@ -18,11 +18,12 @@ const styles = StyleSheet.create({
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        alignItems: 'center',
+        marginBottom: 8,
+        paddingBottom: 4,
     },
     companyInfo: {
-        width: '58%',
+        width: '60%',
     },
     companyName: {
         fontSize: 12,
@@ -39,7 +40,7 @@ const styles = StyleSheet.create({
     companyTagline: {
         fontSize: 7.5,
         color: '#1f2937',
-        marginBottom: 1,
+        marginBottom: 1.5,
     },
     companyRncAddress: {
         fontSize: 7.5,
@@ -49,41 +50,42 @@ const styles = StyleSheet.create({
     logoContainer: {
         width: '38%',
         alignItems: 'flex-end',
+        justifyContent: 'center',
     },
     logo: {
-        width: 110,
-        height: 38,
+        width: 125,
+        height: 42,
         objectFit: 'contain',
     },
 
     // Main Green Title Block
     titleBlock: {
         textAlign: 'center',
-        marginVertical: 4,
-        paddingBottom: 4,
+        marginTop: 6,
+        marginBottom: 8,
     },
     mainTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontFamily: 'Helvetica-Bold',
         color: '#166534',
         textTransform: 'uppercase',
         letterSpacing: 1.2,
         textAlign: 'center',
+        marginBottom: 2,
     },
     subTitle: {
         fontSize: 8.5,
         fontFamily: 'Helvetica-Bold',
         color: '#15803d',
         textAlign: 'center',
-        marginTop: 2,
+        marginBottom: 2,
     },
     docNumber: {
         fontSize: 9,
         fontFamily: 'Helvetica-Bold',
         color: '#111827',
         textAlign: 'center',
-        marginTop: 2,
-        marginBottom: 4,
+        marginTop: 1,
     },
 
     // Client & Meta Table (2 columns grid)
@@ -97,17 +99,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#d1d5db',
-        minHeight: 16,
+        minHeight: 17,
         alignItems: 'center',
     },
     metaRowLast: {
         flexDirection: 'row',
-        minHeight: 16,
+        minHeight: 17,
         alignItems: 'center',
     },
     metaColLabel: {
         width: '15%',
-        paddingVertical: 2,
+        paddingVertical: 2.5,
         paddingHorizontal: 5,
         fontFamily: 'Helvetica-Bold',
         fontSize: 7.5,
@@ -116,7 +118,7 @@ const styles = StyleSheet.create({
     },
     metaColValue: {
         width: '35%',
-        paddingVertical: 2,
+        paddingVertical: 2.5,
         paddingHorizontal: 5,
         fontSize: 7.5,
         color: '#111827',
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
     },
     metaColValueRight: {
         width: '35%',
-        paddingVertical: 2,
+        paddingVertical: 2.5,
         paddingHorizontal: 5,
         fontSize: 7.5,
         color: '#111827',
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Helvetica-Bold',
         color: '#166534',
         textTransform: 'uppercase',
-        marginTop: 4,
+        marginTop: 3,
         marginBottom: 2,
     },
     objetoText: {
@@ -163,14 +165,14 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontFamily: 'Helvetica-Bold',
         fontSize: 7.5,
-        paddingVertical: 2,
+        paddingVertical: 2.5,
         paddingHorizontal: 4,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
-        minHeight: 16,
+        minHeight: 17,
         alignItems: 'center',
     },
     tableRowEven: {
@@ -297,8 +299,9 @@ const styles = StyleSheet.create({
     signaturesRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 8,
-        marginBottom: 8,
+        alignItems: 'flex-start',
+        marginTop: 6,
+        marginBottom: 6,
         paddingHorizontal: 20,
     },
     signatureBlockLeft: {
@@ -308,12 +311,13 @@ const styles = StyleSheet.create({
     signatureBlockRight: {
         width: '45%',
         alignItems: 'center',
+        backgroundColor: '#ffffff',
     },
     signatureHeader: {
         fontSize: 7.5,
         fontFamily: 'Helvetica-Bold',
         color: '#1f2937',
-        marginBottom: 6,
+        marginBottom: 4,
         textAlign: 'center',
     },
     signatureLine: {
@@ -321,7 +325,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#4b5563',
         marginBottom: 4,
-        marginTop: 25,
+        marginTop: 22,
     },
     signName: {
         fontSize: 7.8,
@@ -338,9 +342,10 @@ const styles = StyleSheet.create({
         color: '#166534',
     },
     selloImage: {
-        width: 105,
-        height: 52,
+        width: 110,
+        height: 55,
         objectFit: 'contain',
+        backgroundColor: '#ffffff',
     },
 
     // Footer
@@ -348,7 +353,7 @@ const styles = StyleSheet.create({
         marginTop: 'auto',
         borderTopWidth: 1,
         borderTopColor: '#e5e7eb',
-        paddingTop: 4,
+        paddingTop: 3,
         textAlign: 'center',
     },
     footerCompanyLine: {
@@ -398,19 +403,25 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
     const clientLocation = data.client.address || 'Punta Cana, Rep. Dominicana';
     const formattedDate = formatDateSpanish(data.date || new Date());
     
-    // Subtitle / Scope derived from items or notes
-    const itemSummary = data.items.map(i => i.description).slice(0, 2).join(' y ');
-    const displaySubtitle = data.notes?.split('\n')[0] || itemSummary || 'Servicios Técnicos Especializados';
+    // Concise Subtitle / Scope line (never a full paragraph)
+    let displaySubtitle = '';
+    if (data.items.length === 1) {
+        displaySubtitle = data.items[0].description.length > 55
+            ? data.items[0].description.slice(0, 52) + '...'
+            : data.items[0].description;
+    } else if (data.items.length > 1) {
+        displaySubtitle = 'Mantenimientos y Servicios Técnicos Especializados';
+    }
 
-    const logoSrc = data.company.logoUrl && data.company.logoUrl.startsWith('http') 
-        ? data.company.logoUrl 
+    const logoSrc = (data.company.logoUrl && data.company.logoUrl.startsWith('http'))
+        ? data.company.logoUrl
         : HECHO_LOGO_BASE64;
 
     const stampSrc = HECHO_SELLO_BASE64;
 
     return (
         <Page size="LETTER" style={styles.page}>
-            {/* Header */}
+            {/* Header: Left Company Info | Right HECHO Logo */}
             <View style={styles.headerContainer}>
                 <View style={styles.companyInfo}>
                     <Text style={styles.companyName}>{data.company.name || DEFAULT_COMPANY_DETAILS.name}</Text>
@@ -428,7 +439,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
             {/* Title & Document Meta */}
             <View style={styles.titleBlock}>
                 <Text style={styles.mainTitle}>{docTitle}</Text>
-                {displaySubtitle && <Text style={styles.subTitle}>{displaySubtitle}</Text>}
+                {displaySubtitle ? <Text style={styles.subTitle}>{displaySubtitle}</Text> : null}
                 <Text style={styles.docNumber}>No. {data.number}</Text>
             </View>
 
