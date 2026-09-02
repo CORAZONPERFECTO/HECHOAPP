@@ -4,6 +4,74 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
+// Helper: Fallback parser in case AI quota or rate limits spike
+function fallbackRuleBasedParser(transcript: string, currencyPreference: string = "DOP") {
+    const text = transcript || "";
+    
+    // Extract client name if pattern like "para Hotel Viva Maya:" or "para Juan Perez"
+    let clientName = "Cliente General";
+    const clientMatch = text.match(/para\s+([A-Za-z0-9\sÁÉÍÓÚáéíóúñÑ]+?)(?::|,|\.|y\s|\d)/i);
+    if (clientMatch && clientMatch[1]) {
+        clientName = clientMatch[1].trim();
+    }
+
+    // Split items by " y " or "," or ";"
+    const items: Array<{ description: string; qty: number; rate: number; amount: number; uom: string }> = [];
+    
+    // Find price patterns like "4,500" or "4500" or "3800 pesos"
+    const sentences = text.split(/(?:,|\sy\s|\.\s)/i);
+    for (const s of sentences) {
+        const trimmed = s.trim();
+        if (!trimmed) continue;
+        
+        const priceMatch = trimmed.match(/(\d{1,3}(?:,\d{3})*|\d+)(?:\s*(?:pesos|dop|rd\$|\$|usd))?/i);
+        const rate = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 2500;
+        
+        // Clean description
+        let desc = trimmed
+            .replace(/para\s+([A-Za-z0-9\sÁÉÍÓÚáéíóúñÑ]+?):/i, '')
+            .replace(/(\d{1,3}(?:,\d{3})*|\d+)(?:\s*(?:pesos|dop|rd\$|\$|usd))?/ig, '')
+            .replace(/^(y|e|\:|\-)\s*/i, '')
+            .trim();
+        
+        if (desc.length > 3 && rate > 0) {
+            items.push({
+                description: desc.charAt(0).toUpperCase() + desc.slice(1),
+                qty: 1,
+                rate: rate,
+                amount: rate,
+                uom: "Servicio"
+            });
+        }
+    }
+
+    if (items.length === 0) {
+        items.push({
+            description: text.slice(0, 80) || "Servicio técnico y mantenimiento especializado",
+            qty: 1,
+            rate: 3500,
+            amount: 3500,
+            uom: "Servicio"
+        });
+    }
+
+    const net_total = items.reduce((sum, item) => sum + item.amount, 0);
+    const total_taxes_and_charges = Math.round(net_total * 0.18 * 100) / 100;
+    const grand_total = net_total + total_taxes_and_charges;
+
+    return {
+        clientName,
+        clientRnc: "",
+        currency: currencyPreference || "DOP",
+        items,
+        net_total,
+        total_taxes_and_charges,
+        grand_total,
+        terms: "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.",
+        notes: "Servicios ejecutados por técnicos especializados de HECHO SRL."
+    };
+}
+
 export async function POST(req: NextRequest) {
     try {
         const { transcript, image, currencyPreference } = await req.json();
@@ -14,7 +82,9 @@ export async function POST(req: NextRequest) {
 
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ success: false, error: "GEMINI_API_KEY no está configurada en las variables de entorno." }, { status: 500 });
+            // If no API key configured, use fallback parser
+            const fallbackResult = fallbackRuleBasedParser(transcript, currencyPreference);
+            return NextResponse.json({ success: true, data: fallbackResult, isFallback: true });
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
@@ -88,7 +158,17 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
             });
         }
 
-        const CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        // List of currently supported active models for Gemini API
+        const CANDIDATE_MODELS = [
+            "gemini-3.5-flash-lite",
+            "gemini-flash-lite-latest",
+            "gemini-3-flash-preview",
+            "gemini-2.5-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-flash-latest"
+        ];
+        
         let responseText = "";
         let lastError: any = null;
 
@@ -113,58 +193,72 @@ INSTRUCCIONES CLAVE DE COTIZACIÓN EN REPÚBLICA DOMINICANA:
             } catch (modelErr: any) {
                 console.warn(`[Voice Quote Parser] Falló modelo ${modelName}:`, modelErr.message);
                 lastError = modelErr;
+                // Wait 400ms before falling back to the next model
+                await new Promise((resolve) => setTimeout(resolve, 400));
             }
         }
 
         if (!responseText) {
-            throw lastError || new Error("No se pudo obtener respuesta de ningún modelo de IA.");
-        }
-
-        let parsedData: any = null;
-        try {
-            const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-            parsedData = JSON.parse(cleaned);
-        } catch (parseErr) {
-            console.error("Error parseando respuesta de Gemini en voice-quote:", parseErr, responseText);
-            const firstBrace = responseText.indexOf("{");
-            const lastBrace = responseText.lastIndexOf("}");
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                parsedData = JSON.parse(responseText.substring(firstBrace, lastBrace + 1));
-            } else {
-                throw new Error("La IA no devolvió un JSON estructurado válido.");
-            }
-        }
-
-        // Normalizar y asegurar cálculos matemáticos consistentes
-        if (parsedData && Array.isArray(parsedData.items)) {
-            let calculatedNet = 0;
-            parsedData.items = parsedData.items.map((item: any) => {
-                const qty = Number(item.qty) || 1;
-                const rate = Number(item.rate) || 0;
-                const amount = Number((qty * rate).toFixed(2));
-                calculatedNet += amount;
-                return {
-                    description: item.description || "Servicio técnico",
-                    qty,
-                    rate,
-                    amount,
-                    uom: item.uom || "Unidad"
-                };
+            console.warn("[Voice Quote Parser] Modelos remotos no disponibles. Usando motor estructurador de respaldo.");
+            const fallbackData = fallbackRuleBasedParser(transcript, currencyPreference);
+            return NextResponse.json({
+                success: true,
+                data: fallbackData,
+                isFallback: true
             });
-
-            parsedData.net_total = Number(calculatedNet.toFixed(2));
-            parsedData.total_taxes_and_charges = Number((calculatedNet * 0.18).toFixed(2));
-            parsedData.grand_total = Number((parsedData.net_total + parsedData.total_taxes_and_charges).toFixed(2));
-            parsedData.currency = parsedData.currency || "DOP";
-            parsedData.clientName = parsedData.clientName || "Cliente General";
-            parsedData.terms = parsedData.terms || "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.";
-            parsedData.notes = parsedData.notes || "Servicio garantizado por HECHO SRL.";
         }
 
-        return NextResponse.json({ success: true, data: parsedData });
+        // Clean any markdown formatting if present
+        let cleanJson = responseText.trim();
+        if (cleanJson.startsWith("```json")) {
+            cleanJson = cleanJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+        } else if (cleanJson.startsWith("```")) {
+            cleanJson = cleanJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
+        }
+
+        const parsedData = JSON.parse(cleanJson);
+
+        // Sanitize numbers and calculate totals to guarantee consistency
+        let netTotal = 0;
+        const sanitizedItems = (parsedData.items || []).map((item: any) => {
+            const qty = Number(item.qty) || 1;
+            const rate = Number(item.rate) || 0;
+            const amount = Number(item.amount) || qty * rate;
+            netTotal += amount;
+            return {
+                description: String(item.description || "Servicio Técnico").trim(),
+                qty,
+                rate,
+                amount,
+                uom: String(item.uom || "Servicio").trim()
+            };
+        });
+
+        const taxTotal = Math.round(netTotal * 0.18 * 100) / 100;
+        const grandTotal = netTotal + taxTotal;
+
+        const structuredQuote = {
+            clientName: parsedData.clientName || "Cliente General",
+            clientRnc: parsedData.clientRnc || "",
+            currency: parsedData.currency || currencyPreference || "DOP",
+            items: sanitizedItems,
+            net_total: netTotal,
+            total_taxes_and_charges: taxTotal,
+            grand_total: grandTotal,
+            terms: parsedData.terms || "Oferta válida por 15 días. 50% de anticipo y 50% contra entrega.",
+            notes: parsedData.notes || "Servicios ejecutados por técnicos especializados con garantía de calidad."
+        };
+
+        return NextResponse.json({
+            success: true,
+            data: structuredQuote
+        });
 
     } catch (error: any) {
-        console.error("Error en endpoint /api/quotes/voice-parser:", error);
-        return NextResponse.json({ success: false, error: error.message || "Error al procesar la cotización por voz." }, { status: 500 });
+        console.error("[Voice Quote Parser] Error general:", error);
+        return NextResponse.json({
+            success: false,
+            error: error.message || "Error al procesar la cotización por voz."
+        }, { status: 500 });
     }
 }
