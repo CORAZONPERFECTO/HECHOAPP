@@ -412,10 +412,7 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
         displaySubtitle = 'Mantenimientos y Servicios Técnicos Especializados';
     }
 
-    const logoSrc = (data.company.logoUrl && data.company.logoUrl.startsWith('http'))
-        ? data.company.logoUrl
-        : HECHO_LOGO_JPG_BASE64;
-
+    const logoSrc = HECHO_LOGO_JPG_BASE64;
     const stampSrc = HECHO_SELLO_JPG_BASE64;
 
     // Dynamic payment terms display in metadata box
