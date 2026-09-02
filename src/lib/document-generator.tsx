@@ -77,13 +77,13 @@ export function mapQuoteToDocument(quote: Quote, company: CompanySettings): Docu
             : (q.validUntil instanceof Timestamp ? q.validUntil.toDate() : undefined),
 
         company: {
-            name: company.name,
-            rnc: company.rnc,
-            address: company.address,
-            phone: company.phone,
-            email: company.email,
-            logoUrl: company.logoUrl,
-            website: company.website,
+            name: company.name || 'HECHO SRL',
+            rnc: company.rnc || '131947532',
+            address: company.address || 'Av. Principal, Punta Cana, Rep. Dom.',
+            phone: company.phone || '+1 (809) 555-0199',
+            email: company.email || 'contacto@hecho.do',
+            logoUrl: company.logoUrl || '/logo.png',
+            website: company.website || 'https://hecho.do',
         },
 
         client: {
@@ -138,13 +138,13 @@ export function mapInvoiceToDocument(invoice: Invoice, company: CompanySettings)
         dueDate: invoice.dueDate instanceof Timestamp ? invoice.dueDate.toDate() : undefined,
 
         company: {
-            name: company.name,
-            rnc: company.rnc,
-            address: company.address,
-            phone: company.phone,
-            email: company.email,
-            logoUrl: company.logoUrl,
-            website: company.website,
+            name: company.name || 'HECHO SRL',
+            rnc: company.rnc || '131947532',
+            address: company.address || 'Av. Principal, Punta Cana, Rep. Dom.',
+            phone: company.phone || '+1 (809) 555-0199',
+            email: company.email || 'contacto@hecho.do',
+            logoUrl: company.logoUrl || '/logo.png',
+            website: company.website || 'https://hecho.do',
         },
 
         client: {

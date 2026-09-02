@@ -232,6 +232,9 @@ export const ExecutiveTemplate: React.FC<Props> = ({ data }) => {
             {/* Header */}
             <View style={styles.headerSpace}>
                 <View style={styles.companyBlock}>
+                    {data.company.logoUrl ? (
+                        <Image src={data.company.logoUrl} style={{ width: 120, height: 40, marginBottom: 6, objectFit: 'contain' }} />
+                    ) : null}
                     <Text style={styles.companyName}>{data.company.name}</Text>
                     <Text style={styles.companyDetail}>{data.company.address}</Text>
                     <Text style={styles.companyDetail}>{`Tel: ${data.company.phone} | Correo: ${data.company.email}`}</Text>

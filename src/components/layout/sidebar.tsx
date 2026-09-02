@@ -119,22 +119,15 @@ export function Sidebar() {
                 )}
             >
                 {/* Header / Logo */}
-                <div className="h-16 flex items-center justify-center border-b border-gray-200/50 dark:border-gray-800/50 relative">
-                    <Link href="/" className={cn("flex items-center gap-2 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
-                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
-                            H
-                        </div>
-                        <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-purple-600 dark:from-blue-400 dark:to-purple-400">
-                            HECHOAPP
-                        </span>
+                <div className="h-16 flex items-center justify-center border-b border-gray-200/50 dark:border-gray-800/50 relative px-4">
+                    <Link href="/" className={cn("flex items-center gap-2.5 transition-all duration-300", collapsed ? "scale-0 opacity-0 absolute" : "scale-100 opacity-100")}>
+                        <img src="/logo.png" alt="HECHO Logo" className="h-9 w-auto object-contain max-w-[170px]" />
                     </Link>
 
                     {/* Collapsed Logo */}
                     <Link href="/" className={cn("absolute transition-all duration-300", collapsed ? "scale-100 opacity-100" : "scale-0 opacity-0")}>
-                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-purple-500/30">
-                        H
-                    </div>
-                </Link>
+                        <img src="/logo.png" alt="HECHO Logo" className="h-8 w-auto object-contain" />
+                    </Link>
 
                 {/* Toggle Button */}
                 <Button
