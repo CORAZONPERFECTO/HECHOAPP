@@ -23,6 +23,7 @@ import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW Editor
 import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
+import { TicketToInvoiceModal } from "@/components/tickets/ticket-to-invoice-modal";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
 import { StatusActionButtons } from "@/components/technician/status-action-buttons";
@@ -32,7 +33,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,6 +59,7 @@ export default function TicketDetailPage() {
     const [newVisitDate, setNewVisitDate] = useState("");
     const [newTaskText, setNewTaskText] = useState("");
     const [newTaskAssignedId, setNewTaskAssignedId] = useState("unassigned");
+    const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
 
@@ -516,20 +518,10 @@ export default function TicketDetailPage() {
                             </div>
                         </div>
                         <Button 
-                            className="bg-orange-600 hover:bg-orange-700 text-white"
-                            onClick={async () => {
-                                const num = prompt("Introduce el número de factura para este ticket:");
-                                if (num && num.trim() !== "") {
-                                    try {
-                                        await setDoc(doc(db, "tickets", ticketId), { billingStatus: 'BILLED', linkedInvoiceId: num.trim() }, { merge: true });
-                                        alert(`Ticket facturado con No. ${num.trim()}`);
-                                    } catch (error) {
-                                        console.error("Error updating billing status:", error);
-                                    }
-                                }
-                            }}
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl gap-2 shadow-sm"
+                            onClick={() => setShowInvoiceModal(true)}
                         >
-                            Marcar como Facturado
+                            <Zap className="w-4 h-4 text-amber-300" /> Facturar & Cobrar Ticket con NCF
                         </Button>
                     </div>
                 </div>
@@ -1207,6 +1199,17 @@ export default function TicketDetailPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {ticket && (
+                <TicketToInvoiceModal 
+                    open={showInvoiceModal} 
+                    onOpenChange={setShowInvoiceModal} 
+                    ticket={ticket} 
+                    onInvoiceCreated={(invId) => {
+                        setTicket(prev => prev ? ({ ...prev, linkedInvoiceId: invId, billingStatus: 'BILLED' }) : null);
+                    }}
+                />
+            )}
         </div>
     );
 }

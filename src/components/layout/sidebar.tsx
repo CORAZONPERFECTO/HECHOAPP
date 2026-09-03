@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, ChevronDown, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,6 +88,7 @@ const navCategories: NavCategory[] = [
         items: [
             { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "GERENTE"] },
             { label: "Consejo Asesor IA", icon: Sparkles, href: "/admin/asesores", roles: ["ADMIN", "GERENTE", "SUPERVISOR"], badge: "IA" },
+            { label: "Tesorería & Cuentas", icon: Landmark, href: "/admin/tesoreria", roles: ["ADMIN", "GERENTE"] },
             { label: "Control de Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Reportes Ejecutivos", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
         ]
@@ -99,6 +100,7 @@ const navCategories: NavCategory[] = [
         roles: ["ADMIN", "SUPERVISOR"],
         items: [
             { label: "Stock / Inventario", icon: PackageSearch, href: "/inventory", roles: ["ADMIN", "SUPERVISOR"] },
+            { label: "Stock en Camionetas", icon: Truck, href: "/inventory/vehicles", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Movimientos", icon: ArrowLeftRight, href: "/inventory/movements", roles: ["ADMIN", "SUPERVISOR"] },
         ]
     },
