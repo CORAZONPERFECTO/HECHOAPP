@@ -28,13 +28,15 @@ const formatTicketDate = (date: Timestamp | Date | string | number | null | unde
 };
 
 /**
- * Generates a complete report from a ticket
- * Adapts the "Modern" structure requested by user to existing Schema types.
+ * Generates a complete report from a ticket with executive structure
  */
-export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
+export function generateReportFromTicket(
+    ticket: Ticket,
+    customPolicies?: { warrantyPolicies?: string; defaultRecommendations?: string }
+): TicketReportNew {
     const sections: TicketReportSection[] = [];
 
-    // --- 0. TÍTULO PRINCIPAL & DATOS GENERALES ---
+    // --- 0. DATOS GENERALES DEL SERVICIO ---
     sections.push({
         id: uuid(),
         type: 'h2',
@@ -44,8 +46,10 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
     const generalDataItems = [
         `Ticket: ${ticket.ticketNumber || ticket.id.slice(0, 8)}`,
         `Cliente: ${ticket.clientName || 'N/D'}`,
-        `Fecha: ${formatTicketDate(ticket.createdAt)}`,
-        `Técnico: ${ticket.technicianName || 'N/D'}`
+        `Ubicación: ${ticket.locationName || ticket.specificLocation || 'N/D'}`,
+        `Fecha de Ejecución: ${formatTicketDate(ticket.createdAt)}`,
+        `Técnico Responsable: ${ticket.technicianName || 'Técnico Especialista'}`,
+        `Tipo de Servicio: ${ticket.serviceType ? ticket.serviceType.replace(/_/g, ' ') : 'Mantenimiento General'}`
     ];
 
     sections.push({
@@ -54,24 +58,41 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
         items: generalDataItems
     } as ListSection);
 
-    // --- 1. DESCRIPCIÓN PRINCIPAL ---
-    if (ticket.description) {
-        sections.push({
-            id: uuid(),
-            type: 'text',
-            content: ticket.description
-        } as TextSection);
-    }
+    // --- 1. DIAGNÓSTICO & HALLAZGOS ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Diagnóstico y Hallazgos Técnicos'
+    } as TitleSection);
 
-    // --- 1.5 MATERIALES Y HERRAMIENTAS ---
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: ticket.diagnosis || ticket.description || 'Se realizó inspección inicial y diagnóstico técnico de las condiciones del equipo e instalaciones.'
+    } as TextSection);
+
+    // --- 2. TRABAJO REALIZADO & SOLUCIÓN ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Trabajo Realizado y Solución Técnica'
+    } as TitleSection);
+
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: ticket.solution || (ticket.description ? `Ejecución de servicio técnico: ${ticket.description}` : 'Mantenimiento preventivo y correctivo ejecutado conforme a los estándares de calidad de HECHO SRL.')
+    } as TextSection);
+
+    // --- 2.5 MATERIALES Y REPUESTOS (SI APLICA) ---
     if (ticket.materialsChecklist && ticket.materialsChecklist.length > 0) {
         sections.push({
             id: uuid(),
             type: 'h2',
-            content: 'Materiales y Herramientas'
+            content: 'Materiales e Insumos Utilizados'
         } as TitleSection);
 
-        const materialsList = ticket.materialsChecklist.map(m => `[${m.checked ? 'X' : ' '}] ${m.text}`);
+        const materialsList = ticket.materialsChecklist.map(m => `• ${m.text} ${m.checked ? '(Utilizado/Instalado)' : ''}`);
         sections.push({
             id: uuid(),
             type: 'list',
@@ -79,13 +100,28 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
         } as ListSection);
     }
 
-    // --- 2. FOTOS (TODAS LAS EVIDENCIAS) ---
-    // Catch-all: Include ALL photos, grouped under one GallerySection
+    // --- 3. RECOMENDACIONES TÉCNICAS AL CLIENTE (DESTACADO) ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Recomendaciones Técnicas para el Cliente'
+    } as TitleSection);
+
+    const recommendationsText = ticket.recommendations || customPolicies?.defaultRecommendations || 
+        '• Se recomienda realizar mantenimiento preventivo cada 3 meses para asegurar el rendimiento óptimo del equipo y evitar sobrecostos energéticos.\n• Mantener los filtros de retorno libres de obstrucciones y limpios.\n• Notificar oportunamente cualquier sonido inusual o variación en la temperatura del sistema.';
+
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: recommendationsText
+    } as TextSection);
+
+    // --- 4. EVIDENCIA FOTOGRÁFICA (TODAS LAS FOTOS) ---
     if (ticket.photos && ticket.photos.length > 0) {
         sections.push({
             id: uuid(),
             type: 'h2',
-            content: 'Evidencia Fotográfica'
+            content: 'Evidencia Fotográfica de los Trabajos'
         } as TitleSection);
 
         sections.push({
@@ -93,27 +129,30 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
             type: 'gallery',
             photos: ticket.photos.map(photo => ({
                 photoUrl: photo.url,
-                description: photo.description || photo.details || '',
+                description: photo.description || photo.details || (photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 'Durante la Ejecución'),
                 photoMeta: {
                     originalId: (photo as { id?: string }).id || uuid(),
                     area: photo.area,
-                    phase: photo.type
+                    phase: photo.type || 'EVIDENCE'
                 }
             }))
         } as GallerySection);
     }
 
-    // --- 3. OBSERVACIONES FINALES (Editable) ---
+    // --- 5. POLÍTICAS DE GARANTÍA Y TÉRMINOS ---
     sections.push({
         id: uuid(),
         type: 'h2',
-        content: 'Observaciones Finales'
+        content: 'Términos de Garantía y Condiciones'
     } as TitleSection);
+
+    const warrantyText = customPolicies?.warrantyPolicies || 
+        '1. Garantía de 30 días sobre la mano de obra del servicio realizado.\n2. La garantía no cubre averías ocasionadas por fluctuaciones de voltaje, descargas eléctricas, mal uso o manipulación por terceros no autorizados.\n3. Los repuestos e insumos cuentan con la garantía directa otorgada por el fabricante.';
 
     sections.push({
         id: uuid(),
         type: 'text',
-        content: 'El servicio fue realizado a satisfacción. Se realizaron pruebas de funcionamiento y limpieza del área.'
+        content: warrantyText
     } as TextSection);
 
     return {
@@ -123,7 +162,7 @@ export function generateReportFromTicket(ticket: Ticket): TicketReportNew {
             ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 6),
             address: ticket.locationName || ticket.specificLocation || '',
             date: formatTicketDate(ticket.createdAt),
-            technicianName: ticket.technicianName || 'Técnico Asignado',
+            technicianName: ticket.technicianName || 'Técnico Especialista',
             title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
         },
         sections,

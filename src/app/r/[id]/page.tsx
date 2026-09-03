@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { TicketReportNew } from "@/types/schema";
 import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, CheckCircle2 } from "lucide-react";
+import { Loader2, Download, MessageSquare, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export default function SmartReportPage() {
@@ -42,23 +42,23 @@ export default function SmartReportPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-4">
+            <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center space-y-4">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <p className="text-gray-500 font-medium">Cargando reporte seguro...</p>
+                <p className="text-slate-600 font-semibold text-sm">Cargando informe oficial de servicio...</p>
             </div>
         );
     }
 
     if (!report) {
         return (
-            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-                <Card className="max-w-md w-full p-8 text-center space-y-4">
-                    <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+            <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+                <Card className="max-w-md w-full p-8 text-center space-y-4 rounded-3xl shadow-xl border-none">
+                    <div className="mx-auto w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-4">
                         <span className="text-2xl">📄</span>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Reporte no encontrado</h2>
-                    <p className="text-gray-500">
-                        El enlace que intentas abrir no existe o ha expirado. Por favor, solicita un nuevo enlace a tu proveedor de servicio.
+                    <h2 className="text-2xl font-bold text-slate-900">Informe no disponible</h2>
+                    <p className="text-slate-500 text-sm">
+                        El enlace que intentas abrir no existe o ha expirado. Por favor, solicita un enlace actualizado a tu asesor de servicio en HECHO SRL.
                     </p>
                 </Card>
             </div>
@@ -66,48 +66,36 @@ export default function SmartReportPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            {/* Top Navigation / Actions Bar - Hidden on print */}
-            <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b shadow-sm print:hidden">
-                <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
-                            H
-                        </div>
-                        <span className="font-bold text-gray-900 tracking-tight">HECHO SRL</span>
+        <div className="min-h-screen bg-slate-100/80 py-4 sm:py-8 px-2 sm:px-4">
+            {/* Top Navigation Bar - Hidden on Print */}
+            <div className="max-w-4xl mx-auto mb-6 bg-white/90 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between flex-wrap gap-3 print:hidden">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-extrabold shadow-sm">
+                        H
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">Guardar PDF</span>
-                        </Button>
-                        <Button size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={() => alert("Función de aprobación en desarrollo.")}>
-                            <CheckCircle2 className="h-4 w-4" />
-                            Aprobar
-                        </Button>
+                    <div>
+                        <span className="font-extrabold text-slate-900 tracking-tight text-base block">HECHO SRL</span>
+                        <span className="text-[11px] text-slate-500 font-medium">Portal Oficial de Informes Técnicos</span>
                     </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 rounded-xl text-xs font-semibold h-9">
+                        <Download className="h-4 w-4 text-blue-600" />
+                        <span>Guardar / Imprimir PDF</span>
+                    </Button>
                 </div>
             </div>
 
-            {/* Warning banner */}
-            <div className="bg-blue-50 border-b border-blue-100 py-2 px-4 text-center print:hidden">
-                <p className="text-xs sm:text-sm text-blue-800">
-                    Este es un documento oficial de solo lectura. Los cambios se guardan automáticamente.
-                </p>
-            </div>
-
-            {/* Main Report Container */}
-            <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden ring-1 ring-gray-200">
-                    <div className="p-6 sm:p-10 md:p-14">
-                        <TicketReportView report={report} isInteractive={false} />
-                    </div>
-                </div>
+            {/* Main Report Document Container */}
+            <main className="max-w-4xl mx-auto">
+                <TicketReportView report={report} isInteractive={false} />
             </main>
-            
-            <footer className="text-center py-8 text-sm text-gray-400 print:hidden">
-                <p>Generado de forma segura a través de HECHOAPP</p>
+
+            {/* Footer */}
+            <footer className="max-w-4xl mx-auto mt-8 text-center text-xs text-slate-500 print:hidden pb-8">
+                <p className="font-medium">© {new Date().getFullYear()} HECHO SRL • Todos los derechos reservados.</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Documento técnico digital generado por HECHOAPP</p>
             </footer>
         </div>
     );
