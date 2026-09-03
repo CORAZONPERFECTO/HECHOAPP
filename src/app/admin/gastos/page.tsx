@@ -9,10 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, ExternalLink, Image as ImageIcon, FileText } from "lucide-react";
+import { Loader2, Download, ExternalLink, Image as ImageIcon, FileText, Printer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CentroCostosTab } from "@/components/finance/centro-costos-tab";
+import { ReceiptPrintModal } from "@/components/finance/receipt-print-modal";
 
 // Interfaz extendida para mostrar los datos en la tabla
 interface PurchaseWithClient extends Purchase {
@@ -24,6 +25,7 @@ export default function GastosPage() {
     const [purchases, setPurchases] = useState<PurchaseWithClient[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [selectedPurchaseForPrint, setSelectedPurchaseForPrint] = useState<PurchaseWithClient | null>(null);
     const [activeTab, setActiveTab] = useState("centro-costos");
 
     useEffect(() => {
@@ -192,28 +194,25 @@ export default function GastosPage() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {purchase.evidenceUrls && purchase.evidenceUrls.length > 0 ? (
-                                                <div className="flex justify-center gap-2">
+                                                <div className="flex justify-center items-center gap-1.5">
                                                     <Button 
-                                                        variant="ghost" 
+                                                        variant="outline" 
                                                         size="sm" 
-                                                        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                                        onClick={() => setSelectedImage(purchase.evidenceUrls[0])}
-                                                        title="Ver Imagen"
+                                                        className="h-8 gap-1 text-xs font-semibold text-blue-700 border-blue-200 hover:bg-blue-50 rounded-xl"
+                                                        onClick={() => setSelectedPurchaseForPrint(purchase)}
+                                                        title="Imprimir con Fondo Blanco (Ahorro de Tinta) o Descargar"
                                                     >
-                                                        <ImageIcon className="h-4 w-4" />
+                                                        <Printer className="h-3.5 w-3.5 text-blue-600" />
+                                                        <span className="hidden sm:inline">Imprimir / Limpiar</span>
                                                     </Button>
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
-                                                        className="h-8 w-8 p-0 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                                        onClick={() => handleDownloadImage(
-                                                            purchase.evidenceUrls[0], 
-                                                            purchase.ticketNumber || '', 
-                                                            formatDate(purchase.createdAt)
-                                                        )}
-                                                        title="Descargar"
+                                                        className="h-8 w-8 p-0 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl"
+                                                        onClick={() => setSelectedImage(purchase.evidenceUrls[0])}
+                                                        title="Ver Foto Original"
                                                     >
-                                                        <Download className="h-4 w-4" />
+                                                        <ImageIcon className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             ) : (
@@ -230,6 +229,7 @@ export default function GastosPage() {
             </TabsContent>
         </Tabs>
 
+            {/* Modal de Foto Original */}
             <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
                 <DialogContent className="sm:max-w-3xl border-0 p-0 overflow-hidden bg-black/95">
                     <DialogHeader className="p-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 w-full z-10">
@@ -246,6 +246,15 @@ export default function GastosPage() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Modal de Impresión con Ahorro de Tinta y Fondo Blanco */}
+            <ReceiptPrintModal
+                open={!!selectedPurchaseForPrint}
+                onOpenChange={(open) => !open && setSelectedPurchaseForPrint(null)}
+                purchase={selectedPurchaseForPrint}
+                ticketNumber={selectedPurchaseForPrint?.ticketNumber}
+                clientName={selectedPurchaseForPrint?.clientName}
+            />
         </div>
     );
 }

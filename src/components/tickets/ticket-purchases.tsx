@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch-ui";
-import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2, ShoppingCart } from "lucide-react";
+import { Loader2, Camera, Receipt, CheckCircle2, XCircle, Plus, AlertCircle, Trash2, ShoppingCart, Printer, DollarSign, Package, Coffee } from "lucide-react";
 import { Purchase, PurchaseItem } from "@/types/purchase";
 import { registerPurchase, getPurchasesByTicket } from "@/lib/purchase-service";
 import { storage, auth } from "@/lib/firebase";
@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { Timestamp } from "firebase/firestore";
 import { validateRNCorCedula, validateENCF, validateNCF } from "@/lib/dominican-val";
+import { ReceiptPrintModal } from "@/components/finance/receipt-print-modal";
 
 // Keywords for auto-classification
 const KW_INVENTORY = ['cobre', 'tubo', 'gas', 'r410', 'alambre', 'breaker', 'tornillo', 'cinta', 'varilla', 'capacit', 'soldadura', 'filtro', 'compresor', 'valvula'];
@@ -36,6 +37,7 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const [purchases, setPurchases] = useState<Purchase[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [selectedPurchaseForPrint, setSelectedPurchaseForPrint] = useState<Purchase | null>(null);
     const { isOnline, queuePurchaseCreation } = useOfflineSync();
 
     // Form State
@@ -223,20 +225,6 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Validaciones Fiscales Dominicanas
-            if (formData.rnc && !validateRNCorCedula(formData.rnc)) {
-                throw new Error("El RNC del Emisor no es válido (debe tener 9 u 11 dígitos y cumplir con el algoritmo Modulo 11/10).");
-            }
-            if (formData.buyerRnc && !validateRNCorCedula(formData.buyerRnc)) {
-                throw new Error("El RNC del Comprador no es válido (debe tener 9 u 11 dígitos y cumplir con el algoritmo Modulo 11/10).");
-            }
-            if (formData.ncf && !validateNCF(formData.ncf)) {
-                throw new Error("El NCF tradicional no es válido (debe iniciar con 'B' y tener 10 dígitos).");
-            }
-            if (formData.eNcf && !validateENCF(formData.eNcf)) {
-                throw new Error("El e-NCF electrónico no es válido (debe iniciar con 'E' y tener 10 dígitos).");
-            }
-
             // Upload image to Firebase Storage
             let receiptUrl = "";
             if (file) {
@@ -343,22 +331,108 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
         }
     };
 
-    // Calculate Summaries
+    // Calculate Global Totals
+    const totalPurchasesCost = purchases.reduce((acc, p) => acc + (p.total || 0), 0);
+    const materialsPurchasedCost = purchases.reduce((acc, p) => {
+        const matSum = (p.items || []).filter(i => i.isInventory).reduce((sum, i) => sum + (i.total || 0), 0);
+        return acc + matSum;
+    }, 0);
+    const expensesPurchasedCost = totalPurchasesCost - materialsPurchasedCost;
+
+    // Calculate Summaries for active form
     const invTotal = formData.items.filter(i => i.isInventory).reduce((acc, i) => acc + i.total, 0);
     const expTotal = formData.items.filter(i => !i.isInventory).reduce((acc, i) => acc + i.total, 0);
 
     return (
         <div className="space-y-6">
-            {/* Action Button at the top */}
+            {/* 1. Resumen Financiero Ejecutivo del Ticket */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">Total Compras</p>
+                            <h3 className="text-xl font-extrabold text-emerald-950 dark:text-emerald-100 font-mono mt-0.5">
+                                RD$ {totalPurchasesCost.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                            </h3>
+                            <p className="text-[10px] text-emerald-600 mt-0.5">{purchases.length} {purchases.length === 1 ? 'factura registrada' : 'facturas registradas'}</p>
+                        </div>
+                        <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 rounded-2xl text-emerald-700">
+                            <DollarSign className="w-5 h-5" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-800 dark:text-blue-300">Materiales Callejeros</p>
+                            <h3 className="text-xl font-extrabold text-blue-950 dark:text-blue-100 font-mono mt-0.5">
+                                RD$ {materialsPurchasedCost.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                            </h3>
+                            <p className="text-[10px] text-blue-600 mt-0.5">Insumos para el trabajo</p>
+                        </div>
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-2xl text-blue-700">
+                            <Package className="w-5 h-5" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/80 shadow-sm rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">Viáticos y Gastos</p>
+                            <h3 className="text-xl font-extrabold text-amber-950 dark:text-amber-100 font-mono mt-0.5">
+                                RD$ {expensesPurchasedCost.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                            </h3>
+                            <p className="text-[10px] text-amber-600 mt-0.5">Comida, combustible, etc.</p>
+                        </div>
+                        <div className="p-3 bg-amber-100 dark:bg-amber-900/40 rounded-2xl text-amber-700">
+                            <Coffee className="w-5 h-5" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* 2. Botón de Registro de Compras */}
+            <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                    onClick={() => {
+                        setStep(1);
+                        setIsDialogOpen(true);
+                    }}
+                    className="flex-1 h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-sm gap-2 text-sm"
+                >
+                    <Camera className="w-4 h-4" />
+                    📸 Registrar Compra con Foto / IA
+                </Button>
+
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        setStep(2);
+                        setFormData(prev => ({
+                            ...prev,
+                            providerName: "",
+                            manualTotal: 0,
+                            items: [{ description: "Compra de materiales", quantity: 1, unitPrice: 0, total: 0, isInventory: true }]
+                        }));
+                        setIsDialogOpen(true);
+                    }}
+                    className="h-12 border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold rounded-2xl gap-2 text-sm px-6"
+                >
+                    <Plus className="w-4 h-4 text-blue-600" />
+                    ⚡ Registro Manual Rápido
+                </Button>
+            </div>
+
+            {/* Action Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button className="w-full h-12 dashed border-2 border-dashed bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-300">
-                        <Receipt className="mr-2" /> Registrar Compra en Calle
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-3xl">
                     <DialogHeader>
-                        <DialogTitle>Registrar Compra Rápida</DialogTitle>
+                        <DialogTitle className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                            <Receipt className="w-5 h-5 text-blue-600" />
+                            Registrar Compra / Factura de Calle
+                        </DialogTitle>
                     </DialogHeader>
 
                     {step === 1 && (
@@ -779,18 +853,22 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                                         </div>
 
                                         {/* Acciones de Foto y Detalles de Items */}
-                                        <div className="flex items-center justify-between pt-1">
+                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 flex-wrap gap-2">
                                             <span className="text-xs text-slate-400">{p.items?.length || 0} {p.items?.length === 1 ? 'item' : 'items'} registrados</span>
-                                            {p.evidenceUrls && p.evidenceUrls.length > 0 && (
-                                                <a 
-                                                    href={p.evidenceUrls[0]} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium hover:underline bg-blue-50/50 hover:bg-blue-50 px-2.5 py-1 rounded-md transition-colors"
-                                                >
-                                                    <Camera className="h-3 w-3" /> Ver Foto de Factura
-                                                </a>
-                                            )}
+                                            
+                                            <div className="flex items-center gap-2">
+                                                {p.evidenceUrls && p.evidenceUrls.length > 0 && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setSelectedPurchaseForPrint(p)}
+                                                        className="h-8 gap-1.5 text-xs font-semibold text-blue-700 border-blue-200 hover:bg-blue-50 rounded-xl"
+                                                    >
+                                                        <Printer className="w-3.5 h-3.5 text-blue-600" />
+                                                        <span>🖨️ Imprimir / Descargar Limpio</span>
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -799,6 +877,14 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
                     </div>
                 </div>
             )}
+
+            {/* Modal de Impresión con Ahorro de Tinta */}
+            <ReceiptPrintModal
+                open={!!selectedPurchaseForPrint}
+                onOpenChange={(open) => !open && setSelectedPurchaseForPrint(null)}
+                purchase={selectedPurchaseForPrint}
+                ticketNumber={ticketNumber}
+            />
         </div>
     );
 }
