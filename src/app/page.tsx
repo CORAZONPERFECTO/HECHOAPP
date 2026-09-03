@@ -21,6 +21,9 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { RoleGuard } from "@/components/layout/role-guard";
 import { QuoteChatModal } from "@/components/dashboard/quote-chat-modal";
 import { SLAMetricsCard } from "@/components/tickets/sla-metrics-card";
+import { LiveGateways } from "@/components/dashboard/live-gateways";
+import { QuickActionsBar } from "@/components/dashboard/quick-actions-bar";
+import { OperationalBottlenecksCard } from "@/components/dashboard/operational-bottlenecks-card";
 
 // ... imports
 import {
@@ -274,68 +277,32 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
-                <h2 className="text-3xl font-extrabold text-gray-800 tracking-tight">Centro de Mando</h2>
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Centro de Mando</h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">Visión ejecutiva de operaciones, flotilla y tesorería en tiempo real</p>
+                </div>
                 <DateRangePicker date={dateRange} setDate={setDateRange} />
             </div>
 
-            {/* LOS 3 GATEWAYS PRINCIPALES */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {/* Gateway 1: Servicio Limitado */}
-              <Link href="/technician/my-day" className="group">
-                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-3xl text-white shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
-                    <Smartphone className="w-32 h-32" />
-                  </div>
-                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
-                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
-                      <Wrench className="w-8 h-8 text-white relative z-10" />
-                    </div>
-                    <h3 className="text-2xl font-bold mb-1">Servicio de Campo</h3>
-                    <p className="text-blue-100 text-sm font-medium leading-relaxed">Emular y vigilar vista celular p/ Técnicos</p>
-                  </div>
-                </div>
-              </Link>
+            {/* BARRA DE ACCIONES RÁPIDAS */}
+            <QuickActionsBar onOpenQuoteAI={() => setIsQuoteModalOpen(true)} />
 
-              {/* Gateway 2: Administrador */}
-              <Link href="/tickets" className="group">
-                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl text-white shadow-xl shadow-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
-                    <Kanban className="w-32 h-32" />
-                  </div>
-                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
-                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
-                      <Ticket className="w-8 h-8 text-white relative z-10" />
-                    </div>
-                    <h3 className="text-2xl font-bold mb-1">Torre de Control</h3>
-                    <p className="text-indigo-100 text-sm font-medium leading-relaxed">Kanban Administrativo: Poder Total de Tickets</p>
-                  </div>
-                </div>
-              </Link>
+            {/* LOS 3 GATEWAYS EN VIVO CON TELEMETRÍA */}
+            <LiveGateways />
 
-              {/* Gateway 3: Ingresos */}
-              <Link href="/income/invoices" className="group">
-                <div className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-3xl text-white shadow-xl shadow-emerald-500/20 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all hover:-translate-y-1.5 h-full border-none relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform duration-700 ease-out">
-                    <Briefcase className="w-32 h-32" />
-                  </div>
-                  <div className="p-7 relative z-10 flex flex-col items-start h-full">
-                    <div className="p-4 bg-white/20 rounded-2xl mb-5 backdrop-blur-md shadow-inner border border-white/10">
-                      <BarChart3 className="w-8 h-8 text-white relative z-10" />
-                    </div>
-                    <h3 className="text-2xl font-bold mb-1">Tesorería Financiera</h3>
-                    <p className="text-emerald-100 text-sm font-medium leading-relaxed">Control de Facturas, Cotizaciones y Pagos</p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-
+            {/* 4 KPIS MAESTROS (COBRADO, POR COBRAR, ACTIVOS, TERMINADOS) */}
             <DashboardStats dateRange={dateRange} />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <IncomeChart dateRange={dateRange} />
-              <div className="space-y-6">
+
+            {/* PANEL PRINCIPAL: FLUJO FINANCIERO Y OPERACIONES */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <IncomeChart dateRange={dateRange} />
                 <SLAMetricsCard tickets={tickets} />
-                <RecentActivity />
+              </div>
+              <div className="space-y-6">
+                <OperationalBottlenecksCard />
                 <UrgentTicketsList />
+                <RecentActivity />
               </div>
             </div>
           </div>
