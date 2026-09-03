@@ -87,6 +87,7 @@ const navCategories: NavCategory[] = [
         roles: ["ADMIN", "SUPERVISOR", "GERENTE"],
         items: [
             { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "GERENTE"] },
+            { label: "Consejo Asesor IA", icon: Sparkles, href: "/admin/asesores", roles: ["ADMIN", "GERENTE", "SUPERVISOR"], badge: "IA" },
             { label: "Control de Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Reportes Ejecutivos", icon: BarChart3, href: "/reports", roles: ["ADMIN", "SUPERVISOR"] },
         ]
