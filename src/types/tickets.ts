@@ -138,7 +138,10 @@ export interface Ticket {
     laborRate?: number; // Hourly rate (RD$/hour)
     materialsCost?: number; // Cost of materials used
     otherCosts?: number; // Other expenses
-    totalCost?: number; // Calculated: (laborHours * laborRate) + materialsCost + otherCosts
+    assignedMileageKm?: number; // KM distribuidos del día para este ticket
+    vehicleMileageCost?: number; // Costo de desplazamiento/flotilla calculado para este ticket
+    vehiclePlate?: string; // Placa del vehículo utilizado
+    totalCost?: number; // Calculated: (laborHours * laborRate) + materialsCost + otherCosts + (vehicleMileageCost || 0)
     linkedInvoiceId?: string; // ID of related invoice
     revenue?: number; // Amount charged to client
     profitMargin?: number; // Calculated: ((revenue - totalCost) / revenue) * 100

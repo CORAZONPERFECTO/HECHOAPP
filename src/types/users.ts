@@ -13,6 +13,9 @@ export interface UserVehicle {
     lastOilChangeMileage?: number;
     oilChangeInterval?: number; // e.g., 4500
     lastMileageUpdateDate?: string; // YYYY-MM-DD
+    costPerKm?: number; // Costo operativo por KM (ej. RD$ 18.00 / km)
+    todayStartMileage?: number; // KM inicial registrado hoy
+    todayStartDate?: string; // Fecha del check-in matutino YYYY-MM-DD
 }
 
 export interface User {

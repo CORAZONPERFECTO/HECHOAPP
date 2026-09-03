@@ -16,12 +16,14 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import {
     MapPin, Clock, ArrowRight, CheckCircle, AlertCircle,
     Play, Pause, CheckCheck, Navigation, List, Map as MapIcon, LogOut,
-    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2, Package, Wrench, ListChecks
+    Car, AlertTriangle, Droplet, Building2, Truck, WifiOff, RefreshCw, Trash2, Package, Wrench, ListChecks,
+    Flag, Sparkles
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { TicketCardRefactored } from "@/components/tickets/ticket-card-refactored";
 import { getLocations, getStockByLocation, getProducts } from "@/lib/inventory-service";
+import { recordDailyCheckin, recordDailyCheckout, DEFAULT_COST_PER_KM } from "@/lib/mileage-service";
 
 export function MyDayView() {
     const { isOnline, isSyncing, pendingOperations, syncQueue, retryOperation, discardOperation } = useOfflineSync();
@@ -38,6 +40,12 @@ export function MyDayView() {
     const router = useRouter();
     const { toast } = useToast();
 
+    // Daily Checkout (Cierre de Jornada) State
+    const [showDailyCheckoutModal, setShowDailyCheckoutModal] = useState(false);
+    const [endMileageInput, setEndMileageInput] = useState("");
+    const [completingShift, setCompletingShift] = useState(false);
+    const [todayCompletedCount, setTodayCompletedCount] = useState(0);
+
     const [showCheckoutWarning, setShowCheckoutWarning] = useState(false);
     const [checkoutIssues, setCheckoutIssues] = useState<{ name: string; details: string; type: 'STAGNANT' | 'TOOL' | 'CHECKLIST' }[]>([]);
     const [isCheckingShiftEnd, setIsCheckingShiftEnd] = useState(false);
@@ -51,11 +59,10 @@ export function MyDayView() {
                         const data = { id: docSnap.id, ...docSnap.data() } as User;
                         setUserData(data);
 
-                        // Check vehicle check-in
+                        // Check vehicle check-in (if not checked in today)
                         const todayStr = new Date().toISOString().split("T")[0];
-                        if (data.vehicle && data.vehicle.lastMileageUpdateDate !== todayStr) {
+                        if (data.vehicle && data.vehicle.lastMileageUpdateDate !== todayStr && !data.vehicle.todayStartMileage) {
                             setShowVehicleCheckIn(true);
-                            // Only set default once
                             setMileageInput(prev => prev || (data.vehicle?.currentMileage?.toString() || ""));
                         } else {
                             setShowVehicleCheckIn(false);
@@ -69,48 +76,52 @@ export function MyDayView() {
         return () => unsubAuth();
     }, []);
 
+    // Live count of tickets completed today by this technician
+    useEffect(() => {
+        if (!currentUserId) return;
+        const todayStr = new Date().toISOString().split("T")[0];
+        const qCompleted = query(
+            collection(db, "tickets"),
+            where("technicianId", "==", currentUserId),
+            where("status", "==", "COMPLETED")
+        );
+        const unsub = onSnapshot(qCompleted, (snap) => {
+            const count = snap.docs.filter(d => {
+                const data = d.data();
+                const dt = data.closedAt || data.resolvedAt || data.updatedAt;
+                if (!dt) return true;
+                const dateStr = dt.toDate 
+                    ? dt.toDate().toISOString().split("T")[0] 
+                    : new Date(dt.seconds * 1000).toISOString().split("T")[0];
+                return dateStr === todayStr;
+            }).length;
+            setTodayCompletedCount(count);
+        });
+        return () => unsub();
+    }, [currentUserId]);
+
     const handleMileageSubmit = async () => {
         if (!currentUserId || !userData?.vehicle || !mileageInput) return;
         setUpdatingMileage(true);
         try {
             const newMileage = parseInt(mileageInput);
-            const todayStr = new Date().toISOString().split("T")[0];
-            
-            const oilInterval = userData.vehicle.oilChangeInterval || 4500;
-            const lastOilChange = userData.vehicle.lastOilChangeMileage || 0;
-            const needsOilChange = newMileage - lastOilChange >= oilInterval;
+            const res = await recordDailyCheckin(
+                currentUserId,
+                userData.nombre || userData.email || "Técnico",
+                userData.vehicle,
+                newMileage
+            );
 
-            await updateDoc(doc(db, "users", currentUserId), {
-                "vehicle.currentMileage": newMileage,
-                "vehicle.lastMileageUpdateDate": todayStr
-            });
-
-            // Log to historical database
-            import("firebase/firestore").then(({ addDoc, collection, serverTimestamp }) => {
-                addDoc(collection(db, "vehicleMileageLogs"), {
-                    userId: currentUserId,
-                    userName: userData.nombre || userData.email || "Técnico",
-                    vehiclePlate: userData.vehicle?.plate || "S/R",
-                    vehicleBrand: userData.vehicle?.brand || "S/R",
-                    vehicleModel: userData.vehicle?.model || "S/R",
-                    mileage: newMileage,
-                    type: 'DAILY_CHECKIN',
-                    createdAt: serverTimestamp(),
-                    date: todayStr
-                }).catch(err => console.error("Error logging mileage to history:", err));
-            });
-
-            if (needsOilChange) {
+            if (res.needsOilChange) {
                 toast({
                     title: "⚠️ Mantenimiento de Vehículo",
-                    description: `El vehículo ha superado el intervalo de cambio de aceite (${newMileage - lastOilChange} km recorridos). Se notificará al administrador.`,
+                    description: `El vehículo ha superado el intervalo de cambio de aceite. Se notificará al supervisor.`,
                     variant: "destructive"
                 });
-                // In a real scenario, you could create a ticket or notification here for the manager
             } else {
                 toast({
-                    title: "✅ Vehículo Actualizado",
-                    description: "Kilometraje registrado correctamente para iniciar el día."
+                    title: "🚗 Jornada Iniciada",
+                    description: `Odómetro inicial registrado: ${newMileage} km. ¡Buen día de trabajo!`
                 });
             }
             setShowVehicleCheckIn(false);
@@ -118,11 +129,73 @@ export function MyDayView() {
             console.error("Error updating mileage:", error);
             toast({
                 title: "Error",
-                description: "No se pudo actualizar el kilometraje",
+                description: "No se pudo registrar el kilometraje inicial",
                 variant: "destructive"
             });
         } finally {
             setUpdatingMileage(false);
+        }
+    };
+
+    const handleDailyCheckoutSubmit = async () => {
+        if (!currentUserId || !userData?.vehicle || !endMileageInput) return;
+        setCompletingShift(true);
+        try {
+            const startKm = userData.vehicle.todayStartMileage || userData.vehicle.currentMileage || 0;
+            const endKm = parseInt(endMileageInput);
+
+            if (isNaN(endKm) || endKm < startKm) {
+                toast({
+                    title: "⚠️ Kilometraje no válido",
+                    description: `El kilometraje final (${endKm} km) no puede ser menor al inicial (${startKm} km).`,
+                    variant: "destructive"
+                });
+                setCompletingShift(false);
+                return;
+            }
+
+            const res = await recordDailyCheckout(
+                currentUserId,
+                userData.nombre || userData.email || "Técnico",
+                userData.vehicle,
+                startKm,
+                endKm
+            );
+
+            setShowDailyCheckoutModal(false);
+
+            toast({
+                title: "🏁 Jornada Finalizada con Éxito",
+                description: `Recorriste ${res.totalDailyKm} km hoy. Se distribuyeron ${res.kmPerTicket} km (RD$ ${res.vehicleCostPerTicket.toFixed(2)}) entre ${res.ticketsCount} servicio(s) completado(s).`,
+                duration: 7000
+            });
+
+            if (res.needsOilChange) {
+                toast({
+                    title: "⚠️ Alerta de Cambio de Aceite",
+                    description: `Has alcanzado el intervalo de cambio de aceite (${res.currentIntervalKm} km acumulados).`,
+                    variant: "destructive",
+                    duration: 7000
+                });
+            } else if (res.isNearOilChange) {
+                toast({
+                    title: "ℹ️ Próximo Cambio de Aceite",
+                    description: `Faltan solo ${res.remainingKmForOil} km para el próximo mantenimiento.`,
+                    duration: 5000
+                });
+            }
+
+            // Proceder con la auditoría de salida y cierre de sesión
+            handleLogout();
+        } catch (error) {
+            console.error("Error closing shift:", error);
+            toast({
+                title: "Error",
+                description: "No se pudo cerrar la jornada",
+                variant: "destructive"
+            });
+        } finally {
+            setCompletingShift(false);
         }
     };
 
@@ -390,6 +463,19 @@ export function MyDayView() {
                     <Building2 className="h-4 w-4 mr-1" />
                     Proyectos
                 </Button>
+                {userData?.vehicle && (
+                    <Button 
+                        size="sm" 
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-sm text-xs font-semibold"
+                        onClick={() => {
+                            setEndMileageInput(userData?.vehicle?.currentMileage?.toString() || "");
+                            setShowDailyCheckoutModal(true);
+                        }}
+                    >
+                        <Flag className="h-3.5 w-3.5 mr-1" />
+                        Finalizar Día
+                    </Button>
+                )}
                 <Button 
                     variant="ghost" 
                     size="sm" 
@@ -508,6 +594,18 @@ export function MyDayView() {
                                 <Building2 className="h-4 w-4 mr-2" />
                                 Gestionar Proyectos
                             </Button>
+                            {userData?.vehicle && (
+                                <Button 
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold"
+                                    onClick={() => {
+                                        setEndMileageInput(userData?.vehicle?.currentMileage?.toString() || "");
+                                        setShowDailyCheckoutModal(true);
+                                    }}
+                                >
+                                    <Flag className="h-4 w-4 mr-2" />
+                                    Finalizar Jornada (Cerrar Día)
+                                </Button>
+                            )}
                             <Button 
                                 variant="outline" 
                                 className="bg-white hover:bg-red-50 text-red-700 border-red-200"
@@ -742,6 +840,112 @@ export function MyDayView() {
                             className="text-xs h-8"
                         >
                             Cerrar
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal de Cierre de Jornada (Daily Shift Checkout) */}
+            <Dialog open={showDailyCheckoutModal} onOpenChange={setShowDailyCheckoutModal}>
+                <DialogContent className="max-w-md p-6 bg-white rounded-xl shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <Flag className="h-6 w-6 text-emerald-600" />
+                            Cierre de Jornada y Flota
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2 text-sm">
+                            <div className="flex justify-between text-slate-600">
+                                <span>Vehículo:</span>
+                                <span className="font-semibold text-slate-800">
+                                    {userData?.vehicle?.brand || "Vehículo"} {userData?.vehicle?.model || ""} ({userData?.vehicle?.plate || "S/R"})
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                                <span>Odómetro Inicial del Día:</span>
+                                <span className="font-bold text-blue-700 font-mono">
+                                    {userData?.vehicle?.todayStartMileage || userData?.vehicle?.currentMileage || 0} km
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-slate-600">
+                                <span>Servicios completados hoy:</span>
+                                <Badge className="bg-emerald-100 text-emerald-800 font-bold border-emerald-200">
+                                    {todayCompletedCount} tickets
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-800 block">
+                                Odómetro Final del Día (KM actual):
+                            </label>
+                            <Input
+                                type="number"
+                                placeholder="Ej. 120550"
+                                value={endMileageInput}
+                                onChange={(e) => setEndMileageInput(e.target.value)}
+                                className="text-lg font-mono font-bold"
+                                autoFocus
+                            />
+                            <p className="text-xs text-slate-500">
+                                Ingresa la lectura final del odómetro del vehículo al terminar el día.
+                            </p>
+                        </div>
+
+                        {/* Distribución Automática en Tiempo Real */}
+                        {(() => {
+                            const startKm = userData?.vehicle?.todayStartMileage || userData?.vehicle?.currentMileage || 0;
+                            const endKmNumber = parseInt(endMileageInput) || 0;
+                            const previewTotalKm = Math.max(0, endKmNumber - startKm);
+                            const previewDivisor = Math.max(1, todayCompletedCount);
+                            const previewKmPerTicket = Math.round((previewTotalKm / previewDivisor) * 10) / 10;
+                            const costPerKm = userData?.vehicle?.costPerKm || DEFAULT_COST_PER_KM;
+                            const previewCostPerTicket = Math.round(previewKmPerTicket * costPerKm * 100) / 100;
+
+                            if (endKmNumber > startKm) {
+                                return (
+                                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 space-y-2 text-xs text-emerald-900 animate-in fade-in">
+                                        <div className="font-bold text-sm text-emerald-800 flex items-center gap-1.5">
+                                            <Sparkles className="h-4 w-4 text-emerald-600" />
+                                            Distribución Inteligente a Tickets:
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 pt-1">
+                                            <div className="bg-white/80 p-2 rounded border border-emerald-100">
+                                                <span className="text-emerald-700 block text-[11px]">Total Recorrido:</span>
+                                                <span className="font-bold text-sm">{previewTotalKm} km</span>
+                                            </div>
+                                            <div className="bg-white/80 p-2 rounded border border-emerald-100">
+                                                <span className="text-emerald-700 block text-[11px]">Por Ticket ({todayCompletedCount || 1}):</span>
+                                                <span className="font-bold text-sm">{previewKmPerTicket} km</span>
+                                            </div>
+                                            <div className="col-span-2 bg-emerald-100/70 p-2 rounded border border-emerald-200 flex justify-between items-center">
+                                                <span className="font-medium">Costo de Flota / Ticket:</span>
+                                                <strong className="text-sm font-bold text-emerald-950">RD$ {previewCostPerTicket.toFixed(2)}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
+                    </div>
+
+                    <div className="pt-3 border-t flex justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDailyCheckoutModal(false)}
+                            disabled={completingShift}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleDailyCheckoutSubmit}
+                            disabled={!endMileageInput || completingShift}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        >
+                            {completingShift ? "Calculando y Cerrando..." : "Confirmar y Cerrar Jornada"}
                         </Button>
                     </div>
                 </DialogContent>

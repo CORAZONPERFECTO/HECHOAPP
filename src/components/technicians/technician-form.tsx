@@ -406,6 +406,26 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
                                 />
                             </div>
                             <div className="space-y-2">
+                                <Label>Costo Operativo por KM (RD$)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.5"
+                                    value={formData.vehicle?.costPerKm || 18}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, costPerKm: Number(e.target.value) } }))}
+                                    placeholder="18.00"
+                                />
+                                <p className="text-[10px] text-gray-400">Combustible, gomas y mantenimiento por cada km.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Odómetro Actual (KM)</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.vehicle?.currentMileage || 0}
+                                    onChange={e => setFormData(prev => ({ ...prev, vehicle: { ...prev.vehicle, currentMileage: Number(e.target.value) } }))}
+                                    placeholder="120000"
+                                />
+                            </div>
+                            <div className="space-y-2">
                                 <Label>Intervalo Cambio de Aceite (KM)</Label>
                                 <Input
                                     type="number"

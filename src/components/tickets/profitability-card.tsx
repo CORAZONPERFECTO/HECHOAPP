@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Calculator, ExternalLink } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Calculator, ExternalLink, Car } from "lucide-react";
 import { useState, useEffect } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -84,13 +84,15 @@ export function ProfitabilityCard({ ticket, onUpdate }: ProfitabilityCardProps) 
     const laborRate = parseFloat(formData.laborRate) || 0;
     const otherCosts = parseFloat(formData.otherCosts) || 0;
     const revenue = parseFloat(formData.revenue) || 0;
+    const vehicleCost = ticket.vehicleMileageCost || 0;
+    const assignedKm = ticket.assignedMileageKm || 0;
 
     const materialsCost = editing 
         ? (parseFloat(formData.materialsCost) || 0) 
         : (warehouseMaterialsCost + streetPurchasesCost);
 
     const laborCost = laborHours * laborRate;
-    const totalCost = laborCost + materialsCost + otherCosts;
+    const totalCost = laborCost + materialsCost + otherCosts + vehicleCost;
     const profit = revenue - totalCost;
     const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
@@ -219,6 +221,15 @@ export function ProfitabilityCard({ ticket, onUpdate }: ProfitabilityCardProps) 
                                         <span>RD$ {streetPurchasesCost.toFixed(2)}</span>
                                     </div>
                                 </div>
+                                {vehicleCost > 0 && (
+                                    <div className="flex justify-between items-center bg-blue-50/80 dark:bg-blue-950/30 p-2 rounded-lg text-xs">
+                                        <span className="text-blue-900 dark:text-blue-300 font-medium flex items-center gap-1.5">
+                                            <Car className="h-3.5 w-3.5 text-blue-600" />
+                                            Flotilla / Combustible ({assignedKm} km {ticket.vehiclePlate ? `• ${ticket.vehiclePlate}` : ""})
+                                        </span>
+                                        <span className="font-semibold text-blue-700 dark:text-blue-400">RD$ {vehicleCost.toFixed(2)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Otros Costos</span>
                                     <span className="font-medium">RD$ {otherCosts.toFixed(2)}</span>

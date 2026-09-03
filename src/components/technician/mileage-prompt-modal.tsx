@@ -106,7 +106,9 @@ export function MileagePromptModal() {
                 "vehicle.model": formData.model,
                 "vehicle.year": formData.year,
                 "vehicle.currentMileage": Number(formData.currentMileage),
-                "vehicle.lastMileageUpdateDate": nowStr
+                "vehicle.todayStartMileage": Number(formData.currentMileage),
+                "vehicle.todayStartDate": todayStr,
+                "vehicle.lastMileageUpdateDate": todayStr
             });
 
             // Log to historical database
