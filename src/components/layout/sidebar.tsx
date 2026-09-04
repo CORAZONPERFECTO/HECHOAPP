@@ -9,7 +9,7 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, ChevronDown, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -108,8 +108,9 @@ const navCategories: NavCategory[] = [
         id: "administracion",
         label: "Administración & Ajustes",
         icon: Settings,
-        roles: ["ADMIN"],
+        roles: ["ADMIN", "GERENTE", "SUPERVISOR"],
         items: [
+            { label: "Manual Gerencial & PDF", icon: BookOpen, href: "/admin/manual", roles: ["ADMIN", "GERENTE", "SUPERVISOR"] },
             { label: "Usuarios y Técnicos", icon: Users, href: "/technicians", roles: ["ADMIN"] },
             { label: "Ajustes de Empresa", icon: Settings, href: "/settings", roles: ["ADMIN"] },
         ]
