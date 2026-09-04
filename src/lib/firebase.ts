@@ -5,22 +5,24 @@ import { getFunctions } from "firebase/functions";
 
 import { getStorage } from "firebase/storage";
 
-function cleanConfigValue(val: string | undefined, fallback: string): string {
-  if (!val || val === "undefined" || val === "null" || typeof val !== "string" || val.trim().length < 5) {
-    return fallback;
-  }
-  const cleaned = val.replace(/^["']|["']$/g, "").trim();
-  return cleaned.length > 5 ? cleaned : fallback;
-}
+const FIREBASE_API_KEY = "AIzaSyCZKE9ZRLhNJGxf-PNdbR6IjgMCl5xvkbA";
+const FIREBASE_AUTH_DOMAIN = "hecho-srl-free.firebaseapp.com";
+const FIREBASE_PROJECT_ID = "hecho-srl-free";
+const FIREBASE_STORAGE_BUCKET = "hecho-srl-free.firebasestorage.app";
+const FIREBASE_MESSAGING_SENDER_ID = "216623683956";
+const FIREBASE_APP_ID = "1:216623683956:web:7b7de0220203978c6db421";
+const FIREBASE_MEASUREMENT_ID = "G-XHS77PK8HC";
+
+const envKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.replace(/^["']|["']$/g, "").trim();
 
 const firebaseConfig = {
-  apiKey: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, "AIzaSyCZKE9ZRLhNJGxf-PNdbR6IjgMCl5xvkbA"),
-  authDomain: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, "hecho-srl-free.firebaseapp.com"),
-  projectId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, "hecho-srl-free"),
-  storageBucket: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, "hecho-srl-free.firebasestorage.app"),
-  messagingSenderId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, "216623683956"),
-  appId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, "1:216623683956:web:7b7de0220203978c6db421"),
-  measurementId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, "G-XHS77PK8HC")
+  apiKey: (envKey && envKey.startsWith("AIzaSy")) ? envKey : FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
