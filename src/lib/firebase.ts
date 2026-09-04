@@ -5,14 +5,22 @@ import { getFunctions } from "firebase/functions";
 
 import { getStorage } from "firebase/storage";
 
+function cleanConfigValue(val: string | undefined, fallback: string): string {
+  if (!val || val === "undefined" || val === "null" || typeof val !== "string" || val.trim().length < 5) {
+    return fallback;
+  }
+  const cleaned = val.replace(/^["']|["']$/g, "").trim();
+  return cleaned.length > 5 ? cleaned : fallback;
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCZKE9ZRLhNJGxf-PNdbR6IjgMCl5xvkbA",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "hecho-srl-free.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "hecho-srl-free",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "hecho-srl-free.firebasestorage.app",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "216623683956",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:216623683956:web:7b7de0220203978c6db421",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-XHS77PK8HC"
+  apiKey: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, "AIzaSyCZKE9ZRLhNJGxf-PNdbR6IjgMCl5xvkbA"),
+  authDomain: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, "hecho-srl-free.firebaseapp.com"),
+  projectId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, "hecho-srl-free"),
+  storageBucket: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, "hecho-srl-free.firebasestorage.app"),
+  messagingSenderId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, "216623683956"),
+  appId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, "1:216623683956:web:7b7de0220203978c6db421"),
+  measurementId: cleanConfigValue(process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, "G-XHS77PK8HC")
 };
 
 // Initialize Firebase
