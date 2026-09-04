@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -72,6 +72,22 @@ function LoginForm() {
     const portal = detectPortal(redirectUrl);
     const config = PORTAL_CONFIG[portal];
 
+    useEffect(() => {
+        const checkRedirect = async () => {
+            try {
+                const { getRedirectResult } = await import("firebase/auth");
+                const res = await getRedirectResult(auth);
+                if (res && res.user) {
+                    await handleUserPostLogin(res.user);
+                }
+            } catch (err: any) {
+                console.error("Redirect auth error:", err);
+                handleAuthError(err);
+            }
+        };
+        checkRedirect();
+    }, []);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -131,70 +147,108 @@ function LoginForm() {
         }
     };
 
+    const handleAuthError = (err: any) => {
+        console.error("Auth error details:", err);
+        if (!err) return;
+        if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+            setError("Inicio de sesión cancelado.");
+        } else if (err.code === "auth/unauthorized-domain") {
+            const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+            setError(`Dominio no autorizado en Firebase (${currentHost}). Agrega este dominio en Firebase Console > Authentication > Ajustes > Dominios autorizados.`);
+        } else if (err.code === "auth/operation-not-allowed") {
+            setError("El proveedor de Google no está habilitado en Firebase Console > Authentication > Método de inicio de sesión > Google.");
+        } else if (err.code === "auth/account-exists-with-different-credential") {
+            setError("Ya existe una cuenta con este correo mediante contraseña. Ingresa tu contraseña arriba para acceder.");
+        } else if (err.code === "auth/popup-blocked") {
+            setError("El navegador bloqueó la ventana emergente de Google. Permite ventanas emergentes o usa tu correo y contraseña.");
+        } else {
+            setError(err.message ? `Error con Google: ${err.message}` : "Error al iniciar sesión con Google. Inténtalo de nuevo.");
+        }
+    };
+
+    const handleUserPostLogin = async (user: any) => {
+        // Check / write user profile in Firestore if it doesn't exist
+        const userDocRef = doc(db, "users", user.uid);
+        let userSnap = await getDoc(userDocRef);
+        const isAdminEmail = user.email?.toLowerCase() === "lcaa27@gmail.com" || user.email?.toLowerCase().includes("hecho.do");
+
+        if (!userSnap.exists()) {
+            const { setDoc, serverTimestamp } = await import("firebase/firestore");
+            await setDoc(userDocRef, {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || user.email?.split('@')[0] || "Usuario Google",
+                rol: isAdminEmail ? "ADMIN" : "CLIENTE",
+                role: isAdminEmail ? "ADMIN" : "CLIENTE",
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            userSnap = await getDoc(userDocRef);
+        } else if (isAdminEmail && (!userSnap.data()?.rol || userSnap.data()?.rol !== "ADMIN")) {
+            const { setDoc, serverTimestamp } = await import("firebase/firestore");
+            await setDoc(userDocRef, {
+                rol: "ADMIN",
+                role: "ADMIN",
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+            userSnap = await getDoc(userDocRef);
+        }
+
+        const userData = userSnap.data();
+        const rawRole = userData?.rol || userData?.role || (isAdminEmail ? "ADMIN" : "");
+        const normalizedRole = String(rawRole).toUpperCase().trim();
+        const finalRole = (normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO") ? "TECNICO" : (normalizedRole || "ADMIN");
+
+        // 🔒 Control de Dispositivos Móviles Vinculados (Device Binding)
+        if (finalRole === "TECNICO" || finalRole === "CONTRATISTA") {
+            const deviceId = getOrCreateDeviceId();
+            const allowedDevices: string[] = userData?.allowedDeviceIds || [];
+
+            if (!allowedDevices.includes(deviceId)) {
+                if (allowedDevices.length < 2) {
+                    const newDevices = [...allowedDevices, deviceId];
+                    await setDoc(doc(db, "users", user.uid), { allowedDeviceIds: newDevices }, { merge: true });
+                } else {
+                    const { signOut } = await import("firebase/auth");
+                    await signOut(auth);
+                    setError("Límite de dispositivos alcanzado (Máx 2). Comunícate con tu supervisor para restablecer tus dispositivos vinculados.");
+                    setLoading(false);
+                    return;
+                }
+            }
+        }
+
+        // Route based on role
+        let destination = redirectUrl === "/" ? null : redirectUrl;
+        if (!destination || destination === "/") {
+            destination = ROLE_DESTINATIONS[finalRole] || "/";
+        }
+
+        router.push(destination);
+    };
+
     const handleGoogleLogin = async () => {
         setLoading(true);
         setError("");
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+
         try {
             const userCredential = await signInWithPopup(auth, provider);
-            const user = userCredential.user;
-
-            // Check / write user profile in Firestore if it doesn't exist
-            const userDocRef = doc(db, "users", user.uid);
-            let userSnap = await getDoc(userDocRef);
-            if (!userSnap.exists()) {
-                const { setDoc, serverTimestamp } = await import("firebase/firestore");
-                await setDoc(userDocRef, {
-                    uid: user.uid,
-                    email: user.email,
-                    displayName: user.displayName || "Usuario Google",
-                    rol: user.email?.toLowerCase() === "lcaa27@gmail.com" ? "ADMIN" : "CLIENTE",
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp()
-                });
-                userSnap = await getDoc(userDocRef);
+            if (userCredential && userCredential.user) {
+                await handleUserPostLogin(userCredential.user);
             }
-
-            const userData = userSnap.data();
-            const rawRole = userData?.rol || userData?.role || "";
-            const normalizedRole = String(rawRole).toUpperCase().trim();
-            const finalRole = (normalizedRole === "TÉCNICO" || normalizedRole === "TECNICO") ? "TECNICO" : normalizedRole;
-
-            // 🔒 Control de Dispositivos Móviles Vinculados (Device Binding)
-            if (finalRole === "TECNICO" || finalRole === "CONTRATISTA") {
-                const deviceId = getOrCreateDeviceId();
-                const allowedDevices: string[] = userData?.allowedDeviceIds || [];
-
-                if (!allowedDevices.includes(deviceId)) {
-                    if (allowedDevices.length < 2) {
-                        // Registrar este nuevo dispositivo
-                        const newDevices = [...allowedDevices, deviceId];
-                        await setDoc(doc(db, "users", user.uid), { allowedDeviceIds: newDevices }, { merge: true });
-                    } else {
-                        // Límite alcanzado, bloquear acceso inmediatamente
-                        const { signOut } = await import("firebase/auth");
-                        await signOut(auth);
-                        setError("Límite de dispositivos alcanzado (Máx 2). Comunícate con tu supervisor para restablecer tus dispositivos vinculados.");
-                        setLoading(false);
-                        return;
-                    }
-                }
-            }
-
-            // Route based on role
-            let destination = redirectUrl === "/" ? null : redirectUrl;
-
-            if (!destination || destination === "/") {
-                destination = ROLE_DESTINATIONS[finalRole] || "/";
-            }
-
-            router.push(destination);
         } catch (err: any) {
-            console.error(err);
-            if (err.code === "auth/popup-closed-by-user") {
-                setError("Inicio de sesión cancelado.");
+            if (err.code === "auth/popup-blocked") {
+                try {
+                    const { signInWithRedirect } = await import("firebase/auth");
+                    await signInWithRedirect(auth, provider);
+                    return;
+                } catch (rErr: any) {
+                    handleAuthError(rErr);
+                }
             } else {
-                setError("Error al iniciar sesión con Google. Inténtalo de nuevo.");
+                handleAuthError(err);
             }
         } finally {
             setLoading(false);
