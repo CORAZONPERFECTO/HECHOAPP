@@ -73,6 +73,16 @@ function LoginForm() {
     const config = PORTAL_CONFIG[portal];
 
     useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+            if (currentUser) {
+                const dest = redirectUrl && redirectUrl !== "/login" ? redirectUrl : "/";
+                window.location.href = dest;
+            }
+        });
+        return () => unsubscribe();
+    }, [redirectUrl]);
+
+    useEffect(() => {
         const checkRedirect = async () => {
             try {
                 const { getRedirectResult } = await import("firebase/auth");
@@ -132,7 +142,11 @@ function LoginForm() {
                 destination = ROLE_DESTINATIONS[finalRole] || "/";
             }
 
-            router.push(destination);
+            if (typeof window !== "undefined") {
+                window.location.href = destination;
+            } else {
+                router.push(destination);
+            }
         } catch (err: any) {
             console.error(err);
             if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
@@ -140,7 +154,7 @@ function LoginForm() {
             } else if (err.code === "auth/too-many-requests") {
                 setError("Demasiados intentos. Espera unos minutos e intenta de nuevo.");
             } else {
-                setError("Error al iniciar sesión. Verifica tu conexión.");
+                setError("Error al iniciar sesión: " + (err.message || "Verifica tus datos"));
             }
         } finally {
             setLoading(false);
@@ -224,7 +238,11 @@ function LoginForm() {
             destination = ROLE_DESTINATIONS[finalRole] || "/";
         }
 
-        router.push(destination);
+        if (typeof window !== "undefined") {
+            window.location.href = destination;
+        } else {
+            router.push(destination);
+        }
     };
 
     const handleDirectAdminLogin = async () => {
