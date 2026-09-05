@@ -87,10 +87,10 @@ const navCategories: NavCategory[] = [
         icon: BarChart3,
         roles: ["ADMIN", "SUPERVISOR", "GERENTE"],
         items: [
-            { label: "Costos & Rentabilidad", icon: DollarSign, href: "/admin/costos-rentabilidad", roles: ["ADMIN", "GERENTE"] },
+            { label: "Costos & Rentabilidad", icon: DollarSign, href: "/admin/costos-rentabilidad", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Motor de Incentivos", icon: Award, href: "/admin/incentivos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Calidad & Garantías (CNC)", icon: ShieldCheck, href: "/admin/calidad-garantias", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
-            { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "GERENTE"] },
+            { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Consejo Asesor IA", icon: Sparkles, href: "/admin/asesores", roles: ["ADMIN", "GERENTE", "SUPERVISOR"], badge: "IA" },
             { label: "Tesorería & Cuentas", icon: Landmark, href: "/admin/tesoreria", roles: ["ADMIN", "GERENTE"] },
             { label: "Control de Gastos", icon: Receipt, href: "/admin/gastos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
@@ -132,11 +132,19 @@ export function Sidebar() {
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
+                if (user.email?.toLowerCase() === 'lcaa27@gmail.com') {
+                    setUserRole("ADMIN");
+                    setUserName(user.displayName || user.email || "Super Admin");
+                    return;
+                }
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    setUserRole(data.rol || data.role || null);
+                    const rawRole = data.rol || data.role || "";
+                    const upperRole = String(rawRole).toUpperCase().trim();
+                    const normalizedRole = (upperRole === "TÉCNICO" || upperRole === "TECNICO") ? "TECNICO" : upperRole;
+                    setUserRole(normalizedRole || null);
                     setUserName(data.nombre || user.displayName || user.email || "Usuario");
                 }
             } else {
