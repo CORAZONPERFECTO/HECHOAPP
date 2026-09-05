@@ -70,7 +70,7 @@ export interface PhotoSection extends BaseSection {
     photoMeta?: {
         originalId?: string;
         area?: string;
-        phase?: 'BEFORE' | 'DURING' | 'AFTER';
+        phase?: 'BEFORE' | 'DURING' | 'AFTER' | 'SURVEY';
     };
 }
 
@@ -82,7 +82,7 @@ export interface GallerySection extends BaseSection {
         photoMeta?: {
             originalId?: string;
             area?: string;
-            phase?: 'BEFORE' | 'DURING' | 'AFTER';
+            phase?: 'BEFORE' | 'DURING' | 'AFTER' | 'SURVEY';
         };
     }>;
 }

@@ -22,6 +22,7 @@ import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW Editor
 import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
+import { TicketSurveyAreas } from "@/components/tickets/ticket-survey-areas";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { TicketToInvoiceModal } from "@/components/tickets/ticket-to-invoice-modal";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
@@ -991,36 +992,43 @@ export default function TicketDetailPage() {
                     </TabsContent>
 
                     <TabsContent value="evidence" className="space-y-4">
-                        <Card>
-                            <CardContent className="pt-6 space-y-6">
-                                <PhotoUploader
-                                    label="Fotos Antes"
-                                    type="BEFORE"
-                                    photos={ticket.photos || []}
-                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
-                                    allowGallery={true}
-                                    onPhotoAdded={handlePhotoAdded}
-                                />
-                                <div className="border-t" />
-                                <PhotoUploader
-                                    label="Fotos Durante"
-                                    type="DURING"
-                                    photos={ticket.photos || []}
-                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
-                                    allowGallery={true}
-                                    onPhotoAdded={handlePhotoAdded}
-                                />
-                                <div className="border-t" />
-                                <PhotoUploader
-                                    label="Fotos Después"
-                                    type="AFTER"
-                                    photos={ticket.photos || []}
-                                    onChange={(photos) => updateTicket({ ...ticket, photos })}
-                                    allowGallery={true}
-                                    onPhotoAdded={handlePhotoAdded}
-                                />
-                            </CardContent>
-                        </Card>
+                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' ? (
+                            <TicketSurveyAreas 
+                                ticket={ticket} 
+                                onChange={updateTicket} 
+                            />
+                        ) : (
+                            <Card>
+                                <CardContent className="pt-6 space-y-6">
+                                    <PhotoUploader
+                                        label="Fotos Antes"
+                                        type="BEFORE"
+                                        photos={ticket.photos || []}
+                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        allowGallery={true}
+                                        onPhotoAdded={handlePhotoAdded}
+                                    />
+                                    <div className="border-t" />
+                                    <PhotoUploader
+                                        label="Fotos Durante"
+                                        type="DURING"
+                                        photos={ticket.photos || []}
+                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        allowGallery={true}
+                                        onPhotoAdded={handlePhotoAdded}
+                                    />
+                                    <div className="border-t" />
+                                    <PhotoUploader
+                                        label="Fotos Después"
+                                        type="AFTER"
+                                        photos={ticket.photos || []}
+                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        allowGallery={true}
+                                        onPhotoAdded={handlePhotoAdded}
+                                    />
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="diagnosis" className="space-y-4">

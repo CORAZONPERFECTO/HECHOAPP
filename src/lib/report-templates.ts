@@ -201,6 +201,119 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
         }
     },
 
+    'LEVANTAMIENTO': {
+        id: 'survey',
+        name: 'Levantamiento Técnico & Carga Térmica',
+        description: 'Plantilla especializada por áreas, cálculo de BTU, evidencias proporcionales y presupuesto.',
+        generateSections: (ticket: Ticket) => {
+            const sections: TicketReportSection[] = [];
+            const areas = ticket.surveyAreas || [];
+
+            // 1. Título y Resumen Ejecutivo
+            sections.push(createTitle('Reporte de Levantamiento Técnico', 'h1'));
+            sections.push(createText(
+                `Levantamiento técnico realizado en ${ticket.locationName}${ticket.specificLocation ? ` (${ticket.specificLocation})` : ''}. ` +
+                `Se evaluaron las condiciones estructurales, requerimientos de carga térmica, factibilidad eléctrica y recorrido de tuberías para climatización.`
+            ));
+
+            // 2. Cuadro Resumen de Carga Térmica y Equipos Recomendados
+            if (areas.length > 0) {
+                sections.push(createTitle('Dimensionamiento & Carga Térmica por Área'));
+                const summaryItems = areas.map((a, idx) => {
+                    const m2 = a.areaSquareMeters || (a.lengthMeters && a.widthMeters ? (a.lengthMeters * a.widthMeters) : 0);
+                    const btu = a.requiredBtu || Math.round(m2 * 650);
+                    const equip = a.recommendedEquipment || `Split Inverter ${btu.toLocaleString()} BTU`;
+                    const volt = a.voltage || "220V";
+                    return `📍 ${a.name}: ${m2} m² ➔ Carga Térmica: ${btu.toLocaleString()} BTU ➔ Equipo: ${equip} (${volt})`;
+                });
+                sections.push({
+                    id: crypto.randomUUID(),
+                    type: 'list',
+                    items: summaryItems
+                });
+            }
+
+            // 3. Evidencias Fotográficas por Ambiente / Área (Tamaño proporcional)
+            if (areas.length > 0) {
+                areas.forEach((area) => {
+                    if (area.photos && area.photos.length > 0) {
+                        sections.push(createTitle(`Evidencias Fotográficas: ${area.name}`));
+                        if (area.notes) {
+                            sections.push(createText(`Observaciones: ${area.notes}`));
+                        }
+                        // Fotos del área
+                        area.photos.forEach((photo) => {
+                            if (photo.url) {
+                                sections.push({
+                                    id: crypto.randomUUID(),
+                                    type: 'photo',
+                                    photoUrl: photo.url,
+                                    description: photo.description || `Evidencia técnica en ${area.name}`,
+                                    size: 'medium'
+                                });
+                            }
+                        });
+                    }
+                });
+            } else if (ticket.photos && ticket.photos.length > 0) {
+                sections.push(createTitle('Evidencias Fotográficas'));
+                sections.push(...createPhotoSections(ticket.photos));
+            }
+
+            // 4. Diagnóstico Técnico & Hallazgos
+            if (ticket.diagnosis) {
+                sections.push(createTitle('Diagnóstico Técnico & Estado Actual'));
+                sections.push(createText(ticket.diagnosis));
+            }
+
+            // 5. Recomendaciones Técnicas
+            sections.push(createTitle('Recomendaciones Técnicas'));
+            if (ticket.recommendations) {
+                sections.push(createText(ticket.recommendations));
+            } else {
+                sections.push(createText(
+                    "1. Se recomienda instalar protectores de voltaje de alta capacidad para cada equipo.\n" +
+                    "2. Asegurar que las tuberías de drenaje cuenten con la pendiente requerida hacia el punto de desagüe.\n" +
+                    "3. Mantener despejadas las áreas de condensadores para asegurar el flujo adecuado de disipación de calor."
+                ));
+            }
+
+            // 6. Presupuesto / Propuesta Económica Estimada
+            if (ticket.surveyBudget) {
+                sections.push(createTitle('Presupuesto Estimado de Inversión'));
+                const budgetItems: string[] = [];
+                ticket.surveyBudget.equipmentItems?.forEach(e => {
+                    budgetItems.push(`• ${e.description} (Cant: ${e.quantity}) — RD$ ${e.total.toLocaleString()}`);
+                });
+                ticket.surveyBudget.materialItems?.forEach(m => {
+                    budgetItems.push(`• ${m.description} (Cant: ${m.quantity}) — RD$ ${m.total.toLocaleString()}`);
+                });
+                if (ticket.surveyBudget.laborCost) {
+                    budgetItems.push(`• Mano de Obra de Instalación — RD$ ${ticket.surveyBudget.laborCost.toLocaleString()}`);
+                }
+                budgetItems.push(`💰 TOTAL ESTIMADO: RD$ ${ticket.surveyBudget.totalEstimated.toLocaleString()}`);
+
+                sections.push({
+                    id: crypto.randomUUID(),
+                    type: 'list',
+                    items: budgetItems
+                });
+            }
+
+            return sections;
+        }
+    },
+
+    'INSPECCION': {
+        id: 'inspection',
+        name: 'Inspección Técnica',
+        description: 'Plantilla de inspección técnica estructurada.',
+        generateSections: (ticket: Ticket) => {
+            // Reutiliza la plantilla especializada de levantamiento
+            return REPORT_TEMPLATES['LEVANTAMIENTO'].generateSections(ticket);
+        }
+    },
+
     'DEFAULT': {
         id: 'default',
         name: 'Reporte Estándar',

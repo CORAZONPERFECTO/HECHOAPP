@@ -35,12 +35,52 @@ export interface TicketEvent {
 
 export interface TicketPhoto {
     url: string;
-    type: 'BEFORE' | 'DURING' | 'AFTER';
+    type: 'BEFORE' | 'DURING' | 'AFTER' | 'SURVEY';
     description?: string;
     timestamp?: { seconds: number; nanoseconds: number };
     location?: string;
     area?: string;
+    areaId?: string;
+    size?: 'small' | 'medium' | 'large';
     details?: string;
+}
+
+export interface SurveyArea {
+    id: string;
+    name: string; // ej. "Habitación Master", "Sala / Comedor", "Techo / Condensadores"
+    lengthMeters?: number;
+    widthMeters?: number;
+    heightMeters?: number;
+    areaSquareMeters?: number; // Calculado: Largo × Ancho
+    requiredBtu?: number; // Calculado: m2 * 650
+    recommendedEquipment?: string; // ej. "Split Inverter 18,000 BTU 220V"
+    voltage?: '110V' | '220V' | '208/230V 3Ph' | string;
+    pipeDistanceMeters?: number;
+    existingEquipment?: string; // Si hay equipo actual
+    electricalStatus?: string; // ej. "Breaker 20A disponible"
+    drainStatus?: string; // ej. "Drenaje por gravedad existente"
+    notes?: string;
+    photos: TicketPhoto[];
+}
+
+export interface SurveyBudget {
+    equipmentItems: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        total: number;
+    }>;
+    materialItems: Array<{
+        description: string;
+        quantity: number;
+        unitPrice: number;
+        total: number;
+    }>;
+    laborCost: number;
+    subtotal: number;
+    tax: number;
+    totalEstimated: number;
+    notes?: string;
 }
 
 export interface TicketVideo {
@@ -98,6 +138,8 @@ export interface Ticket {
     checklist: ChecklistItem[];
     materialsChecklist?: ChecklistItem[];
     photos: TicketPhoto[];
+    surveyAreas?: SurveyArea[];
+    surveyBudget?: SurveyBudget;
     videos?: TicketVideo[];
     dismantledParts?: DismantledPart[];
     technicianId?: string;
