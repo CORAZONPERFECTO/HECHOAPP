@@ -114,7 +114,7 @@ export function UserManualViewer() {
                                         <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold">3</div>
                                         Exportar
                                     </h3>
-                                    <p className="text-sm text-gray-600">Haz clic en <strong>Exportar PDF</strong> y selecciona <em>"PDF Profesional (Motor Python)"</em> para descargar el documento final en alta calidad.</p>
+                                    <p className="text-sm text-gray-600">Haz clic en <strong>Exportar PDF</strong> y selecciona <em>"PDF Corporativo Moderno"</em> para descargar el documento final en alta calidad con paginación inteligente.</p>
                                 </div>
                             </div>
 

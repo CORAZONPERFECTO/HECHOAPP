@@ -17,7 +17,6 @@ import {
     exportToPDFWith2Photos,
     exportToWord,
 } from '@/lib/export-utils';
-import { generatePdfWithWorker } from '@/lib/worker-api';
 import { useState } from 'react';
 
 interface ExportMenuProps {
@@ -62,75 +61,64 @@ export function ExportMenu({ report }: ExportMenuProps) {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuContent align="end" className="w-72">
                 <DropdownMenuLabel className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Formatos PDF
                 </DropdownMenuLabel>
 
                 <DropdownMenuItem
-                    onClick={() => handleExport('Moderno', () => exportToPDFModern(report))}
+                    onClick={() => handleExport('PDF Corporativo', () => exportToPDFModern(report))}
                     disabled={exporting}
-                    className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium cursor-pointer"
+                    className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-semibold cursor-pointer border border-emerald-200/60 dark:border-emerald-800/40 rounded-lg p-2.5 my-1"
                 >
-                    <Sparkles className="mr-2 h-4 w-4 text-blue-500" />
+                    <Sparkles className="mr-2.5 h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <div className="flex flex-col">
-                        <span>Moderno 2025</span>
-                        <span className="text-[10px] opacity-80">Diseño corporativo + Grid</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-sm">PDF Corporativo Moderno</span>
+                            <span className="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">Oficial</span>
+                        </div>
+                        <span className="text-[11px] font-normal text-emerald-700/80 dark:text-emerald-400/80">Paginación inteligente & sin cortes</span>
                     </div>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                    onClick={() => handleExport('PDF Pro (Worker)', () => generatePdfWithWorker(report))}
+                    onClick={() => handleExport('Impresión', exportToPDFStandard)}
                     disabled={exporting}
-                    className="bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 font-medium cursor-pointer"
+                    className="cursor-pointer p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg"
                 >
-                    <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
+                    <Printer className="mr-2.5 h-4 w-4 text-slate-500 shrink-0" />
                     <div className="flex flex-col">
-                        <span>PDF Profesional (Motor Python)</span>
-                        <span className="text-[10px] opacity-80">Renderizado Avanzado (GTK3)</span>
-                    </div>
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                    onClick={() => handleExport('Clásico', exportToPDFStandard)}
-                    disabled={exporting}
-                    className="cursor-pointer"
-                >
-                    <Printer className="mr-2 h-4 w-4" />
-                    <div className="flex flex-col">
-                        <span>Clásico</span>
-                        <span className="text-[10px] text-gray-500">Formato original (Impresión)</span>
+                        <span className="text-xs font-medium text-slate-800 dark:text-zinc-200">Impresión Directa (Navegador)</span>
+                        <span className="text-[10px] text-slate-400">Diálogo de impresión del sistema</span>
                     </div>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
                     onClick={() => handleExport('Simple', () => exportToPDFWith2Photos(report))}
                     disabled={exporting}
-                    className="cursor-pointer"
+                    className="cursor-pointer p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg"
                 >
-                    <LayoutTemplate className="mr-2 h-4 w-4" />
+                    <LayoutTemplate className="mr-2.5 h-4 w-4 text-slate-500 shrink-0" />
                     <div className="flex flex-col">
-                        <span>Simple</span>
-                        <span className="text-[10px] text-gray-500">PDF Compacto</span>
+                        <span className="text-xs font-medium text-slate-800 dark:text-zinc-200">PDF Compacto</span>
+                        <span className="text-[10px] text-slate-400">Formato simplificado de 2 fotos</span>
                     </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                <DropdownMenuSeparator className="my-1.5" />
                 <DropdownMenuLabel className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Otros
+                    Otros Formatos
                 </DropdownMenuLabel>
 
                 <DropdownMenuItem
                     onClick={() => handleExport('Word', () => exportToWord(report))}
                     disabled={exporting}
-                    className="cursor-pointer"
+                    className="cursor-pointer p-2 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg"
                 >
-                    <FileText className="mr-2 h-4 w-4" />
+                    <FileText className="mr-2.5 h-4 w-4 text-blue-500 shrink-0" />
                     <div className="flex flex-col">
-                        <span>Word (.docx)</span>
-                        <span className="text-[10px] text-gray-500">Documento editable</span>
+                        <span className="text-xs font-medium text-slate-800 dark:text-zinc-200">Microsoft Word (.docx)</span>
+                        <span className="text-[10px] text-slate-400">Documento editable para oficina</span>
                     </div>
                 </DropdownMenuItem>
             </DropdownMenuContent>

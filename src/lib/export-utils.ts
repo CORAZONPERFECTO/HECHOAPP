@@ -1,9 +1,7 @@
-
 import jsPDF from 'jspdf';
-// html2canvas import removed as it is not used in modern export
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType, Table } from 'docx';
 import { saveAs } from 'file-saver';
-import { TicketReportNew, PhotoSection, Quote, CompanySettings, BeforeAfterSection, GallerySection } from '@/types/schema';
+import { TicketReportNew, PhotoSection, Quote, CompanySettings, BeforeAfterSection, GallerySection, TitleSection, TextSection, ListSection } from '@/types/schema';
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -11,9 +9,10 @@ import { db } from "@/lib/firebase";
 const COLORS = {
     primary: '#556B2F', // Olive Green
     secondary: '#8F9779',
-    text: '#333333',
-    lightText: '#666666',
-    border: '#E5E7EB'
+    text: '#2D3748',
+    lightText: '#718096',
+    border: '#E2E8F0',
+    cardBg: '#F8FAFC'
 };
 
 const FONTS = {
@@ -41,7 +40,10 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
  * Carga una imagen asegurando compatibilidad con jsPDF (evita Tainted Canvas via Base64)
  */
 async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
-    // Función auxiliar para obtener el Blob (Directo o Proxy)
+    if (!url || typeof url !== 'string' || !url.trim()) {
+        return createPlaceholderImage();
+    }
+
     const fetchBlob = async (targetUrl: string): Promise<Blob> => {
         try {
             const res = await fetch(targetUrl, { cache: 'no-store' });
@@ -59,7 +61,6 @@ async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
         try {
             blob = await fetchBlob(url);
         } catch (e) {
-            console.warn("Direct load failed, trying proxy...", url);
             // 2. Intento Proxy
             const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
             blob = await fetchBlob(proxyUrl);
@@ -79,7 +80,7 @@ async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
         });
 
     } catch (finalError) {
-        console.error("Todas las estrategias de carga fallaron para:", url, finalError);
+        console.warn("Estrategia de carga de imagen falló para:", url);
         return createPlaceholderImage();
     }
 }
@@ -91,24 +92,22 @@ function createPlaceholderImage(): Promise<HTMLImageElement> {
         canvas.height = 300;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            ctx.fillStyle = '#f3f4f6'; // Gray 100
+            ctx.fillStyle = '#f1f5f9';
             ctx.fillRect(0, 0, 400, 300);
 
-            // Border
-            ctx.strokeStyle = '#e5e7eb';
+            ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 2;
             ctx.strokeRect(0, 0, 400, 300);
 
-            // Text
-            ctx.font = 'bold 24px Arial, sans-serif';
-            ctx.fillStyle = '#9ca3af'; // Gray 400
+            ctx.font = 'bold 18px Arial, sans-serif';
+            ctx.fillStyle = '#64748b';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('Imagen no disponible', 200, 150);
+            ctx.fillText('Evidencia Fotográfica', 200, 140);
 
-            ctx.font = '14px Arial';
-            ctx.fillStyle = '#ef4444'; // Red for error
-            ctx.fillText('(Error CRITICO de Carga)', 200, 180);
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText('HECHO SRL • Registro Técnico', 200, 165);
         }
         const img = new Image();
         img.onload = () => resolve(img);
@@ -117,454 +116,476 @@ function createPlaceholderImage(): Promise<HTMLImageElement> {
 }
 
 /**
- * EXPORTACIÓN: "MODERNO 2025"
- * Layout empresarial, 3 fotos por página con diseño específico.
+ * EXPORTACIÓN: "MODERNO 2026"
+ * Motor con paginación inteligente, corte automático de líneas y márgenes de seguridad.
  */
 export async function exportToPDFModern(report: TicketReportNew) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = 210;
     const pageHeight = 297;
     const margin = 15;
+    const contentWidth = pageWidth - (margin * 2); // 180mm
+    const maxContentY = 272; // Margen de seguridad estricto para no tocar el pie de página
 
-    // Configs
     const primaryColor = [85, 107, 47]; // #556B2F
     const settings = await getCompanySettings();
 
-    // Helper: Draw Header
-    const drawHeader = async (pageNumber: number) => {
-        // Franja superior
+    // Helper: Dibujar Encabezado en cada página
+    const drawHeader = async (pageNumber: number): Promise<number> => {
+        // Franja verde corporativa superior
         pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        pdf.rect(0, 0, pageWidth, 5, 'F');
+        pdf.rect(0, 0, pageWidth, 4, 'F');
 
         // Logo
+        let logoDrawn = false;
         if (settings?.logoUrl) {
             try {
                 const img = await loadImage(settings.logoUrl);
                 const ratio = img.width / img.height;
-                pdf.addImage(img, 'PNG', margin, 10, 30, 30 / ratio);
+                const logoH = 14;
+                const logoW = Math.min(32, logoH * ratio);
+                pdf.addImage(img, 'PNG', margin, 7, logoW, logoH);
+                logoDrawn = true;
             } catch {
-                // Ignore logo fail
+                logoDrawn = false;
             }
-        } else {
-            // Fallback Name
-            pdf.setFontSize(14);
-            pdf.setFont(FONTS.header, 'bold');
-            pdf.setTextColor(0, 0, 0);
-            pdf.text(settings?.name || "HECHO SRL", margin, 20);
         }
 
-        // Info Empresa (Derecha)
+        if (!logoDrawn) {
+            pdf.setFontSize(13);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            pdf.text(settings?.name || "HECHO SRL", margin, 15);
+            pdf.setFontSize(7.5);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(110, 110, 110);
+            pdf.text("Ingeniería & Climatización Especializada", margin, 19);
+        }
+
+        // Información de la empresa (Alineada a la derecha)
         pdf.setFontSize(8);
         pdf.setFont(FONTS.body, 'normal');
         pdf.setTextColor(100, 100, 100);
-        let yInfo = 12;
+        let yInfo = 9;
         const xInfo = pageWidth - margin;
 
+        pdf.setFont(FONTS.header, 'bold');
+        pdf.setTextColor(50, 50, 50);
         pdf.text(settings?.name || "HECHO SRL", xInfo, yInfo, { align: 'right' });
-        yInfo += 4;
-        if (settings?.rnc) { pdf.text(`RNC: ${settings.rnc}`, xInfo, yInfo, { align: 'right' }); yInfo += 4; }
-        if (settings?.email) { pdf.text(settings.email, xInfo, yInfo, { align: 'right' }); yInfo += 4; }
-        if (settings?.phone) { pdf.text(settings.phone, xInfo, yInfo, { align: 'right' }); yInfo += 4; }
+        yInfo += 3.8;
+
+        pdf.setFont(FONTS.body, 'normal');
+        pdf.setTextColor(110, 110, 110);
+        if (settings?.rnc) { pdf.text(`RNC: ${settings.rnc}`, xInfo, yInfo, { align: 'right' }); yInfo += 3.5; }
+        if (settings?.email) { pdf.text(settings.email, xInfo, yInfo, { align: 'right' }); yInfo += 3.5; }
+        if (settings?.phone) { pdf.text(settings.phone, xInfo, yInfo, { align: 'right' }); yInfo += 3.5; }
 
         // Línea separadora suave
-        pdf.setDrawColor(230, 230, 230);
-        pdf.line(margin, 35, pageWidth - margin, 35);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, 26, pageWidth - margin, 26);
 
-        return 40; // New Y start
+        return 32; // Punto de inicio para el contenido
     };
 
-    // Helper: Draw Footer
-    const drawFooter = (pageNumber: number) => {
-        const totalPages = pdf.getNumberOfPages();
-        pdf.setFontSize(8);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text(`Página ${pageNumber} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-        pdf.text(`Generado el ${new Date().toLocaleDateString()}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-    };
-
-    // --- PAGE 1: PORTADA & DETALLES ---
+    // Helper: Control dinámico de saltos de página con encabezado
     let yPos = await drawHeader(1);
 
-    // Título Grande
-    pdf.setFontSize(24);
-    pdf.setFont(FONTS.header, 'bold');
-    pdf.setTextColor(COLORS.primary);
-    pdf.text(report.header.title.toUpperCase(), margin, yPos + 10);
-    yPos += 25;
-
-    // Caja de Información (Grid style)
-    pdf.setFillColor(248, 250, 252); // Very light gray bg
-    pdf.setDrawColor(226, 232, 240);
-    pdf.rect(margin, yPos, pageWidth - (margin * 2), 45, 'FD');
-
-    const col1 = margin + 5;
-    const col2 = margin + (pageWidth - margin * 2) / 2 + 5;
-    let rowY = yPos + 10;
-
-    // Col 1
-    pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text("CLIENTE", col1, rowY);
-    pdf.setFontSize(11);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(report.header.clientName, col1, rowY + 5);
-
-    rowY += 15;
-    pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text("TICKET ID", col1, rowY);
-    pdf.setFontSize(11);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(report.header.ticketNumber, col1, rowY + 5);
-
-    // Col 2
-    rowY = yPos + 10;
-    pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text("FECHA", col2, rowY);
-    pdf.setFontSize(11);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(report.header.date, col2, rowY + 5);
-
-    rowY += 15;
-    pdf.setFontSize(9);
-    pdf.setTextColor(100, 100, 100);
-    pdf.text("TÉCNICO", col2, rowY);
-    pdf.setFontSize(11);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(report.header.technicianName || "N/A", col2, rowY + 5);
-
-    yPos += 60;
-
-    // --- CONTENIDO TEXTUAL ---
-    pdf.setFontSize(12);
-    pdf.setTextColor(0, 0, 0);
-
-    // Render Blocks (Except Photos)
-    for (const section of report.sections) {
-        // Skip photos for manual annex
-        if (section.type === 'photo') continue;
-
-        // Check page break
-        if (yPos > pageHeight - 40) {
-            drawFooter(pdf.getCurrentPageInfo().pageNumber);
+    const checkAndAddPage = async (requiredSpace: number) => {
+        if (yPos + requiredSpace > maxContentY) {
             pdf.addPage();
-            yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
+            yPos = await drawHeader(pdf.getNumberOfPages());
+            return true;
         }
+        return false;
+    };
 
-        if (section.type === 'h2') {
-            yPos += 5;
-            pdf.setFontSize(14);
+    // --- PÁGINA 1: TÍTULO Y METADATOS EJECUTIVOS ---
+    pdf.setFontSize(16);
+    pdf.setFont(FONTS.header, 'bold');
+    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    const cleanTitle = (report.header.title || "INFORME TÉCNICO DE SERVICIO").toUpperCase();
+    const titleLines = pdf.splitTextToSize(cleanTitle, contentWidth);
+    pdf.text(titleLines, margin, yPos + 4);
+    yPos += (titleLines.length * 6) + 4;
+
+    // Caja de Metadatos (Grid Card)
+    const metaBoxHeight = 32;
+    pdf.setFillColor(248, 250, 252);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.setLineWidth(0.4);
+    pdf.roundedRect(margin, yPos, contentWidth, metaBoxHeight, 2, 2, 'FD');
+
+    const col1X = margin + 6;
+    const col2X = margin + (contentWidth / 2) + 4;
+
+    // Fila 1
+    pdf.setFontSize(7.5);
+    pdf.setFont(FONTS.header, 'bold');
+    pdf.setTextColor(140, 140, 140);
+    pdf.text("CLIENTE", col1X, yPos + 6);
+    pdf.text("FECHA DEL SERVICIO", col2X, yPos + 6);
+
+    pdf.setFontSize(9.5);
+    pdf.setFont(FONTS.body, 'bold');
+    pdf.setTextColor(30, 30, 30);
+    pdf.text(report.header.clientName || "Cliente General", col1X, yPos + 11);
+    pdf.setFont(FONTS.body, 'normal');
+    pdf.text(report.header.date || new Date().toLocaleDateString('es-DO'), col2X, yPos + 11);
+
+    // Fila 2
+    pdf.setFontSize(7.5);
+    pdf.setFont(FONTS.header, 'bold');
+    pdf.setTextColor(140, 140, 140);
+    pdf.text("TICKET ID / REFERENCIA", col1X, yPos + 18);
+    pdf.text("TÉCNICO RESPONSABLE", col2X, yPos + 18);
+
+    pdf.setFontSize(9.5);
+    pdf.setFont(FONTS.body, 'bold');
+    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    pdf.text(report.header.ticketNumber ? `TK #${report.header.ticketNumber}` : "N/A", col1X, yPos + 23);
+
+    pdf.setFont(FONTS.body, 'normal');
+    pdf.setTextColor(30, 30, 30);
+    pdf.text(report.header.technicianName || "HECHO SRL", col2X, yPos + 23);
+
+    // Ubicación si existe
+    if (report.header.address) {
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(120, 120, 120);
+        pdf.text(`📍 Ubicación: ${report.header.address}`, col1X, yPos + 29);
+    }
+
+    yPos += metaBoxHeight + 8;
+
+    // --- RENDERIZADO INTELIGENTE DE SECCIONES ---
+    for (const section of report.sections) {
+        if (section.type === 'h1' || section.type === 'h2') {
+            const titleSection = section as TitleSection;
+            const headingText = titleSection.content || '';
+            if (!headingText.trim()) continue;
+
+            // Evitar encabezado huérfano (exige al menos 20mm libres)
+            await checkAndAddPage(20);
+
+            // Marcador decorativo izquierdo
+            pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            pdf.roundedRect(margin, yPos + 1, 3, 5.5, 0.8, 0.8, 'F');
+
+            pdf.setFontSize(11);
             pdf.setFont(FONTS.header, 'bold');
-            pdf.setTextColor(COLORS.primary);
-            if (section.content) {
-                const lines = pdf.splitTextToSize(section.content, pageWidth - (margin * 2));
-                pdf.text(lines, margin, yPos);
-                yPos += (lines.length * 6) + 5;
-            }
+            pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            
+            const lines = pdf.splitTextToSize(headingText, contentWidth - 8);
+            pdf.text(lines, margin + 6, yPos + 5.5);
+            yPos += (lines.length * 6) + 4;
         }
         else if (section.type === 'text') {
-            pdf.setFontSize(10);
-            pdf.setFont(FONTS.body, 'normal');
-            pdf.setTextColor(COLORS.text);
-            if (section.content) {
-                const lines = pdf.splitTextToSize(section.content, pageWidth - (margin * 2));
-                pdf.text(lines, margin, yPos);
-                yPos += (lines.length * 5) + 5;
+            const textSection = section as TextSection;
+            const content = textSection.content || '';
+            if (!content.trim()) continue;
+
+            const paragraphs = content.split('\n');
+            for (const para of paragraphs) {
+                if (!para.trim()) {
+                    yPos += 2;
+                    continue;
+                }
+
+                const lines = pdf.splitTextToSize(para, contentWidth);
+                for (const line of lines) {
+                    await checkAndAddPage(5.2);
+                    pdf.setFont(FONTS.body, 'normal');
+                    pdf.setFontSize(9.5);
+                    pdf.setTextColor(45, 55, 72);
+                    pdf.text(line, margin, yPos);
+                    yPos += 4.8;
+                }
+                yPos += 2; // Espacio entre párrafos
             }
+            yPos += 2;
         }
         else if (section.type === 'list') {
-            pdf.setFontSize(10);
-            pdf.setTextColor(COLORS.text);
-            section.items.forEach(item => {
-                const lines = pdf.splitTextToSize(`• ${item}`, pageWidth - (margin * 2) - 5);
-                pdf.text(lines, margin + 5, yPos);
-                yPos += (lines.length * 5) + 2;
-            });
-            yPos += 5;
+            const listSection = section as ListSection;
+            if (!listSection.items || listSection.items.length === 0) continue;
+
+            for (const item of listSection.items) {
+                if (!item || !item.trim()) continue;
+
+                const lines = pdf.splitTextToSize(item, contentWidth - 8);
+                for (let i = 0; i < lines.length; i++) {
+                    await checkAndAddPage(5.2);
+                    pdf.setFont(FONTS.body, 'normal');
+                    pdf.setFontSize(9.5);
+
+                    if (i === 0) {
+                        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                        pdf.setFont(FONTS.header, 'bold');
+                        pdf.text("•", margin + 1, yPos);
+                    }
+
+                    pdf.setFont(FONTS.body, 'normal');
+                    pdf.setTextColor(45, 55, 72);
+                    pdf.text(lines[i], margin + 6, yPos);
+                    yPos += 4.8;
+                }
+                yPos += 1;
+            }
+            yPos += 3;
         }
         else if (section.type === 'beforeAfter') {
             const baSection = section as BeforeAfterSection;
-
-            // SKIP IF EMPTY
             if (!baSection.beforePhotoUrl && !baSection.afterPhotoUrl) continue;
 
-            if (yPos > pageHeight - 90) { // Check space for big block
-                drawFooter(pdf.getCurrentPageInfo().pageNumber);
-                pdf.addPage();
-                yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
-            }
+            const cardH = 76;
+            await checkAndAddPage(cardH + 6);
 
-            // Container
-            pdf.setFillColor(250, 250, 250);
-            pdf.roundedRect(margin, yPos, pageWidth - margin * 2, 80, 2, 2, 'F');
+            // Contenedor comparativo
+            pdf.setFillColor(248, 250, 252);
+            pdf.setDrawColor(226, 232, 240);
+            pdf.setLineWidth(0.3);
+            pdf.roundedRect(margin, yPos, contentWidth, cardH, 2, 2, 'FD');
 
-            yPos += 5;
-            pdf.setFontSize(11);
+            pdf.setFontSize(9);
             pdf.setFont(FONTS.header, 'bold');
-            pdf.setTextColor(COLORS.primary);
-            pdf.text("EVIDENCIA COMPARATIVA", margin + 5, yPos);
-            yPos += 8;
+            pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+            pdf.text("EVIDENCIA COMPARATIVA (ANTES / DESPUÉS)", margin + 6, yPos + 6);
 
-            const photoW = (pageWidth - margin * 2 - 20) / 2;
-            const photoH = photoW * 0.6; // 16:9 approx
+            const photoW = (contentWidth - 16) / 2;
+            const photoH = 48;
+            const photoY = yPos + 9;
 
-            // Before
+            // Foto Antes
             if (baSection.beforePhotoUrl) {
                 try {
                     const img = await loadImage(baSection.beforePhotoUrl);
-                    pdf.addImage(img, 'JPEG', margin + 5, yPos, photoW, photoH);
-                    pdf.setFontSize(8);
-                    pdf.setTextColor('white');
-                    pdf.setFillColor(200, 50, 50); // Red tag
-                    pdf.rect(margin + 5, yPos, 15, 6, 'F');
-                    pdf.text("ANTES", margin + 7, yPos + 4);
-                } catch (e) { /* placeholder handled by loadImage fallback */ }
+                    pdf.addImage(img, 'JPEG', margin + 5, photoY, photoW, photoH);
+                    
+                    // Badge ANTES
+                    pdf.setFillColor(225, 29, 72); // Rose Red
+                    pdf.rect(margin + 5, photoY, 18, 5, 'F');
+                    pdf.setFontSize(7.5);
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.text("ANTES", margin + 7, photoY + 3.8);
+                } catch { }
             }
-            // After
+
+            // Foto Después
             if (baSection.afterPhotoUrl) {
                 try {
                     const img = await loadImage(baSection.afterPhotoUrl);
-                    pdf.addImage(img, 'JPEG', margin + 15 + photoW, yPos, photoW, photoH);
-                    pdf.setFontSize(8);
-                    pdf.setTextColor('white');
-                    pdf.setFillColor(50, 150, 50); // Green tag
-                    pdf.rect(margin + 15 + photoW, yPos, 15, 6, 'F');
-                    pdf.text("DESPUÉS", margin + 17 + photoW, yPos + 4);
-                } catch (e) { }
+                    pdf.addImage(img, 'JPEG', margin + 11 + photoW, photoY, photoW, photoH);
+                    
+                    // Badge DESPUÉS
+                    pdf.setFillColor(16, 185, 129); // Emerald Green
+                    pdf.rect(margin + 11 + photoW, photoY, 20, 5, 'F');
+                    pdf.setFontSize(7.5);
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.text("DESPUÉS", margin + 13 + photoW, photoY + 3.8);
+                } catch { }
             }
 
-            yPos += photoH + 10;
             if (baSection.description) {
-                pdf.setFontSize(9);
-                pdf.setTextColor(80, 80, 80);
+                pdf.setFontSize(8.5);
+                pdf.setTextColor(71, 85, 105);
                 pdf.setFont(FONTS.body, 'italic');
-                pdf.text(baSection.description, margin + 5, yPos);
+                const descLines = pdf.splitTextToSize(baSection.description, contentWidth - 12);
+                pdf.text(descLines, margin + 6, photoY + photoH + 5);
             }
-            yPos += 15;
+
+            yPos += cardH + 6;
         }
-        else if (section.type === 'gallery') {
-            const gallerySection = section as GallerySection;
-            if (!gallerySection.photos || gallerySection.photos.length === 0) continue;
+        else if (section.type === 'photo') {
+            const photoSec = section as PhotoSection;
+            if (!photoSec.photoUrl) continue;
 
-            // Header for Gallery if needed, or just space?
-            // Let's check space first. We need at least enough for one row (~60mm)
-            if (yPos > pageHeight - 60) {
-                drawFooter(pdf.getCurrentPageInfo().pageNumber);
-                pdf.addPage();
-                yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
-            }
+            const cardH = 70;
+            await checkAndAddPage(cardH + 4);
 
-            // Optional: Title for Gallery Section? Usually no specific title in schema, but we can add small label
-            // pdf.setFontSize(10);
-            // pdf.setTextColor(COLORS.lightText);
-            // pdf.text("GALERÍA DE IMÁGENES", margin, yPos);
-            // yPos += 5;
-
-            const contentWidth = pageWidth - (margin * 2);
-            const cols = 3;
-            const gap = 5;
-            const photoW = (contentWidth - ((cols - 1) * gap)) / cols;
-            const photoH = photoW; // Square photos for grid
-
-            let colIndex = 0;
-            let startRowY = yPos;
-
-            for (let i = 0; i < gallerySection.photos.length; i++) {
-                const photo = gallerySection.photos[i];
-
-                // Check page break (NEW ROW check)
-                if (colIndex === 0 && yPos + photoH + 20 > pageHeight - 30) {
-                    drawFooter(pdf.getCurrentPageInfo().pageNumber);
-                    pdf.addPage();
-                    yPos = await drawHeader(pdf.getCurrentPageInfo().pageNumber);
-                    startRowY = yPos;
-                }
-
-                const x = margin + (colIndex * (photoW + gap));
-
-                // Draw Photo
-                try {
-                    const img = await loadImage(photo.photoUrl);
-                    pdf.addImage(img, 'JPEG', x, yPos, photoW, photoH);
-                } catch (e) {
-                    // Placeholder
-                }
-
-                // Small Description/Caption below photo
-                if (photo.description) {
-                    pdf.setFontSize(7);
-                    pdf.setTextColor(80, 80, 80);
-                    const safeDesc = typeof photo.description === 'string'
-                        ? photo.description.substring(0, 50) + (photo.description.length > 50 ? '...' : '')
-                        : '';
-                    pdf.text(safeDesc, x, yPos + photoH + 4, { maxWidth: photoW });
-                }
-
-                colIndex++;
-                if (colIndex >= cols) {
-                    colIndex = 0;
-                    yPos += photoH + 12; // Row height + padding
-                }
-            }
-
-            // If we finished in the middle of a row, advanced Y
-            if (colIndex !== 0) {
-                yPos += photoH + 12;
-            }
-
-            yPos += 5; // Extra spacing after gallery
-        }
-    }
-
-    // --- ANEXO FOTOGRÁFICO (MODERN LAYOUT) ---
-    const photos = extractPhotos(report);
-    if (photos.length > 0) {
-        // Start new page for photos
-        drawFooter(pdf.getCurrentPageInfo().pageNumber);
-        pdf.addPage();
-        await drawHeader(pdf.getCurrentPageInfo().pageNumber);
-
-        yPos = 40;
-        pdf.setFontSize(16);
-        pdf.setFont(FONTS.header, 'bold');
-        pdf.setTextColor(COLORS.primary);
-        pdf.text("REPORTE FOTOGRÁFICO", margin, yPos);
-        yPos += 15;
-
-        // Render one by one in vertical list
-        // Approx 3 photos per page?
-        // Height available per page approx 240mm (minus header/footer)
-        // Let's use 85mm height per photo block.
-        const photoBlockHeight = 85;
-
-        for (let i = 0; i < photos.length; i++) {
-            const photo = photos[i];
-
-            // Check if we need a new page
-            if (i > 0 && yPos + photoBlockHeight > pageHeight - 20) {
-                drawFooter(pdf.getCurrentPageInfo().pageNumber);
-                pdf.addPage();
-                await drawHeader(pdf.getCurrentPageInfo().pageNumber);
-                yPos = 40;
-            }
-
-            const contentWidth = pageWidth - (margin * 2);
-            const pWidth = contentWidth * 0.55; // Photo width 55%
-            const pHeight = 75; // Photo height fixed
+            const pWidth = 98;
+            const pHeight = 62;
 
             try {
-                const img = await loadImage(photo.photoUrl);
-
-                // Photo (Left aligned)
-                // Using object-contain logic simulation by aspect ratio if needed, for now stretch/fit box
+                const img = await loadImage(photoSec.photoUrl);
                 pdf.addImage(img, 'JPEG', margin, yPos, pWidth, pHeight);
 
-                // Description Box (Right aligned)
-                const descX = margin + pWidth + 5;
-                const descW = contentWidth * 0.42; // Description width ~42%
+                // Panel lateral descriptivo
+                const descX = margin + pWidth + 6;
+                const descW = contentWidth - pWidth - 6;
 
-                // Background for description
-                pdf.setFillColor(248, 248, 248);
-                pdf.setDrawColor(230, 230, 230);
+                pdf.setFillColor(248, 250, 252);
+                pdf.setDrawColor(226, 232, 240);
+                pdf.setLineWidth(0.3);
                 pdf.roundedRect(descX, yPos, descW, pHeight, 2, 2, 'FD');
 
-                // Label
-                pdf.setFontSize(10);
-                pdf.setTextColor(COLORS.primary);
+                pdf.setFontSize(8.5);
                 pdf.setFont(FONTS.header, 'bold');
-                pdf.text(`#${i + 1}`, descX + 5, yPos + 8);
+                pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                pdf.text("EVIDENCIA TÉCNICA", descX + 5, yPos + 7);
 
-                // Text
-                if (photo.description) {
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(COLORS.text);
+                if (photoSec.description) {
+                    pdf.setFontSize(8.5);
                     pdf.setFont(FONTS.body, 'normal');
-                    // Split text using a bit less width for padding
-                    const lines = pdf.splitTextToSize(photo.description, descW - 10);
-                    pdf.text(lines, descX + 5, yPos + 16);
-                } else {
-                    pdf.setFontSize(8);
-                    pdf.setTextColor(150, 150, 150);
-                    pdf.setFont(FONTS.body, 'italic');
-                    pdf.text("(Sin descripción)", descX + 5, yPos + 16);
+                    pdf.setTextColor(45, 55, 72);
+                    const descLines = pdf.splitTextToSize(photoSec.description, descW - 10);
+                    pdf.text(descLines, descX + 5, yPos + 14);
+                }
+            } catch { }
+
+            yPos += cardH + 4;
+        }
+        else if (section.type === 'gallery') {
+            const galSection = section as GallerySection;
+            if (!galSection.photos || galSection.photos.length === 0) continue;
+
+            const cols = 2;
+            const gap = 6;
+            const photoW = (contentWidth - gap) / cols; // 87mm
+            const photoH = 58; // 3:2 aprox
+            const rowH = photoH + 14;
+
+            for (let i = 0; i < galSection.photos.length; i += cols) {
+                await checkAndAddPage(rowH + 4);
+
+                for (let c = 0; c < cols; c++) {
+                    const photoIdx = i + c;
+                    if (photoIdx >= galSection.photos.length) break;
+
+                    const photo = galSection.photos[photoIdx];
+                    const x = margin + (c * (photoW + gap));
+
+                    try {
+                        const img = await loadImage(photo.photoUrl);
+                        pdf.addImage(img, 'JPEG', x, yPos, photoW, photoH);
+
+                        // Tag de fase si existe
+                        if (photo.photoMeta?.phase) {
+                            const phase = photo.photoMeta.phase;
+                            const isBefore = phase === 'BEFORE';
+                            const isAfter = phase === 'AFTER';
+                            const tagColor = isBefore ? [225, 29, 72] : isAfter ? [16, 185, 129] : [71, 85, 105];
+                            const tagText = isBefore ? "Antes" : isAfter ? "Después" : "Durante";
+
+                            pdf.setFillColor(tagColor[0], tagColor[1], tagColor[2]);
+                            pdf.rect(x, yPos, 18, 4.5, 'F');
+                            pdf.setFontSize(7);
+                            pdf.setFont(FONTS.header, 'bold');
+                            pdf.setTextColor(255, 255, 255);
+                            pdf.text(tagText, x + 2, yPos + 3.3);
+                        }
+
+                        if (photo.description) {
+                            pdf.setFontSize(7.5);
+                            pdf.setFont(FONTS.body, 'normal');
+                            pdf.setTextColor(71, 85, 105);
+                            const descLines = pdf.splitTextToSize(photo.description, photoW);
+                            pdf.text(descLines.slice(0, 2), x, yPos + photoH + 4);
+                        }
+                    } catch { }
                 }
 
-                // Phase Badge (Optional but helpful)
-                // if (photo.photoMeta?.phase) { ... }
-
-            } catch (e) {
-                // Image load failed - rendered by loadImage placeholder
+                yPos += rowH + 4;
             }
-
-            yPos += photoBlockHeight;
         }
     }
 
-    // --- FIRMAS ---
+    // --- FIRMAS DE CONFORMIDAD ---
     if (report.signatures) {
-        drawFooter(pdf.getCurrentPageInfo().pageNumber);
-        pdf.addPage();
-        await drawHeader(pdf.getCurrentPageInfo().pageNumber);
+        const sigBlockH = 52;
+        await checkAndAddPage(sigBlockH + 6);
 
-        yPos = 50;
-        pdf.setFontSize(14);
-        pdf.setTextColor(COLORS.primary);
-        pdf.text('CONFORMIDAD DEL SERVICIO', pageWidth / 2, yPos, { align: 'center' });
-        yPos += 30;
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 5;
 
-        const sigW = 70;
-        const sigH = 40;
+        pdf.setFontSize(10);
+        pdf.setFont(FONTS.header, 'bold');
+        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        pdf.text("CONFORMIDAD Y APROBACIÓN DEL SERVICIO", pageWidth / 2, yPos + 3, { align: 'center' });
+        yPos += 10;
 
-        // Technician
-        const techX = margin + 15;
+        const sigBoxW = 75;
+        const sigBoxH = 26;
+
+        // Firma Técnico (Izquierda)
+        const techX = margin + 10;
         if (report.signatures.technicianSignature) {
             try {
                 const img = await loadImage(report.signatures.technicianSignature);
-                pdf.addImage(img, 'PNG', techX, yPos, sigW, sigH);
-            } catch (e) { }
+                pdf.addImage(img, 'PNG', techX + 5, yPos, sigBoxW - 10, sigBoxH);
+            } catch { }
         }
-        pdf.setDrawColor(150);
-        pdf.line(techX, yPos + sigH, techX + sigW, yPos + sigH);
-        pdf.setFontSize(10);
-        pdf.setTextColor(0);
-        pdf.text(report.signatures.technicianName || "Técnico", techX + sigW / 2, yPos + sigH + 5, { align: 'center' });
-        pdf.setFontSize(8);
-        pdf.setTextColor(100);
-        pdf.text("TÉCNICO RESPONSABLE", techX + sigW / 2, yPos + sigH + 10, { align: 'center' });
+        pdf.setDrawColor(160, 174, 192);
+        pdf.line(techX, yPos + sigBoxH + 2, techX + sigBoxW, yPos + sigBoxH + 2);
 
-        // Client
-        const clientX = pageWidth - margin - sigW - 15;
+        pdf.setFontSize(9);
+        pdf.setFont(FONTS.header, 'bold');
+        pdf.setTextColor(30, 41, 59);
+        pdf.text(report.signatures.technicianName || report.header.technicianName || "Técnico Especialista", techX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
+
+        pdf.setFontSize(7.5);
+        pdf.setFont(FONTS.body, 'normal');
+        pdf.setTextColor(100, 116, 139);
+        pdf.text("TÉCNICO RESPONSABLE", techX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
+
+        // Firma Cliente (Derecha)
+        const clientX = pageWidth - margin - sigBoxW - 10;
         if (report.signatures.clientSignature) {
             try {
                 const img = await loadImage(report.signatures.clientSignature);
-                pdf.addImage(img, 'PNG', clientX, yPos, sigW, sigH);
-            } catch (e) { }
+                pdf.addImage(img, 'PNG', clientX + 5, yPos, sigBoxW - 10, sigBoxH);
+            } catch { }
         }
-        pdf.line(clientX, yPos + sigH, clientX + sigW, yPos + sigH);
-        pdf.setFontSize(10);
-        pdf.setTextColor(0);
-        pdf.text(report.signatures.clientName || "Cliente", clientX + sigW / 2, yPos + sigH + 5, { align: 'center' });
-        pdf.setFontSize(8);
-        pdf.setTextColor(100);
-        pdf.text("CLIENTE / RESPONSABLE", clientX + sigW / 2, yPos + sigH + 10, { align: 'center' });
+        pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
+
+        pdf.setFontSize(9);
+        pdf.setFont(FONTS.header, 'bold');
+        pdf.setTextColor(30, 41, 59);
+        pdf.text(report.signatures.clientName || report.header.clientName || "Cliente / Receptor", clientX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
+
+        pdf.setFontSize(7.5);
+        pdf.setFont(FONTS.body, 'normal');
+        pdf.setTextColor(100, 116, 139);
+        pdf.text("CLIENTE DE CONFORMIDAD", clientX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
+
+        yPos += sigBlockH;
     }
 
-    // Totales de páginas
+    // --- PASADA FINAL DE PIE DE PÁGINA (Sin sobreposiciones) ---
     const totalPages = pdf.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        drawFooter(i);
+    for (let p = 1; p <= totalPages; p++) {
+        pdf.setPage(p);
+
+        // Línea divisoria del pie
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
+        // Textos del pie
+        pdf.setFontSize(8);
+        pdf.setFont(FONTS.body, 'normal');
+        pdf.setTextColor(140, 150, 160);
+
+        // Izquierda
+        pdf.text(`HECHO SRL • Ticket #${report.header.ticketNumber || 'N/A'}`, margin, pageHeight - 9);
+
+        // Centro
+        pdf.text(`Página ${p} de ${totalPages}`, pageWidth / 2, pageHeight - 9, { align: 'center' });
+
+        // Derecha
+        pdf.text(`Generado: ${new Date().toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' })}`, pageWidth - margin, pageHeight - 9, { align: 'right' });
     }
 
-    pdf.save(`informe-moderno-${report.header.ticketNumber}.pdf`);
+    pdf.save(`informe-moderno-${report.header.ticketNumber || 'reporte'}.pdf`);
 }
 
 /**
  * Exporta el informe usando el método estándar de impresión del navegador
  */
 export async function exportToPDFStandard() {
-    // Pre-cargar imágenes
     const images = document.querySelectorAll('.photo-print');
     const imagePromises = Array.from(images).map((img) => {
         const imageElement = img as HTMLImageElement;
@@ -587,37 +608,24 @@ export async function exportToPDFStandard() {
 }
 
 /**
- * GENERAR COTIZACIÓN PDF (Legacy restaurado)
+ * GENERAR COTIZACIÓN PDF
  */
 export async function generateQuotePDF(quote: Quote) {
     const pdf = new jsPDF();
     const settings = await getCompanySettings();
     const margin = 20;
 
-    // Header
     if (settings?.logoUrl) {
         try {
             const img = await loadImage(settings.logoUrl);
             pdf.addImage(img, 'PNG', margin, 10, 30, 15);
-        } catch (e) { }
+        } catch { }
     }
 
-    // Content placeholder
     const quoteNum = (quote as any).number || quote.name || 'N/A';
+    pdf.setFontSize(14);
     pdf.text("Presupuesto: " + quoteNum, margin, 50);
-    // ... complete legacy implementation if needed, mostly kept for compatibility
     pdf.save(`presupuesto-${quoteNum}.pdf`);
-}
-
-// === EXPORT 2 PHOTOS (Legacy/Alternative) ===
-// Keeps existing logic but uses new loadImage
-async function addPhotoToPDF(pdf: jsPDF, photo: PhotoSection, x: number, y: number, w: number, h: number) {
-    try {
-        const img = await loadImage(photo.photoUrl || '');
-        pdf.addImage(img, 'JPEG', x, y, w, h);
-    } catch {
-        // failed
-    }
 }
 
 function extractPhotos(report: TicketReportNew): PhotoSection[] {
@@ -639,39 +647,41 @@ function extractPhotos(report: TicketReportNew): PhotoSection[] {
     return allPhotos;
 }
 
-
 export async function exportToPDFWith2Photos(report: TicketReportNew) {
-    // Implementation kept largely same but using new addPhotoToPDF -> loadImage
     const pdf = new jsPDF('p', 'mm', 'a4');
-    // Basic layout implementation for compatibility
-
     const settings = await getCompanySettings();
     let yPos = 20;
-    const margin = 20;
+    const margin = 15;
     const pageHeight = 297;
     const pageWidth = 210;
+    const contentWidth = pageWidth - (margin * 2);
 
-    // Logo
     if (settings?.logoUrl) {
         try {
             const img = await loadImage(settings.logoUrl);
             pdf.addImage(img, 'PNG', margin, 10, 30, 15);
-        } catch (e) { }
+        } catch { }
     }
 
-    pdf.setFontSize(16);
-    pdf.text(report.header.title, margin, 40);
-    yPos = 50;
+    pdf.setFontSize(15);
+    pdf.setFont(FONTS.header, 'bold');
+    pdf.text(report.header.title, margin, 35);
+    yPos = 45;
 
-    // 2 Photos Logic
     const photos = extractPhotos(report);
     for (const photo of photos) {
-        if (yPos > pageHeight - 110) { pdf.addPage(); yPos = 20; }
-        await addPhotoToPDF(pdf, photo, margin, yPos, 170, 100);
-        yPos += 110;
+        if (yPos > pageHeight - 110) { 
+            pdf.addPage(); 
+            yPos = 20; 
+        }
+        try {
+            const img = await loadImage(photo.photoUrl || '');
+            pdf.addImage(img, 'JPEG', margin, yPos, contentWidth, 90);
+        } catch { }
+        yPos += 98;
     }
 
-    pdf.save(`informe-2fotos-${report.header.ticketNumber}.pdf`);
+    pdf.save(`informe-simple-${report.header.ticketNumber}.pdf`);
 }
 
 /**
@@ -679,8 +689,19 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
  */
 export async function exportToWord(report: TicketReportNew) {
     const children: (Paragraph | Table)[] = [];
-    // Basic implementation to avoid compile errors
     children.push(new Paragraph({ text: report.header.title, heading: HeadingLevel.HEADING_1 }));
+
+    report.sections.forEach(sec => {
+        if (sec.type === 'h1' || sec.type === 'h2') {
+            children.push(new Paragraph({ text: (sec as TitleSection).content, heading: HeadingLevel.HEADING_2 }));
+        } else if (sec.type === 'text') {
+            children.push(new Paragraph({ text: (sec as TextSection).content }));
+        } else if (sec.type === 'list') {
+            (sec as ListSection).items.forEach(item => {
+                children.push(new Paragraph({ text: `• ${item}` }));
+            });
+        }
+    });
 
     const doc = new Document({
         sections: [{ properties: {}, children: children }],
