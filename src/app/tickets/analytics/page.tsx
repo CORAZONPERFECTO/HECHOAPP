@@ -20,47 +20,62 @@ export default function TicketAnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
 
-    // Load tickets
-    // Load tickets - Protected Route Pattern
+    // Load tickets - Protected Route Pattern with robust error handling
     useEffect(() => {
-        let unsubscribeTickets: () => void;
+        let unsubscribeTickets: (() => void) | undefined;
+        let isMounted = true;
 
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+        const initAnalytics = async () => {
+            await auth.authStateReady();
+            const user = auth.currentUser;
+
             if (!user) {
-                setLoading(false);
-                router.push("/login");
+                if (isMounted) {
+                    setLoading(false);
+                    router.push("/login");
+                }
                 return;
             }
 
-            // User is authenticated, fetch data
-            const q = query(
-                collection(db, "tickets"),
-                orderBy("createdAt", "desc"),
-                limit(500)
-            );
+            try {
+                const q = query(
+                    collection(db, "tickets"),
+                    limit(500)
+                );
 
-            unsubscribeTickets = onSnapshot(q, (snapshot) => {
-                const loadedTickets = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                } as Ticket));
+                unsubscribeTickets = onSnapshot(q, (snapshot) => {
+                    if (!isMounted) return;
 
-                setTickets(loadedTickets);
+                    const loadedTickets = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    } as Ticket));
 
-                // Generate analytics
-                const engine = new TicketAnalyticsEngine(loadedTickets);
-                const data = engine.generateFullAnalytics();
-                setAnalytics(data);
+                    setTickets(loadedTickets);
 
-                setLoading(false);
-            }, (error) => {
-                console.error("Error fetching tickets:", error);
-                setLoading(false);
-            });
-        });
+                    try {
+                        const engine = new TicketAnalyticsEngine(loadedTickets);
+                        const data = engine.generateFullAnalytics();
+                        setAnalytics(data);
+                    } catch (analyticsErr) {
+                        console.error("Error generating analytics:", analyticsErr);
+                    } finally {
+                        setLoading(false);
+                    }
+                }, (error) => {
+                    console.error("Error fetching tickets for analytics:", error);
+                    if (isMounted) setLoading(false);
+                });
+            } catch (err) {
+                console.error("Failed to initialize ticket query:", err);
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        initAnalytics();
 
         return () => {
-            unsubscribeAuth();
+            isMounted = false;
             if (unsubscribeTickets) unsubscribeTickets();
         };
     }, [router]);
