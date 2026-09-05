@@ -16,6 +16,7 @@ import {
     registerWarrantyReturn, 
     applyQualityAdjustment 
 } from "@/lib/quality-service";
+import { getOperationalCosts, computeHourlyRates } from "@/lib/costs-service";
 import { WarrantyTicketRecord, WarrantyResponsibility, QualityAdjustment } from "@/types/quality";
 import { 
     ShieldCheck, 
@@ -52,7 +53,7 @@ export default function CalidadGarantiasPage() {
         isSameRootCause: false,
         responsibility: "FALLA_MATERIAL_EQUIPO" as WarrantyResponsibility,
         hoursConsumed: 2,
-        hourlyRateApplied: 450, // RD$ 450/hora
+        hourlyRateApplied: 1378, // RD$ 1,378/hora (Costo por Hora Productiva calculado sobre la base mensual)
         materialsCost: 0,
         additionalExpenses: 0,
         validationNotes: ""
@@ -71,8 +72,21 @@ export default function CalidadGarantiasPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const data = await getWarrantyRecords();
-            setWarranties(data);
+            const [warrantyData, opCosts] = await Promise.all([
+                getWarrantyRecords(),
+                getOperationalCosts()
+            ]);
+            setWarranties(warrantyData);
+            
+            // Calcular tasa por hora productiva sugerida
+            const rates = computeHourlyRates(opCosts);
+            if (rates.costoHoraProductiva > 0) {
+                const roundedRate = Math.round(rates.costoHoraProductiva);
+                setForm(prev => ({
+                    ...prev,
+                    hourlyRateApplied: roundedRate || 1378
+                }));
+            }
         } catch (e) {
             console.error("Error loading warranty records:", e);
         } finally {
@@ -392,7 +406,12 @@ export default function CalidadGarantiasPage() {
                                         </div>
                                     </div>
                                     <div className="p-3 bg-slate-50 rounded-xl space-y-2 border">
-                                        <div className="font-bold text-slate-800">Cálculo de Costo de No Calidad (CNC):</div>
+                                        <div className="flex items-center justify-between">
+                                            <div className="font-bold text-slate-800">Cálculo de Costo de No Calidad (CNC):</div>
+                                            <span className="text-[11px] font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                                Base: RD$ 1,378/h productiva
+                                            </span>
+                                        </div>
                                         <div className="grid grid-cols-3 gap-2">
                                             <div>
                                                 <Label>Horas</Label>
@@ -418,6 +437,9 @@ export default function CalidadGarantiasPage() {
                                                     onChange={(e) => setForm({ ...form, materialsCost: Number(e.target.value) })}
                                                 />
                                             </div>
+                                        </div>
+                                        <div className="text-[11px] text-slate-500 bg-white p-2 rounded border">
+                                            💡 <strong>CNC Estimado:</strong> RD$ {((Number(form.hoursConsumed || 0) * Number(form.hourlyRateApplied || 0)) + Number(form.materialsCost || 0) + Number(form.additionalExpenses || 0)).toLocaleString()} (Horas × Tasa + Materiales)
                                         </div>
                                     </div>
                                     <div className="flex justify-end gap-2 pt-3 border-t">
