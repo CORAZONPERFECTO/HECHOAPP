@@ -37,7 +37,7 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
 }
 
 /**
- * Carga una imagen asegurando compatibilidad con jsPDF (evita Tainted Canvas via Base64)
+ * Carga una imagen asegurando compatibilidad con jsPDF
  */
 async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -57,16 +57,13 @@ async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
     try {
         let blob: Blob;
 
-        // 1. Intento Directo
         try {
             blob = await fetchBlob(url);
         } catch (e) {
-            // 2. Intento Proxy
             const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
             blob = await fetchBlob(proxyUrl);
         }
 
-        // 3. Convertir Blob a DataURL (Base64)
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -80,7 +77,6 @@ async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
         });
 
     } catch (finalError) {
-        console.warn("Estrategia de carga de imagen falló para:", url);
         return createPlaceholderImage();
     }
 }
@@ -116,8 +112,9 @@ function createPlaceholderImage(): Promise<HTMLImageElement> {
 }
 
 /**
- * EXPORTACIÓN: "MODERNO 2026"
- * Motor con paginación inteligente, corte automático de líneas y márgenes de seguridad.
+ * EXPORTACIÓN: "MODERNO 2026 - FORMATEADOR INTELIGENTE DE INGENIERÍA"
+ * Reconoce automáticamente títulos numerados con subrayado, pares clave-valor (Negrita: Cursiva),
+ * y cajas de dictamen/evaluación técnica.
  */
 export async function exportToPDFModern(report: TicketReportNew) {
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -125,12 +122,13 @@ export async function exportToPDFModern(report: TicketReportNew) {
     const pageHeight = 297;
     const margin = 15;
     const contentWidth = pageWidth - (margin * 2); // 180mm
-    const maxContentY = 272; // Margen de seguridad estricto para no tocar el pie de página
+    const maxContentY = 272; // Margen de seguridad estricto
 
-    const primaryColor = [85, 107, 47]; // #556B2F
+    const primaryColor = [85, 107, 47]; // #556B2F Verde Oliva
+    const accentDark = [30, 41, 59]; // Slate 800
     const settings = await getCompanySettings();
 
-    // Helper: Dibujar Encabezado en cada página
+    // Helper: Encabezado corporativo
     const drawHeader = async (pageNumber: number): Promise<number> => {
         // Franja verde corporativa superior
         pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -162,7 +160,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             pdf.text("Ingeniería & Climatización Especializada", margin, 19);
         }
 
-        // Información de la empresa (Alineada a la derecha)
+        // Info Empresa
         pdf.setFontSize(8);
         pdf.setFont(FONTS.body, 'normal');
         pdf.setTextColor(100, 100, 100);
@@ -180,15 +178,14 @@ export async function exportToPDFModern(report: TicketReportNew) {
         if (settings?.email) { pdf.text(settings.email, xInfo, yInfo, { align: 'right' }); yInfo += 3.5; }
         if (settings?.phone) { pdf.text(settings.phone, xInfo, yInfo, { align: 'right' }); yInfo += 3.5; }
 
-        // Línea separadora suave
+        // Separador
         pdf.setDrawColor(226, 232, 240);
         pdf.setLineWidth(0.3);
         pdf.line(margin, 26, pageWidth - margin, 26);
 
-        return 32; // Punto de inicio para el contenido
+        return 32;
     };
 
-    // Helper: Control dinámico de saltos de página con encabezado
     let yPos = await drawHeader(1);
 
     const checkAndAddPage = async (requiredSpace: number) => {
@@ -200,16 +197,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
         return false;
     };
 
-    // --- PÁGINA 1: TÍTULO Y METADATOS EJECUTIVOS ---
-    pdf.setFontSize(16);
+    // --- PÁGINA 1: TÍTULO Y METADATOS ---
+    pdf.setFontSize(15);
     pdf.setFont(FONTS.header, 'bold');
     pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    const cleanTitle = (report.header.title || "INFORME TÉCNICO DE SERVICIO").toUpperCase();
+    const cleanTitle = (report.header.title || "INFORME TÉCNICO DE LEVANTAMIENTO").toUpperCase();
     const titleLines = pdf.splitTextToSize(cleanTitle, contentWidth);
     pdf.text(titleLines, margin, yPos + 4);
-    yPos += (titleLines.length * 6) + 4;
+    yPos += (titleLines.length * 5.5) + 4;
 
-    // Caja de Metadatos (Grid Card)
+    // Caja de Metadatos
     const metaBoxHeight = 32;
     pdf.setFillColor(248, 250, 252);
     pdf.setDrawColor(226, 232, 240);
@@ -219,7 +216,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
     const col1X = margin + 6;
     const col2X = margin + (contentWidth / 2) + 4;
 
-    // Fila 1
     pdf.setFontSize(7.5);
     pdf.setFont(FONTS.header, 'bold');
     pdf.setTextColor(140, 140, 140);
@@ -233,7 +229,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setFont(FONTS.body, 'normal');
     pdf.text(report.header.date || new Date().toLocaleDateString('es-DO'), col2X, yPos + 11);
 
-    // Fila 2
     pdf.setFontSize(7.5);
     pdf.setFont(FONTS.header, 'bold');
     pdf.setTextColor(140, 140, 140);
@@ -249,7 +244,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setTextColor(30, 30, 30);
     pdf.text(report.header.technicianName || "HECHO SRL", col2X, yPos + 23);
 
-    // Ubicación si existe
     if (report.header.address) {
         pdf.setFontSize(7.5);
         pdf.setTextColor(120, 120, 120);
@@ -258,19 +252,18 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
     yPos += metaBoxHeight + 8;
 
-    // --- RENDERIZADO INTELIGENTE DE SECCIONES ---
+    // --- FORMATEADOR INTELIGENTE DE SECCIONES ---
     for (const section of report.sections) {
         if (section.type === 'h1' || section.type === 'h2') {
             const titleSection = section as TitleSection;
             const headingText = titleSection.content || '';
             if (!headingText.trim()) continue;
 
-            // Evitar encabezado huérfano (exige al menos 20mm libres)
             await checkAndAddPage(20);
 
             // Marcador decorativo izquierdo
             pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            pdf.roundedRect(margin, yPos + 1, 3, 5.5, 0.8, 0.8, 'F');
+            pdf.roundedRect(margin, yPos + 1, 3.5, 6, 0.8, 0.8, 'F');
 
             pdf.setFontSize(11);
             pdf.setFont(FONTS.header, 'bold');
@@ -285,23 +278,133 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const content = textSection.content || '';
             if (!content.trim()) continue;
 
-            const paragraphs = content.split('\n');
-            for (const para of paragraphs) {
-                if (!para.trim()) {
+            const lines = content.split('\n');
+
+            for (let lIdx = 0; lIdx < lines.length; lIdx++) {
+                const line = lines[lIdx].trim();
+                if (!line) {
                     yPos += 2;
                     continue;
                 }
 
-                const lines = pdf.splitTextToSize(para, contentWidth);
-                for (const line of lines) {
+                // 1. REGLA 1: TÍTULOS NUMERADOS (Ej: "1. Capacidad de los Equipos", "2. Verificación de...")
+                const numberedMatch = line.match(/^(\d+[\.\)]\s+)(.*)$/);
+                if (numberedMatch) {
+                    await checkAndAddPage(16);
+                    yPos += 2;
+
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setFontSize(10.5);
+                    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    
+                    const numTitleLines = pdf.splitTextToSize(line, contentWidth);
+                    pdf.text(numTitleLines, margin, yPos + 4);
+                    yPos += (numTitleLines.length * 5) + 2;
+
+                    // Línea / Raya de subrayado sutil
+                    pdf.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    pdf.setLineWidth(0.4);
+                    pdf.line(margin, yPos, margin + Math.min(contentWidth, 120), yPos);
+                    yPos += 4;
+                    continue;
+                }
+
+                // 2. REGLA 2: CAJA DE DICTAMEN / EVALUACIÓN GENERAL / ADVERTENCIA
+                const calloutMatch = line.match(/^(Evaluación general|Dictamen técnico|Advertencia|Nota crítica|Conclusión):\s*(.*)$/i);
+                if (calloutMatch) {
+                    const tag = calloutMatch[1];
+                    const val = calloutMatch[2];
+
+                    const valLines = pdf.splitTextToSize(val, contentWidth - 16);
+                    const boxH = (valLines.length * 4.6) + 12;
+
+                    await checkAndAddPage(boxH + 4);
+
+                    // Contenedor Callout
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.setDrawColor(203, 213, 225);
+                    pdf.setLineWidth(0.3);
+                    pdf.roundedRect(margin, yPos, contentWidth, boxH, 2, 2, 'FD');
+
+                    // Borde lateral de acento
+                    pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    pdf.rect(margin, yPos, 3, boxH, 'F');
+
+                    // Etiqueta en Negrita
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text(`${tag.toUpperCase()}:`, margin + 8, yPos + 5.5);
+
+                    // Valor en Cursiva
+                    pdf.setFont(FONTS.body, 'italic');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(51, 65, 85);
+                    pdf.text(valLines, margin + 8, yPos + 10.5);
+
+                    yPos += boxH + 4;
+                    continue;
+                }
+
+                // 3. REGLA 3: CAMPOS CON DOS PUNTOS (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
+                // Formato: Etiqueta en NEGRITA, valor en CURSIVA
+                const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                if (colonMatch) {
+                    const key = colonMatch[1].trim();
+                    const val = colonMatch[2].trim();
+
+                    const keyStr = `${key}: `;
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setFontSize(9.5);
+                    const keyWidth = pdf.getTextWidth(keyStr);
+
+                    // Si el valor cabe en la misma línea o es corto
+                    if (keyWidth + pdf.getTextWidth(val) <= contentWidth - 5) {
+                        await checkAndAddPage(5.2);
+                        pdf.setFont(FONTS.header, 'bold');
+                        pdf.setFontSize(9.5);
+                        pdf.setTextColor(30, 41, 59);
+                        pdf.text(keyStr, margin, yPos);
+
+                        pdf.setFont(FONTS.body, 'italic');
+                        pdf.setFontSize(9.5);
+                        pdf.setTextColor(71, 85, 105);
+                        pdf.text(val, margin + keyWidth, yPos);
+                        yPos += 4.8;
+                    } else {
+                        // El valor es largo: imprime clave en negrita y el valor en cursiva indentado
+                        await checkAndAddPage(5.2);
+                        pdf.setFont(FONTS.header, 'bold');
+                        pdf.setFontSize(9.5);
+                        pdf.setTextColor(30, 41, 59);
+                        pdf.text(keyStr, margin, yPos);
+                        yPos += 4.5;
+
+                        const valLines = pdf.splitTextToSize(val, contentWidth - 4);
+                        for (const vLine of valLines) {
+                            await checkAndAddPage(5);
+                            pdf.setFont(FONTS.body, 'italic');
+                            pdf.setFontSize(9);
+                            pdf.setTextColor(71, 85, 105);
+                            pdf.text(vLine, margin + 4, yPos);
+                            yPos += 4.5;
+                        }
+                    }
+                    yPos += 1;
+                    continue;
+                }
+
+                // 4. TEXTO PLANO ESTÁNDAR
+                const normalLines = pdf.splitTextToSize(line, contentWidth);
+                for (const nLine of normalLines) {
                     await checkAndAddPage(5.2);
                     pdf.setFont(FONTS.body, 'normal');
                     pdf.setFontSize(9.5);
                     pdf.setTextColor(45, 55, 72);
-                    pdf.text(line, margin, yPos);
+                    pdf.text(nLine, margin, yPos);
                     yPos += 4.8;
                 }
-                yPos += 2; // Espacio entre párrafos
+                yPos += 1.5;
             }
             yPos += 2;
         }
@@ -309,25 +412,68 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const listSection = section as ListSection;
             if (!listSection.items || listSection.items.length === 0) continue;
 
-            for (const item of listSection.items) {
-                if (!item || !item.trim()) continue;
+            for (const rawItem of listSection.items) {
+                if (!rawItem || !rawItem.trim()) continue;
+                const item = rawItem.trim();
 
-                const lines = pdf.splitTextToSize(item, contentWidth - 8);
-                for (let i = 0; i < lines.length; i++) {
-                    await checkAndAddPage(5.2);
-                    pdf.setFont(FONTS.body, 'normal');
+                // Detección de clave: valor dentro de viñetas
+                const itemColonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
+
+                if (itemColonMatch) {
+                    const key = itemColonMatch[1].trim();
+                    const val = itemColonMatch[2].trim();
+                    const keyStr = `${key}: `;
+
+                    pdf.setFont(FONTS.header, 'bold');
                     pdf.setFontSize(9.5);
+                    const keyWidth = pdf.getTextWidth(keyStr);
 
-                    if (i === 0) {
-                        pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-                        pdf.setFont(FONTS.header, 'bold');
-                        pdf.text("•", margin + 1, yPos);
+                    await checkAndAddPage(5.2);
+                    // Bullet
+                    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.text("•", margin + 1, yPos);
+
+                    // Key (Bold)
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text(keyStr, margin + 6, yPos);
+
+                    if (keyWidth + pdf.getTextWidth(val) <= contentWidth - 12) {
+                        // Value inline
+                        pdf.setFont(FONTS.body, 'italic');
+                        pdf.setTextColor(71, 85, 105);
+                        pdf.text(val, margin + 6 + keyWidth, yPos);
+                        yPos += 4.8;
+                    } else {
+                        yPos += 4.5;
+                        const valLines = pdf.splitTextToSize(val, contentWidth - 10);
+                        for (const vl of valLines) {
+                            await checkAndAddPage(5);
+                            pdf.setFont(FONTS.body, 'italic');
+                            pdf.setFontSize(9);
+                            pdf.setTextColor(71, 85, 105);
+                            pdf.text(vl, margin + 10, yPos);
+                            yPos += 4.5;
+                        }
                     }
+                } else {
+                    const lines = pdf.splitTextToSize(item, contentWidth - 8);
+                    for (let i = 0; i < lines.length; i++) {
+                        await checkAndAddPage(5.2);
+                        pdf.setFont(FONTS.body, 'normal');
+                        pdf.setFontSize(9.5);
 
-                    pdf.setFont(FONTS.body, 'normal');
-                    pdf.setTextColor(45, 55, 72);
-                    pdf.text(lines[i], margin + 6, yPos);
-                    yPos += 4.8;
+                        if (i === 0) {
+                            pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                            pdf.setFont(FONTS.header, 'bold');
+                            pdf.text("•", margin + 1, yPos);
+                        }
+
+                        pdf.setFont(FONTS.body, 'normal');
+                        pdf.setTextColor(45, 55, 72);
+                        pdf.text(lines[i], margin + 6, yPos);
+                        yPos += 4.8;
+                    }
                 }
                 yPos += 1;
             }
@@ -340,7 +486,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const cardH = 76;
             await checkAndAddPage(cardH + 6);
 
-            // Contenedor comparativo
             pdf.setFillColor(248, 250, 252);
             pdf.setDrawColor(226, 232, 240);
             pdf.setLineWidth(0.3);
@@ -355,14 +500,11 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photoH = 48;
             const photoY = yPos + 9;
 
-            // Foto Antes
             if (baSection.beforePhotoUrl) {
                 try {
                     const img = await loadImage(baSection.beforePhotoUrl);
                     pdf.addImage(img, 'JPEG', margin + 5, photoY, photoW, photoH);
-                    
-                    // Badge ANTES
-                    pdf.setFillColor(225, 29, 72); // Rose Red
+                    pdf.setFillColor(225, 29, 72);
                     pdf.rect(margin + 5, photoY, 18, 5, 'F');
                     pdf.setFontSize(7.5);
                     pdf.setFont(FONTS.header, 'bold');
@@ -371,14 +513,11 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 } catch { }
             }
 
-            // Foto Después
             if (baSection.afterPhotoUrl) {
                 try {
                     const img = await loadImage(baSection.afterPhotoUrl);
                     pdf.addImage(img, 'JPEG', margin + 11 + photoW, photoY, photoW, photoH);
-                    
-                    // Badge DESPUÉS
-                    pdf.setFillColor(16, 185, 129); // Emerald Green
+                    pdf.setFillColor(16, 185, 129);
                     pdf.rect(margin + 11 + photoW, photoY, 20, 5, 'F');
                     pdf.setFontSize(7.5);
                     pdf.setFont(FONTS.header, 'bold');
@@ -411,7 +550,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 const img = await loadImage(photoSec.photoUrl);
                 pdf.addImage(img, 'JPEG', margin, yPos, pWidth, pHeight);
 
-                // Panel lateral descriptivo
                 const descX = margin + pWidth + 6;
                 const descW = contentWidth - pWidth - 6;
 
@@ -442,8 +580,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
             const cols = 2;
             const gap = 6;
-            const photoW = (contentWidth - gap) / cols; // 87mm
-            const photoH = 58; // 3:2 aprox
+            const photoW = (contentWidth - gap) / cols;
+            const photoH = 58;
             const rowH = photoH + 14;
 
             for (let i = 0; i < galSection.photos.length; i += cols) {
@@ -460,7 +598,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                         const img = await loadImage(photo.photoUrl);
                         pdf.addImage(img, 'JPEG', x, yPos, photoW, photoH);
 
-                        // Tag de fase si existe
                         if (photo.photoMeta?.phase) {
                             const phase = photo.photoMeta.phase;
                             const isBefore = phase === 'BEFORE';
@@ -510,7 +647,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
         const sigBoxW = 75;
         const sigBoxH = 26;
 
-        // Firma Técnico (Izquierda)
+        // Firma Técnico
         const techX = margin + 10;
         if (report.signatures.technicianSignature) {
             try {
@@ -531,7 +668,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
         pdf.setTextColor(100, 116, 139);
         pdf.text("TÉCNICO RESPONSABLE", techX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
 
-        // Firma Cliente (Derecha)
+        // Firma Cliente
         const clientX = pageWidth - margin - sigBoxW - 10;
         if (report.signatures.clientSignature) {
             try {
@@ -554,28 +691,21 @@ export async function exportToPDFModern(report: TicketReportNew) {
         yPos += sigBlockH;
     }
 
-    // --- PASADA FINAL DE PIE DE PÁGINA (Sin sobreposiciones) ---
+    // --- PASADA FINAL DE PIE DE PÁGINA ---
     const totalPages = pdf.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
         pdf.setPage(p);
 
-        // Línea divisoria del pie
         pdf.setDrawColor(226, 232, 240);
         pdf.setLineWidth(0.3);
         pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
 
-        // Textos del pie
         pdf.setFontSize(8);
         pdf.setFont(FONTS.body, 'normal');
         pdf.setTextColor(140, 150, 160);
 
-        // Izquierda
         pdf.text(`HECHO SRL • Ticket #${report.header.ticketNumber || 'N/A'}`, margin, pageHeight - 9);
-
-        // Centro
         pdf.text(`Página ${p} de ${totalPages}`, pageWidth / 2, pageHeight - 9, { align: 'center' });
-
-        // Derecha
         pdf.text(`Generado: ${new Date().toLocaleDateString('es-DO', { year: 'numeric', month: 'short', day: 'numeric' })}`, pageWidth - margin, pageHeight - 9, { align: 'right' });
     }
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { InlineEditableText } from "@/components/ui/inline-editable-text";
 import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
 import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
-import { Lightbulb, ShieldCheck, Wrench, FileText, CheckCircle2, User, Calendar, MapPin, ZoomIn, X } from "lucide-react";
+import { Lightbulb, ShieldCheck, Wrench, FileText, CheckCircle2, User, Calendar, MapPin, ZoomIn, X, Edit3 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface TicketReportViewProps {
@@ -14,8 +14,79 @@ interface TicketReportViewProps {
     onUpdateHeader?: (updates: Partial<TicketReportNew['header']>) => void;
 }
 
+function SmartFormattedReportContent({ text }: { text: string }) {
+    if (!text) return null;
+    const lines = text.split('\n');
+
+    return (
+        <div className="space-y-1.5">
+            {lines.map((rawLine, idx) => {
+                const line = rawLine.trim();
+                if (!line) {
+                    return <div key={idx} className="h-1.5" />;
+                }
+
+                // 1. TÍTULOS NUMERADOS (Ej: "1. Capacidad de los Equipos", "2. Verificación...")
+                const numMatch = line.match(/^(\d+[\.\)]\s+)(.*)$/);
+                if (numMatch) {
+                    return (
+                        <div key={idx} className="pt-3 pb-1 mt-3 border-b-2 border-emerald-600/30 dark:border-emerald-500/30 flex items-center gap-2">
+                            <span className="w-2 h-4 bg-emerald-700 dark:bg-emerald-500 rounded-sm inline-block shrink-0" />
+                            <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-base md:text-lg tracking-tight">
+                                {line}
+                            </h3>
+                        </div>
+                    );
+                }
+
+                // 2. DICTAMEN / EVALUACIÓN GENERAL / ADVERTENCIA
+                const calloutMatch = line.match(/^(Evaluación general|Dictamen técnico|Advertencia|Nota crítica|Conclusión):\s*(.*)$/i);
+                if (calloutMatch) {
+                    const tag = calloutMatch[1];
+                    const val = calloutMatch[2];
+                    return (
+                        <div key={idx} className="my-3 p-4 rounded-xl bg-slate-50 dark:bg-zinc-900/80 border-l-4 border-emerald-600 dark:border-emerald-500 shadow-sm border border-slate-200/60 dark:border-zinc-800">
+                            <span className="font-extrabold text-slate-900 dark:text-zinc-100 block mb-1 text-xs tracking-wider uppercase">
+                                {tag}:
+                            </span>
+                            <p className="text-sm italic text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
+                                {val}
+                            </p>
+                        </div>
+                    );
+                }
+
+                // 3. CLAVE: VALOR (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
+                const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                if (colonMatch) {
+                    const key = colonMatch[1].trim();
+                    const val = colonMatch[2].trim();
+                    return (
+                        <div key={idx} className="py-1 text-sm leading-relaxed flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-1.5">
+                            <span className="font-bold text-slate-900 dark:text-zinc-100 shrink-0">
+                                {key}:
+                            </span>
+                            <span className="italic text-slate-600 dark:text-zinc-300 font-medium">
+                                {val}
+                            </span>
+                        </div>
+                    );
+                }
+
+                // 4. TEXTO PLANO
+                return (
+                    <p key={idx} className="text-sm leading-relaxed text-slate-700 dark:text-zinc-300">
+                        {line}
+                    </p>
+                );
+            })}
+        </div>
+    );
+}
+
 export function TicketReportView({ report, isInteractive = false, onUpdateSection, onUpdateHeader }: TicketReportViewProps) {
     const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title?: string } | null>(null);
+    const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
 
     const isRecommendationsTitle = (text: string) => {
         const lower = text.toLowerCase();
@@ -44,9 +115,9 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                     onUpdateSection(section.id, { content: val } as any);
                 }
             }
+            setEditingSectionId(null);
         };
 
-        // Determine if preceding title was a special section
         const prevSection = index > 0 ? allSections[index - 1] : null;
         const prevTitle = prevSection && (prevSection.type === 'h1' || prevSection.type === 'h2') ? (prevSection as TitleSection).content : '';
 
@@ -66,7 +137,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                             {isWar && <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />}
                             {isDiag && <FileText className="w-5 h-5 text-blue-600 shrink-0" />}
                             {isSol && <Wrench className="w-5 h-5 text-indigo-600 shrink-0" />}
-                            {!isRec && !isWar && !isDiag && !isSol && <div className="w-2 h-5 bg-blue-600 rounded-full shrink-0" />}
+                            {!isRec && !isWar && !isDiag && !isSol && <div className="w-2 h-5 bg-emerald-600 rounded-full shrink-0" />}
                             
                             <InlineEditableText
                                 value={titleText}
@@ -81,8 +152,10 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
             }
 
             case 'text': {
+                const textSection = section as TextSection;
                 const isRecText = isRecommendationsTitle(prevTitle);
                 const isWarText = isWarrantyTitle(prevTitle);
+                const isEditing = editingSectionId === section.id;
 
                 if (isRecText) {
                     return (
@@ -91,7 +164,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                 <Lightbulb className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                 <div className="flex-1">
                                     <InlineEditableText
-                                        value={(section as TextSection).content}
+                                        value={textSection.content}
                                         onSave={handleSave}
                                         disabled={!isInteractive}
                                         className="text-sm font-medium leading-relaxed whitespace-pre-line"
@@ -109,7 +182,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                                 <div className="flex-1">
                                     <InlineEditableText
-                                        value={(section as TextSection).content}
+                                        value={textSection.content}
                                         onSave={handleSave}
                                         disabled={!isInteractive}
                                         className="text-xs font-mono leading-relaxed whitespace-pre-line text-slate-600 dark:text-zinc-400"
@@ -121,25 +194,64 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                 }
 
                 return (
-                    <div key={section.id} className="mb-4 text-slate-700 dark:text-zinc-300">
-                        <InlineEditableText
-                            value={(section as TextSection).content}
-                            onSave={handleSave}
-                            disabled={!isInteractive}
-                            className="text-sm leading-relaxed whitespace-pre-line"
-                        />
+                    <div key={section.id} className="mb-4 text-slate-700 dark:text-zinc-300 group relative">
+                        {isInteractive && !isEditing ? (
+                            <div 
+                                onClick={() => setEditingSectionId(section.id)}
+                                className="cursor-pointer hover:bg-slate-50/80 dark:hover:bg-zinc-900/50 p-2 rounded-xl border border-transparent hover:border-dashed hover:border-slate-300 dark:hover:border-zinc-700 transition-all"
+                                title="Clic para editar texto"
+                            >
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 px-2 py-1 rounded-md shadow-xs flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                                    <Edit3 className="w-3 h-3" /> Editar
+                                </div>
+                                <SmartFormattedReportContent text={textSection.content} />
+                            </div>
+                        ) : isInteractive && isEditing ? (
+                            <div className="p-2 rounded-xl bg-blue-50/40 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50">
+                                <InlineEditableText
+                                    value={textSection.content}
+                                    onSave={handleSave}
+                                    disabled={false}
+                                    className="text-sm leading-relaxed"
+                                />
+                            </div>
+                        ) : (
+                            <SmartFormattedReportContent text={textSection.content} />
+                        )}
                     </div>
                 );
             }
 
-            case 'list':
+            case 'list': {
+                const listSec = section as ListSection;
                 return (
-                    <ul key={section.id} className="list-disc pl-5 space-y-1.5 mb-5 text-sm text-slate-700 dark:text-zinc-300">
-                        {(section as ListSection).items.filter(item => item && item.trim()).map((item, i) => (
-                            <li key={i} className="leading-relaxed">{item}</li>
-                        ))}
+                    <ul key={section.id} className="space-y-2 mb-5 text-sm pl-1">
+                        {listSec.items.filter(item => item && item.trim()).map((rawItem, i) => {
+                            const item = rawItem.trim();
+                            const colonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                            if (colonMatch) {
+                                const key = colonMatch[1].trim();
+                                const val = colonMatch[2].trim();
+                                return (
+                                    <li key={i} className="flex items-start gap-2.5 leading-relaxed">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
+                                        <div className="flex-1">
+                                            <span className="font-bold text-slate-900 dark:text-zinc-100">{key}:</span>{' '}
+                                            <span className="italic text-slate-600 dark:text-zinc-300">{val}</span>
+                                        </div>
+                                    </li>
+                                );
+                            }
+                            return (
+                                <li key={i} className="flex items-start gap-2.5 leading-relaxed text-slate-700 dark:text-zinc-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
+                                    <span>{item}</span>
+                                </li>
+                            );
+                        })}
                     </ul>
                 );
+            }
 
             case 'beforeAfter':
                 return (
@@ -183,7 +295,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                             )}
                         </div>
                         {photoSection.description && (
-                            <div className="mt-2 text-center text-xs text-slate-600 dark:text-zinc-400 italic">
+                            <div className="mt-2 text-center text-xs text-slate-600 dark:text-zinc-400 italic font-medium">
                                 {photoSection.description}
                             </div>
                         )}
@@ -251,7 +363,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
             <header className="mb-8 pb-6 border-b-2 border-slate-200 dark:border-zinc-800">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-blue-500/20">
+                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-emerald-600/20">
                             H
                         </div>
                         <div>
@@ -261,7 +373,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                     </div>
 
                     <div className="text-left sm:text-right">
-                        <span className="inline-block px-3 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-xl border border-blue-200/60 font-mono">
+                        <span className="inline-block px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-xl border border-emerald-200/60 font-mono">
                             {report.header.ticketNumber ? `TK #${report.header.ticketNumber}` : 'INFORME TÉCNICO'}
                         </span>
                         <p className="text-xs text-slate-500 mt-1 flex items-center sm:justify-end gap-1">
@@ -278,7 +390,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                 {/* Metadata Pills */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-slate-50/80 dark:bg-zinc-900/60 p-4 rounded-2xl border border-slate-200/60 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-blue-600 shrink-0" />
+                        <User className="w-4 h-4 text-emerald-600 shrink-0" />
                         <div>
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Cliente</span>
                             <span className="font-bold text-slate-800 dark:text-zinc-200">{report.header.clientName || 'Cliente General'}</span>
@@ -286,7 +398,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
                         <div>
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Ubicación</span>
                             <span className="font-semibold text-slate-800 dark:text-zinc-200 truncate">{report.header.address || 'En sitio'}</span>
