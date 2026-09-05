@@ -260,6 +260,86 @@ export default function ManualGerencialPage() {
                     </div>
                 </section>
 
+                {/* TEMA 6 */}
+                <section className="space-y-4 pt-2">
+                    <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm">6</div>
+                        <h2 className="text-xl font-black text-slate-950">Los 3 Motores Estratégicos de Finanzas & Calidad (El Gobierno)</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                🏛️ 6.1 Motor de Costos & Rentabilidad
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                Estructura base de 3 flotillas (RD$ 516,000/mes) que calcula la tasa horaria real: <strong>RD$ 1,378.00 / hora productiva</strong>. Bloquea la doble contabilización y separa la amortización de capital de los costos operativos.
+                            </p>
+                            <span className="text-[10px] font-bold text-blue-700 block pt-1">💡 Beneficio: Margen real y precio exacto por hora.</span>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                🏆 6.2 Motor de Incentivos & Pasantes
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                Incentivos vinculados obligatoriamente a tickets de campo con esquema dual (Productividad + Retención de Calidad a 30 días sin retorno). Módulo de pasantes y exportación a nómina contable en Excel.
+                            </p>
+                            <span className="text-[10px] font-bold text-emerald-700 block pt-1">💡 Beneficio: Técnicos motivados a cuidar la calidad.</span>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                🛡️ 6.3 Calidad & Costo de No Calidad (CNC)
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                Todo ticket de garantía se vincula al trabajo original. Calcula el CNC empresarial (Horas × RD$ 1,378 + Materiales) sin penalizaciones automáticas injustas al técnico y rastrea reincidencias.
+                            </p>
+                            <span className="text-[10px] font-bold text-rose-700 block pt-1">💡 Beneficio: Diagnóstico y control de pérdidas por garantías.</span>
+                        </div>
+                    </div>
+                </section>
+
+                {/* TEMA 7 */}
+                <section className="space-y-4 pt-2">
+                    <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm">7</div>
+                        <h2 className="text-xl font-black text-slate-950">Inteligencia Artificial, Factura Electrónica DGII (e-CF) & Contabilidad 2026</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                📲 7.1 Escáner Multimodal & QR DGII
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                La IA lee facturas físicas y Códigos QR de e-CF (E31, E32, E34, E43) validando al 100% RNC emisor, RNC de HECHO SRL (131947532), e-NCF, ITBIS y montos sin digitación manual.
+                            </p>
+                            <span className="text-[10px] font-bold text-indigo-700 block pt-1">💡 Beneficio: Cero errores de OCR y validación fiscal instantánea.</span>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                🏗️ 7.2 Tipificación: Gastos vs. Activos (CAPEX)
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                Diferenciación contable automática: compras directas de materiales van al costo del ticket (OPEX), mientras compras de equipos HVAC y vehículos se registran como Activos depreciables (CAPEX).
+                            </p>
+                            <span className="text-[10px] font-bold text-amber-700 block pt-1">💡 Beneficio: Estados financieros reales sin distorsión de pérdidas.</span>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                📑 7.3 Conciliación 606 & Conduces (Matching)
+                            </h4>
+                            <p className="text-slate-600 leading-relaxed">
+                                Cotejo de 3 vías (Cotización ➔ Conduce ➔ Factura), vouchers de combustible vinculados a kilometraje y exportación directa del Formato 606 / sincronización con Alegra o software contable.
+                            </p>
+                            <span className="text-[10px] font-bold text-emerald-700 block pt-1">💡 Beneficio: Auditoría fiscal blindada y contabilidad al día.</span>
+                        </div>
+                    </div>
+                </section>
+
                 {/* RESUMEN DE IMPACTO FINAL */}
                 <div className="bg-slate-900 text-white p-6 md:p-8 rounded-3xl space-y-4">
                     <h3 className="text-lg font-black text-center text-amber-300">

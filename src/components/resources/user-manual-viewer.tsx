@@ -132,25 +132,27 @@ export function UserManualViewer() {
                 <section className="space-y-4">
                     <div className="flex items-center gap-3">
                         <Monitor className="w-6 h-6 text-gray-600" />
-                        <h2 className="text-2xl font-semibold text-gray-800">4. Administración (Oficina)</h2>
+                        <h2 className="text-2xl font-semibold text-gray-800">4. Administración & Gobierno (Oficina)</h2>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4">
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Finanzas</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">Finanzas & Motores Estratégicos</CardTitle></CardHeader>
                             <CardContent className="text-sm text-gray-600">
                                 <ul className="space-y-2">
-                                    <li><strong>Facturas:</strong> Emisión de comprobantes fiscales.</li>
-                                    <li><strong>Cotizaciones:</strong> Presupuestos convertibles a factura.</li>
-                                    <li><strong>Recurrentes:</strong> Automatización de cobros mensuales.</li>
+                                    <li><strong>Costos & Rentabilidad:</strong> Base mensual de 3 flotillas y costo por hora productiva (RD$ 1,378/h).</li>
+                                    <li><strong>Motor de Incentivos:</strong> Bonos por ticket con retención de calidad a 30 días y módulo de pasantes.</li>
+                                    <li><strong>Calidad & CNC:</strong> Registro de garantías y Costo de No Calidad sin penalizaciones automáticas.</li>
+                                    <li><strong>Facturación & Cobros:</strong> Comprobantes fiscales, cotizaciones y cobro por WhatsApp.</li>
                                 </ul>
                             </CardContent>
                         </Card>
                         <Card>
-                            <CardHeader><CardTitle className="text-base">Inventario</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-base">IA, Facturación e-CF & Inventario</CardTitle></CardHeader>
                             <CardContent className="text-sm text-gray-600">
                                 <ul className="space-y-2">
-                                    <li>Control de existencias de repuestos y equipos.</li>
-                                    <li>Registro de entradas y salidas (Movimientos) para auditoría.</li>
+                                    <li><strong>Escáner IA & QR DGII:</strong> Extracción de RNC, e-NCF (E31/E32/E34) e ITBIS para Formato 606 y ERP.</li>
+                                    <li><strong>Clasificación Contable:</strong> Diferenciación automática entre Costos de Tickets (OPEX) y Compra de Activos (CAPEX).</li>
+                                    <li><strong>Inventario & Camionetas:</strong> Stock central y kits fijos por vehículo para auditoría en calle.</li>
                                 </ul>
                             </CardContent>
                         </Card>
@@ -158,7 +160,7 @@ export function UserManualViewer() {
                 </section>
 
                 <div className="text-center pt-8 text-gray-400 text-sm">
-                    manual_v1.0 • NEXUS HECHO Platform
+                    manual_v2.0 (Edición 2026) • NEXUS HECHO Platform
                 </div>
             </div>
         </ScrollArea>
