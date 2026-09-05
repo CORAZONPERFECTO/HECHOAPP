@@ -37,7 +37,7 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
 }
 
 /**
- * Carga una imagen asegurando compatibilidad con jsPDF
+ * Carga una imagen asegurando compatibilidad con jsPDF sin pérdida de resolución
  */
 async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -112,9 +112,45 @@ function createPlaceholderImage(): Promise<HTMLImageElement> {
 }
 
 /**
+ * Calcula las dimensiones y desfases para encajar una imagen proporcionalmente (Aspect-Fit)
+ * dentro de un contenedor sin recortar ni deformar sus letras o placas técnicas.
+ */
+function getAspectFitDimensions(
+    imgW: number,
+    imgH: number,
+    boxW: number,
+    boxH: number
+): { renderW: number; renderH: number; offsetX: number; offsetY: number } {
+    if (!imgW || !imgH || imgW <= 0 || imgH <= 0) {
+        return { renderW: boxW, renderH: boxH, offsetX: 0, offsetY: 0 };
+    }
+
+    const imgRatio = imgW / imgH;
+    const boxRatio = boxW / boxH;
+
+    let renderW: number;
+    let renderH: number;
+
+    if (imgRatio > boxRatio) {
+        // Imagen horizontal / panorámica
+        renderW = boxW;
+        renderH = boxW / imgRatio;
+    } else {
+        // Imagen vertical / cuadrada
+        renderH = boxH;
+        renderW = boxH * imgRatio;
+    }
+
+    const offsetX = (boxW - renderW) / 2;
+    const offsetY = (boxH - renderH) / 2;
+
+    return { renderW, renderH, offsetX, offsetY };
+}
+
+/**
  * EXPORTACIÓN: "MODERNO 2026 - FORMATEADOR INTELIGENTE DE INGENIERÍA"
- * Reconoce automáticamente títulos numerados con subrayado, pares clave-valor (Negrita: Cursiva),
- * y cajas de dictamen/evaluación técnica.
+ * Soporte de fotos de alta resolución en proporción exacta (Aspect-Fit), títulos numerados con subrayado,
+ * pares clave-valor (Negrita: Cursiva) y cajas de dictamen/evaluación técnica.
  */
 export async function exportToPDFModern(report: TicketReportNew) {
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -139,10 +175,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
         if (settings?.logoUrl) {
             try {
                 const img = await loadImage(settings.logoUrl);
-                const ratio = img.width / img.height;
+                const ratio = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
                 const logoH = 14;
-                const logoW = Math.min(32, logoH * ratio);
-                pdf.addImage(img, 'PNG', margin, 7, logoW, logoH);
+                const logoW = Math.min(34, logoH * ratio);
+                pdf.addImage(img, 'PNG', margin, 7, logoW, logoH, undefined, 'FAST');
                 logoDrawn = true;
             } catch {
                 logoDrawn = false;
@@ -358,7 +394,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setFontSize(9.5);
                     const keyWidth = pdf.getTextWidth(keyStr);
 
-                    // Si el valor cabe en la misma línea o es corto
                     if (keyWidth + pdf.getTextWidth(val) <= contentWidth - 5) {
                         await checkAndAddPage(5.2);
                         pdf.setFont(FONTS.header, 'bold');
@@ -372,7 +407,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                         pdf.text(val, margin + keyWidth, yPos);
                         yPos += 4.8;
                     } else {
-                        // El valor es largo: imprime clave en negrita y el valor en cursiva indentado
                         await checkAndAddPage(5.2);
                         pdf.setFont(FONTS.header, 'bold');
                         pdf.setFontSize(9.5);
@@ -416,7 +450,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 if (!rawItem || !rawItem.trim()) continue;
                 const item = rawItem.trim();
 
-                // Detección de clave: valor dentro de viñetas
                 const itemColonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
 
                 if (itemColonMatch) {
@@ -429,17 +462,14 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     const keyWidth = pdf.getTextWidth(keyStr);
 
                     await checkAndAddPage(5.2);
-                    // Bullet
                     pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                     pdf.setFont(FONTS.header, 'bold');
                     pdf.text("•", margin + 1, yPos);
 
-                    // Key (Bold)
                     pdf.setTextColor(30, 41, 59);
                     pdf.text(keyStr, margin + 6, yPos);
 
                     if (keyWidth + pdf.getTextWidth(val) <= contentWidth - 12) {
-                        // Value inline
                         pdf.setFont(FONTS.body, 'italic');
                         pdf.setTextColor(71, 85, 105);
                         pdf.text(val, margin + 6 + keyWidth, yPos);
@@ -483,9 +513,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const baSection = section as BeforeAfterSection;
             if (!baSection.beforePhotoUrl && !baSection.afterPhotoUrl) continue;
 
-            const cardH = 76;
+            const cardH = 82;
             await checkAndAddPage(cardH + 6);
 
+            // Contenedor comparativo
             pdf.setFillColor(248, 250, 252);
             pdf.setDrawColor(226, 232, 240);
             pdf.setLineWidth(0.3);
@@ -496,14 +527,24 @@ export async function exportToPDFModern(report: TicketReportNew) {
             pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
             pdf.text("EVIDENCIA COMPARATIVA (ANTES / DESPUÉS)", margin + 6, yPos + 6);
 
-            const photoW = (contentWidth - 16) / 2;
-            const photoH = 48;
+            const photoBoxW = (contentWidth - 16) / 2;
+            const photoBoxH = 54;
             const photoY = yPos + 9;
 
+            // Foto Antes
             if (baSection.beforePhotoUrl) {
                 try {
                     const img = await loadImage(baSection.beforePhotoUrl);
-                    pdf.addImage(img, 'JPEG', margin + 5, photoY, photoW, photoH);
+                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+                    
+                    // Fondo interior para la foto
+                    pdf.setFillColor(241, 245, 249);
+                    pdf.roundedRect(margin + 5, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
+                    
+                    // Render sin distorsión
+                    pdf.addImage(img, 'JPEG', margin + 5 + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH);
+
+                    // Badge ANTES
                     pdf.setFillColor(225, 29, 72);
                     pdf.rect(margin + 5, photoY, 18, 5, 'F');
                     pdf.setFontSize(7.5);
@@ -513,16 +554,24 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 } catch { }
             }
 
+            // Foto Después
             if (baSection.afterPhotoUrl) {
                 try {
                     const img = await loadImage(baSection.afterPhotoUrl);
-                    pdf.addImage(img, 'JPEG', margin + 11 + photoW, photoY, photoW, photoH);
+                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+                    
+                    pdf.setFillColor(241, 245, 249);
+                    pdf.roundedRect(margin + 11 + photoBoxW, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
+                    
+                    pdf.addImage(img, 'JPEG', margin + 11 + photoBoxW + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH);
+
+                    // Badge DESPUÉS
                     pdf.setFillColor(16, 185, 129);
-                    pdf.rect(margin + 11 + photoW, photoY, 20, 5, 'F');
+                    pdf.rect(margin + 11 + photoBoxW, photoY, 20, 5, 'F');
                     pdf.setFontSize(7.5);
                     pdf.setFont(FONTS.header, 'bold');
                     pdf.setTextColor(255, 255, 255);
-                    pdf.text("DESPUÉS", margin + 13 + photoW, photoY + 3.8);
+                    pdf.text("DESPUÉS", margin + 13 + photoBoxW, photoY + 3.8);
                 } catch { }
             }
 
@@ -531,7 +580,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 pdf.setTextColor(71, 85, 105);
                 pdf.setFont(FONTS.body, 'italic');
                 const descLines = pdf.splitTextToSize(baSection.description, contentWidth - 12);
-                pdf.text(descLines, margin + 6, photoY + photoH + 5);
+                pdf.text(descLines, margin + 6, photoY + photoBoxH + 5);
             }
 
             yPos += cardH + 6;
@@ -540,39 +589,82 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photoSec = section as PhotoSection;
             if (!photoSec.photoUrl) continue;
 
-            const cardH = 70;
-            await checkAndAddPage(cardH + 4);
+            const isLarge = (photoSec as any).size === 'large' || (photoSec as any).size === 'full';
 
-            const pWidth = 98;
-            const pHeight = 62;
+            if (isLarge || !photoSec.description) {
+                // Layout Grande / Panorámico
+                const boxW = contentWidth;
+                const boxH = 90;
+                const hasDesc = !!photoSec.description;
+                const totalH = boxH + (hasDesc ? 14 : 4);
 
-            try {
-                const img = await loadImage(photoSec.photoUrl);
-                pdf.addImage(img, 'JPEG', margin, yPos, pWidth, pHeight);
+                await checkAndAddPage(totalH + 4);
 
-                const descX = margin + pWidth + 6;
-                const descW = contentWidth - pWidth - 6;
+                try {
+                    const img = await loadImage(photoSec.photoUrl);
+                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, boxW, boxH);
 
-                pdf.setFillColor(248, 250, 252);
-                pdf.setDrawColor(226, 232, 240);
-                pdf.setLineWidth(0.3);
-                pdf.roundedRect(descX, yPos, descW, pHeight, 2, 2, 'FD');
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.setDrawColor(226, 232, 240);
+                    pdf.setLineWidth(0.3);
+                    pdf.roundedRect(margin, yPos, boxW, boxH, 2, 2, 'FD');
 
-                pdf.setFontSize(8.5);
-                pdf.setFont(FONTS.header, 'bold');
-                pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-                pdf.text("EVIDENCIA TÉCNICA", descX + 5, yPos + 7);
+                    pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
 
-                if (photoSec.description) {
+                    if (photoSec.description) {
+                        pdf.setFontSize(8.5);
+                        pdf.setFont(FONTS.body, 'italic');
+                        pdf.setTextColor(71, 85, 105);
+                        const descLines = pdf.splitTextToSize(photoSec.description, contentWidth);
+                        pdf.text(descLines, margin + 2, yPos + boxH + 5);
+                    }
+                } catch { }
+
+                yPos += totalH + 6;
+            } else {
+                // Layout Estándar con panel lateral
+                const cardH = 75;
+                await checkAndAddPage(cardH + 4);
+
+                const pBoxW = 105;
+                const pBoxH = 68;
+
+                try {
+                    const img = await loadImage(photoSec.photoUrl);
+                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, pBoxW, pBoxH);
+
+                    // Contenedor foto
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.setDrawColor(226, 232, 240);
+                    pdf.setLineWidth(0.3);
+                    pdf.roundedRect(margin, yPos, pBoxW, pBoxH, 2, 2, 'FD');
+
+                    // Imagen sin distorsión
+                    pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
+
+                    // Panel lateral descriptivo
+                    const descX = margin + pBoxW + 6;
+                    const descW = contentWidth - pBoxW - 6;
+
+                    pdf.setFillColor(248, 250, 252);
+                    pdf.roundedRect(descX, yPos, descW, pBoxH, 2, 2, 'FD');
+
                     pdf.setFontSize(8.5);
-                    pdf.setFont(FONTS.body, 'normal');
-                    pdf.setTextColor(45, 55, 72);
-                    const descLines = pdf.splitTextToSize(photoSec.description, descW - 10);
-                    pdf.text(descLines, descX + 5, yPos + 14);
-                }
-            } catch { }
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                    pdf.text("EVIDENCIA TÉCNICA", descX + 5, yPos + 7);
 
-            yPos += cardH + 4;
+                    if (photoSec.description) {
+                        pdf.setFontSize(8.5);
+                        pdf.setFont(FONTS.body, 'normal');
+                        pdf.setTextColor(45, 55, 72);
+                        const descLines = pdf.splitTextToSize(photoSec.description, descW - 10);
+                        pdf.text(descLines, descX + 5, yPos + 14);
+                    }
+                } catch { }
+
+                yPos += cardH + 4;
+            }
         }
         else if (section.type === 'gallery') {
             const galSection = section as GallerySection;
@@ -580,9 +672,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
             const cols = 2;
             const gap = 6;
-            const photoW = (contentWidth - gap) / cols;
-            const photoH = 58;
-            const rowH = photoH + 14;
+            const photoBoxW = (contentWidth - gap) / cols; // 87mm
+            const photoBoxH = 62; // Altura del marco
+            const rowH = photoBoxH + 16;
 
             for (let i = 0; i < galSection.photos.length; i += cols) {
                 await checkAndAddPage(rowH + 4);
@@ -592,11 +684,20 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     if (photoIdx >= galSection.photos.length) break;
 
                     const photo = galSection.photos[photoIdx];
-                    const x = margin + (c * (photoW + gap));
+                    const x = margin + (c * (photoBoxW + gap));
 
                     try {
                         const img = await loadImage(photo.photoUrl);
-                        pdf.addImage(img, 'JPEG', x, yPos, photoW, photoH);
+                        const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+
+                        // Marco / Fondo de la foto
+                        pdf.setFillColor(248, 250, 252);
+                        pdf.setDrawColor(226, 232, 240);
+                        pdf.setLineWidth(0.3);
+                        pdf.roundedRect(x, yPos, photoBoxW, photoBoxH, 1.5, 1.5, 'FD');
+
+                        // Imagen renderizada en proporción real (sin deformar letras ni placas)
+                        pdf.addImage(img, 'JPEG', x + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
 
                         if (photo.photoMeta?.phase) {
                             const phase = photo.photoMeta.phase;
@@ -617,8 +718,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
                             pdf.setFontSize(7.5);
                             pdf.setFont(FONTS.body, 'normal');
                             pdf.setTextColor(71, 85, 105);
-                            const descLines = pdf.splitTextToSize(photo.description, photoW);
-                            pdf.text(descLines.slice(0, 2), x, yPos + photoH + 4);
+                            const descLines = pdf.splitTextToSize(photo.description, photoBoxW);
+                            pdf.text(descLines.slice(0, 2), x, yPos + photoBoxH + 4);
                         }
                     } catch { }
                 }
@@ -652,7 +753,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
         if (report.signatures.technicianSignature) {
             try {
                 const img = await loadImage(report.signatures.technicianSignature);
-                pdf.addImage(img, 'PNG', techX + 5, yPos, sigBoxW - 10, sigBoxH);
+                const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, sigBoxW - 10, sigBoxH);
+                pdf.addImage(img, 'PNG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
             } catch { }
         }
         pdf.setDrawColor(160, 174, 192);
@@ -673,7 +775,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
         if (report.signatures.clientSignature) {
             try {
                 const img = await loadImage(report.signatures.clientSignature);
-                pdf.addImage(img, 'PNG', clientX + 5, yPos, sigBoxW - 10, sigBoxH);
+                const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, sigBoxW - 10, sigBoxH);
+                pdf.addImage(img, 'PNG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
             } catch { }
         }
         pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
@@ -806,7 +909,10 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
         }
         try {
             const img = await loadImage(photo.photoUrl || '');
-            pdf.addImage(img, 'JPEG', margin, yPos, contentWidth, 90);
+            const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, contentWidth, 90);
+            pdf.setFillColor(248, 250, 252);
+            pdf.roundedRect(margin, yPos, contentWidth, 90, 2, 2, 'F');
+            pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
         } catch { }
         yPos += 98;
     }

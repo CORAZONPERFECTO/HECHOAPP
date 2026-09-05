@@ -319,7 +319,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                         <img
                                             src={photo.photoUrl}
                                             alt={photo.description || `Foto ${index + 1}`}
-                                            className="w-full h-full object-cover photo-print"
+                                            className="w-full h-full object-contain bg-slate-100 dark:bg-zinc-900 photo-print"
                                             loading="lazy"
                                         />
                                         {photo.photoMeta?.phase && (
