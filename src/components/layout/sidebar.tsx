@@ -9,7 +9,8 @@ import {
     LayoutDashboard, Files, Repeat, CreditCard,
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, ChevronDown, LogOut, Sparkles, Mic, Ticket, MessageSquare,
-    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet, BookOpen
+    PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet, BookOpen,
+    DollarSign, Award, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,10 +83,13 @@ const navCategories: NavCategory[] = [
     },
     {
         id: "finanzas",
-        label: "Finanzas & Gastos",
+        label: "Finanzas & Rentabilidad",
         icon: BarChart3,
         roles: ["ADMIN", "SUPERVISOR", "GERENTE"],
         items: [
+            { label: "Costos & Rentabilidad", icon: DollarSign, href: "/admin/costos-rentabilidad", roles: ["ADMIN", "GERENTE"] },
+            { label: "Motor de Incentivos", icon: Award, href: "/admin/incentivos", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
+            { label: "Calidad & Garantías (CNC)", icon: ShieldCheck, href: "/admin/calidad-garantias", roles: ["ADMIN", "SUPERVISOR", "GERENTE"] },
             { label: "Dashboard Finanzas", icon: BarChart3, href: "/admin/dashboard-financiero", roles: ["ADMIN", "GERENTE"] },
             { label: "Consejo Asesor IA", icon: Sparkles, href: "/admin/asesores", roles: ["ADMIN", "GERENTE", "SUPERVISOR"], badge: "IA" },
             { label: "Tesorería & Cuentas", icon: Landmark, href: "/admin/tesoreria", roles: ["ADMIN", "GERENTE"] },
