@@ -73,9 +73,142 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     'MANTENIMIENTO': {
         id: 'maintenance',
         name: 'Mantenimiento Preventivo',
-        description: 'Plantilla estándar para servicios de mantenimiento preventivo.',
+        description: 'Plantilla estándar y multi-área para servicios de mantenimiento preventivo.',
         generateSections: (ticket: Ticket) => {
             const sections: TicketReportSection[] = [];
+            const areas = ticket.surveyAreas || [];
+
+            // Si el ticket tiene áreas censadas (Villas con Iguala o servicios multi-área)
+            if (areas.length > 0) {
+                // 1. Encabezado y Resumen
+                const isIguala = ticket.isRetainer || ticket.contractType === 'IGUALA';
+                sections.push(createTitle(isIguala ? 'Reporte de Mantenimiento Preventivo — Villa con Iguala' : 'Reporte de Mantenimiento Preventivo por Áreas', 'h1'));
+                sections.push(createText(
+                    `Servicio de mantenimiento preventivo realizado a los sistemas de climatización en ${ticket.locationName}${ticket.specificLocation ? ` (${ticket.specificLocation})` : ''}. ` +
+                    `Se ejecutó la limpieza profunda de evaporadores, condensadores, verificación de presiones de refrigerante y chequeo de conexiones eléctricas por cada ambiente.`
+                ));
+
+                // 2. Resumen de Unidades e Inventario Técnico
+                sections.push(createTitle('Equipos Atendidos por Ambiente'));
+                const summaryItems = areas.map((a) => {
+                    const parts: string[] = [];
+                    if (a.requiredBtu && a.requiredBtu > 0) {
+                        parts.push(`${a.requiredBtu.toLocaleString()} BTU`);
+                    }
+                    if (a.recommendedEquipment && a.recommendedEquipment.trim()) {
+                        parts.push(a.recommendedEquipment);
+                    }
+                    const techParts: string[] = [];
+                    if (a.brand) techParts.push(`Marca: ${a.brand}`);
+                    if (a.modelNumber) techParts.push(`Mod: ${a.modelNumber}`);
+                    if (a.serialNumber) techParts.push(`S/N: ${a.serialNumber}`);
+                    if (a.refrigerant) techParts.push(`Gas: ${a.refrigerant}`);
+                    if (techParts.length > 0) {
+                        parts.push(`[${techParts.join(' | ')}]`);
+                    }
+                    if (parts.length === 0) {
+                        return `• ${a.name}: Equipo de climatización registrado`;
+                    }
+                    return `• ${a.name}: ${parts.join(' — ')}`;
+                });
+                sections.push({
+                    id: crypto.randomUUID(),
+                    type: 'list',
+                    items: summaryItems
+                });
+
+                // 3. Evidencias Fotográficas por Ambiente / Aire
+                const areaPhotoUrls = new Set<string>();
+                areas.forEach((area) => {
+                    const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
+                    if (hasPhotos) {
+                        sections.push(createTitle(`Evidencias de Mantenimiento: ${area.name}`));
+                        if (area.notes) {
+                            sections.push(createText(`Observaciones: ${area.notes}`));
+                        }
+                        // Fotos del trabajo en el área
+                        (area.photos || []).forEach((photo) => {
+                            if (photo.url) {
+                                areaPhotoUrls.add(photo.url);
+                                sections.push({
+                                    id: crypto.randomUUID(),
+                                    type: 'photo',
+                                    photoUrl: photo.url,
+                                    description: photo.description || `Mantenimiento en ${area.name}`,
+                                    size: 'medium'
+                                });
+                            }
+                        });
+                        // Placa técnica del equipo
+                        if (area.platePhotoUrl) {
+                            areaPhotoUrls.add(area.platePhotoUrl);
+                            sections.push({
+                                id: crypto.randomUUID(),
+                                type: 'photo',
+                                photoUrl: area.platePhotoUrl,
+                                description: `Placa Técnica - ${area.name}${area.brand || area.modelNumber ? ` (${[area.brand, area.modelNumber].filter(Boolean).join(' ')})` : ''}`,
+                                size: 'medium'
+                            });
+                        }
+                        // Tarjeta electrónica / Conexión condensador
+                        if (area.boardPhotoUrl) {
+                            areaPhotoUrls.add(area.boardPhotoUrl);
+                            sections.push({
+                                id: crypto.randomUUID(),
+                                type: 'photo',
+                                photoUrl: area.boardPhotoUrl,
+                                description: `Tarjeta Electrónica / Conexión Condensador - ${area.name}`,
+                                size: 'medium'
+                            });
+                        }
+                    }
+                });
+
+                // Fotos adicionales fuera de áreas si existieran
+                const extraPhotos = (ticket.photos || []).filter(p => p.url && !areaPhotoUrls.has(p.url));
+                if (extraPhotos.length > 0) {
+                    sections.push(createTitle('Otras Evidencias Fotográficas'));
+                    sections.push(...createPhotoSections(extraPhotos));
+                }
+
+                // 4. Protocolo y Checklist de Actividades
+                sections.push(createTitle('Protocolo de Mantenimiento Ejecutado'));
+                const checklistItems = formatChecklistItems(ticket.checklist || []);
+                sections.push({
+                    id: crypto.randomUUID(),
+                    type: 'list',
+                    items: checklistItems.length > 0 && checklistItems[0] !== 'No se realizó checklist.' ? checklistItems : [
+                        "[OK] Lavado a presión de serpentines evaporadores y condensadores",
+                        "[OK] Limpieza y desinfección de filtros de aire",
+                        "[OK] Desobstrucción y lavado de bandejas de drenaje",
+                        "[OK] Chequeo de conexiones eléctricas y voltaje de alimentación",
+                        "[OK] Medición de consumo eléctrico (amperaje) y presiones de gas",
+                        "[OK] Verificación de flujo de aire y rendimiento térmico"
+                    ]
+                });
+
+                // 5. Diagnóstico Técnico
+                if (ticket.diagnosis) {
+                    sections.push(createTitle('Diagnóstico Técnico & Estado'));
+                    sections.push(createText(ticket.diagnosis));
+                }
+
+                // 6. Recomendaciones Técnicas
+                sections.push(createTitle('Recomendaciones Técnicas'));
+                if (ticket.recommendations) {
+                    sections.push(createText(ticket.recommendations));
+                } else {
+                    sections.push(createText(
+                        "1. Mantener las puertas y ventanas cerradas durante el uso de los equipos para evitar sobrecarga térmica.\n" +
+                        "2. Programar la próxima limpieza preventiva según el calendario de su contrato de iguala.\n" +
+                        "3. Evitar colocar objetos delante de las rejillas de retorno o unidades exteriores condensadoras."
+                    ));
+                }
+
+                return sections;
+            }
+
+            // Flujo tradicional para un solo equipo sin áreas (visitas eventuales simples)
             const allPhotos = getAllTicketPhotos(ticket);
             const { before, during, after } = groupPhotos(allPhotos);
 

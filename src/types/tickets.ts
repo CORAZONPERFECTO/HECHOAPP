@@ -138,6 +138,8 @@ export interface Ticket {
     locationStreet?: string;
     locationHouseNumber?: string;
     specificLocation?: string; // e.g., "Villa 12"
+    isRetainer?: boolean; // true si es Villa con Iguala (contrato de mantenimiento periódico)
+    contractType?: 'IGUALA' | 'EVENTUAL';
     serviceType: string;
     priority: TicketPriority;
     description: string;

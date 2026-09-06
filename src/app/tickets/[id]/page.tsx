@@ -691,6 +691,31 @@ export default function TicketDetailPage() {
                                         <span className={`font-medium ${ticket.priority === 'URGENT' ? 'text-red-600' : ''}`}>{ticket.priority}</span>
                                     </div>
                                     <div>
+                                        <span className="text-gray-500 block">Modalidad</span>
+                                        {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const nextVal = !ticket.isRetainer;
+                                                    updateTicket({ ...ticket, isRetainer: nextVal, contractType: nextVal ? 'IGUALA' : 'EVENTUAL' });
+                                                }}
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-bold transition-colors ${
+                                                    ticket.isRetainer 
+                                                        ? 'bg-blue-100 text-blue-800 border border-blue-200 hover:bg-blue-200' 
+                                                        : 'bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200'
+                                                }`}
+                                            >
+                                                {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Visita Eventual'}
+                                            </button>
+                                        ) : (
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 mt-0.5 rounded-full text-xs font-bold ${
+                                                ticket.isRetainer ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                                            }`}>
+                                                {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Visita Eventual'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
                                         <span className="text-gray-500 block font-semibold mb-1">Técnico Asignado</span>
                                         {ticket.arrivedAt || ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' ? (
                                             <div className="flex flex-col">
@@ -1122,7 +1147,7 @@ export default function TicketDetailPage() {
                     </TabsContent>
 
                     <TabsContent value="evidence" className="space-y-4">
-                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' ? (
+                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' || ticket.isRetainer || (ticket.surveyAreas && ticket.surveyAreas.length > 0) ? (
                             <TicketSurveyAreas 
                                 ticket={ticket} 
                                 onChange={updateTicket} 

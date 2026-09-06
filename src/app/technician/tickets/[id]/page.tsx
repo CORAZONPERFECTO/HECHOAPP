@@ -530,7 +530,16 @@ export default function TechnicianTicketPage() {
                                 <CardTitle className="text-base">Información del Cliente</CardTitle>
                             </CardHeader>
                             <CardContent className="text-sm space-y-2">
-                                <div className="font-bold text-lg">{ticket.clientName}</div>
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="font-bold text-lg">{ticket.clientName}</div>
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                        ticket.isRetainer 
+                                            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    }`}>
+                                        {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Visita Eventual'}
+                                    </span>
+                                </div>
                                 <div className="flex items-center gap-2 text-gray-500">
                                     <MapPin className="h-3.5 w-3.5 text-red-500 shrink-0" />
                                     <span>{ticket.locationName}</span>
@@ -798,7 +807,7 @@ export default function TechnicianTicketPage() {
 
                     {/* Fotos Tab */}
                     <TabsContent value="fotos" className="space-y-4">
-                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' ? (
+                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' || ticket.isRetainer || (ticket.surveyAreas && ticket.surveyAreas.length > 0) ? (
                             <TicketSurveyAreas
                                 ticket={ticket as any}
                                 onChange={(updatedTicket) => {

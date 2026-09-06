@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc, getDocs, serverTimestamp, query, where, orderBy } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { Client, User, TicketPriority, Ticket, TicketType } from "@/types/schema";
+import { Client, User, TicketPriority, Ticket, TicketType, SurveyArea } from "@/types/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, ShieldCheck, Zap, Sparkles, MapPin } from "lucide-react";
 
 import { ClientSelector } from "@/components/shared/client-selector";
 import { TechnicianSelector } from "@/components/shared/technician-selector";
@@ -36,10 +36,14 @@ export default function NewTicketPage() {
         status: 'OPEN',
         priority: 'MEDIUM',
         serviceType: 'MANTENIMIENTO' as any,
+        isRetainer: true, // Predeterminado Villa con Iguala
+        contractType: 'IGUALA',
         checklist: [],
         photos: [],
+        surveyAreas: [],
         locationArea: "",
         specificLocation: "",
+        locationUrl: "",
     });
 
     const handleAIParsed = (aiData: any) => {
@@ -54,7 +58,7 @@ export default function NewTicketPage() {
             locationZone: aiData.locationZone || prev.locationZone,
             locationStreet: aiData.locationStreet || prev.locationStreet,
             locationHouseNumber: aiData.locationHouseNumber || prev.locationHouseNumber,
-            // we could also map clientName, but client requires an ID from DB, so we'll just set it to search maybe or let user pick
+            locationUrl: aiData.locationUrl || prev.locationUrl,
         }));
         
         // Salto automático al paso 3 si la descripción es buena
@@ -89,41 +93,73 @@ export default function NewTicketPage() {
             ...prev,
             clientId: client.id,
             clientName: client.nombreComercial,
+            locationName: prev.locationName || client.nombreComercial,
         }));
 
-        // Buscar el último ticket de este cliente para auto-completar la ubicación
+        // Buscar tickets previos de este cliente para heredar ubicación, GPS y áreas de la villa
         try {
-            const q = query(
-                collection(db, "tickets"),
-                where("clientId", "==", client.id),
-                orderBy("createdAt", "desc"),
-                // limit(1) // we just need the most recent one
-            );
-            // Firebase limits require index if we mix where and orderBy on different fields. 
-            // To avoid index error, let's just fetch recent tickets for the client and sort in memory if needed, 
-            // or just use where without orderBy, and grab the first one that has location data.
             const ticketsQuery = query(collection(db, "tickets"), where("clientId", "==", client.id));
             const snapshot = await getDocs(ticketsQuery);
             
             if (!snapshot.empty) {
-                // Sort in memory to get the most recent one
-                const clientTickets = snapshot.docs.map(d => ({ ...d.data(), createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0 })) as any[];
+                // Ordenar en memoria para obtener los más recientes
+                const clientTickets = snapshot.docs.map(d => ({ 
+                    ...d.data(), 
+                    createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0 
+                })) as any[];
                 clientTickets.sort((a, b) => b.createdAt - a.createdAt);
                 
-                const lastTicket = clientTickets.find(t => t.locationArea || t.locationStreet || t.specificLocation);
+                // 1. Buscar último ticket con detalles de dirección física o GPS
+                const lastTicketWithLocation = clientTickets.find(t => t.locationArea || t.locationStreet || t.specificLocation || t.locationUrl);
 
-                if (lastTicket) {
-                    setFormData(prev => ({
-                        ...prev,
-                        locationArea: prev.locationArea || lastTicket.locationArea || "",
-                        specificLocation: prev.specificLocation || lastTicket.specificLocation || "",
-                        locationStreet: prev.locationStreet || lastTicket.locationStreet || "",
-                        locationHouseNumber: prev.locationHouseNumber || lastTicket.locationHouseNumber || "",
+                // 2. Buscar último ticket que tenga áreas censadas de la villa
+                const lastTicketWithAreas = clientTickets.find(t => t.surveyAreas && Array.isArray(t.surveyAreas) && t.surveyAreas.length > 0);
+
+                let clonedAreas: SurveyArea[] = [];
+                let isRetainerDetected = false;
+
+                if (lastTicketWithAreas && lastTicketWithAreas.surveyAreas) {
+                    clonedAreas = lastTicketWithAreas.surveyAreas.map((area: SurveyArea) => ({
+                        id: `area-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        name: area.name || "",
+                        lengthMeters: area.lengthMeters || 0,
+                        widthMeters: area.widthMeters || 0,
+                        areaSquareMeters: area.areaSquareMeters || 0,
+                        requiredBtu: area.requiredBtu || 0,
+                        recommendedEquipment: area.recommendedEquipment || "",
+                        voltage: area.voltage || "220V",
+                        pipeDistanceMeters: area.pipeDistanceMeters || 0,
+                        drainStatus: area.drainStatus || "",
+                        notes: area.notes || "",
+                        brand: area.brand || "",
+                        modelNumber: area.modelNumber || "",
+                        serialNumber: area.serialNumber || "",
+                        refrigerant: area.refrigerant || "",
+                        platePhotoUrl: area.platePhotoUrl || "",
+                        boardPhotoUrl: area.boardPhotoUrl || "",
+                        photos: [] // Se inicia limpio de fotos para la nueva visita
                     }));
+                    isRetainerDetected = true;
                 }
+
+                if (lastTicketWithLocation?.isRetainer !== undefined) {
+                    isRetainerDetected = lastTicketWithLocation.isRetainer;
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    locationArea: prev.locationArea || lastTicketWithLocation?.locationArea || "",
+                    specificLocation: prev.specificLocation || lastTicketWithLocation?.specificLocation || "",
+                    locationStreet: prev.locationStreet || lastTicketWithLocation?.locationStreet || "",
+                    locationHouseNumber: prev.locationHouseNumber || lastTicketWithLocation?.locationHouseNumber || "",
+                    locationUrl: prev.locationUrl || lastTicketWithLocation?.locationUrl || "",
+                    surveyAreas: clonedAreas.length > 0 ? clonedAreas : prev.surveyAreas,
+                    isRetainer: isRetainerDetected ? true : prev.isRetainer,
+                    contractType: isRetainerDetected ? 'IGUALA' : (prev.contractType || 'IGUALA'),
+                }));
             }
         } catch (error) {
-            console.error("Error fetching client's last ticket location:", error);
+            console.error("Error fetching client's last ticket location and areas:", error);
         }
     };
 
@@ -270,24 +306,75 @@ export default function NewTicketPage() {
                                 </div>
                             </div>
 
-                            {/* Dirección detallada */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Calle</Label>
-                                    <Input
-                                        value={formData.locationStreet || ""}
-                                        onChange={e => setFormData(prev => ({ ...prev, locationStreet: e.target.value }))}
-                                        placeholder="Ej: Calle Las Palmas"
-                                    />
+                            {/* Modalidad de Contrato / Servicio */}
+                            <div className="space-y-2 pt-1">
+                                <Label className="text-xs font-bold text-slate-700">Modalidad del Servicio / Contrato</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div
+                                        onClick={() => setFormData(prev => ({ ...prev, isRetainer: true, contractType: 'IGUALA' }))}
+                                        className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                            formData.isRetainer
+                                                ? 'border-blue-600 bg-blue-50/70 shadow-sm'
+                                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <ShieldCheck className={`w-5 h-5 ${formData.isRetainer ? 'text-blue-600' : 'text-slate-400'}`} />
+                                            <span className="text-xs font-bold text-slate-800">Villa con Iguala (Contrato)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-1 pl-7 leading-relaxed">
+                                            Hereda las áreas y equipos. El técnico subirá fotos por cada aire para la bitácora histórica.
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        onClick={() => setFormData(prev => ({ ...prev, isRetainer: false, contractType: 'EVENTUAL' }))}
+                                        className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                            !formData.isRetainer
+                                                ? 'border-amber-500 bg-amber-50/70 shadow-sm'
+                                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Zap className={`w-5 h-5 ${!formData.isRetainer ? 'text-amber-600' : 'text-slate-400'}`} />
+                                            <span className="text-xs font-bold text-slate-800">Servicio Eventual (Sin Iguala)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-1 pl-7 leading-relaxed">
+                                            Visita puntual estándar. Evidencias generales (Antes/Después) sin inventariar áreas continuas.
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>No. Villa / Casa</Label>
-                                    <Input
-                                        value={formData.locationHouseNumber || ""}
-                                        onChange={e => setFormData(prev => ({ ...prev, locationHouseNumber: e.target.value }))}
-                                        placeholder="Ej: 22, 4B, Casa 7"
-                                    />
+                            </div>
+
+                            {/* Alerta de Áreas Heredadas si es Villa con Iguala */}
+                            {formData.isRetainer && formData.surveyAreas && formData.surveyAreas.length > 0 && (
+                                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 shadow-sm">
+                                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                                        <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                        <span className="truncate">
+                                            <strong>{formData.surveyAreas.length} {formData.surveyAreas.length === 1 ? 'área heredada' : 'áreas heredadas'}:</strong> {formData.surveyAreas.map(a => a.name).join(', ')}.
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-200/70 px-2 py-0.5 rounded-full flex-shrink-0">
+                                        Censo Activo
+                                    </span>
                                 </div>
+                            )}
+
+                            {/* Link de GPS / Google Maps */}
+                            <div className="space-y-1.5 pt-1">
+                                <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-blue-600" /> Link de Ubicación GPS (Google Maps / Waze)
+                                </Label>
+                                <Input
+                                    value={formData.locationUrl || ""}
+                                    onChange={e => setFormData(prev => ({ ...prev, locationUrl: e.target.value }))}
+                                    placeholder="Pega el link de Google Maps o WhatsApp de la villa..."
+                                    className="text-xs font-mono"
+                                />
+                                <p className="text-[10px] text-slate-400">
+                                    💡 El técnico podrá hacer clic en este enlace desde su app para navegar directo a la propiedad.
+                                </p>
                             </div>
                         </div>
 
