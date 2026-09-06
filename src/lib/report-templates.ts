@@ -247,10 +247,32 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                 sections.push(createTitle('Dimensionamiento & Carga Térmica por Área'));
                 const summaryItems = areas.map((a) => {
                     const m2 = a.areaSquareMeters || (a.lengthMeters && a.widthMeters ? (a.lengthMeters * a.widthMeters) : 0);
-                    const btu = a.requiredBtu || Math.round(m2 * 650);
-                    const equip = a.recommendedEquipment || `Split Inverter ${btu.toLocaleString()} BTU`;
+                    const btu = a.requiredBtu || (m2 > 0 ? Math.round(m2 * 650) : 0);
                     const volt = a.voltage || "220V";
-                    return `• ${a.name}: ${m2} m2 | Carga Térmica: ${btu.toLocaleString()} BTU | Equipo: ${equip} (${volt})`;
+                    const isTechnical = /techo|condensador|tablero|acometida|eléctrico|maquin/i.test(a.name);
+                    
+                    if (isTechnical && (!btu || btu === 0)) {
+                        return `• ${a.name}: Ubicación técnica exterior / soporte para unidades condensadoras`;
+                    }
+
+                    const parts: string[] = [];
+                    if (m2 > 0) {
+                        parts.push(`${m2} m2`);
+                    }
+                    if (btu > 0) {
+                        parts.push(`Carga Térmica: ${btu.toLocaleString()} BTU`);
+                    }
+                    if (a.recommendedEquipment && a.recommendedEquipment.trim()) {
+                        parts.push(`Equipo: ${a.recommendedEquipment} (${volt})`);
+                    } else if (btu > 0) {
+                        parts.push(`Equipo: Split Inverter ${btu.toLocaleString()} BTU (${volt})`);
+                    }
+
+                    if (parts.length === 0) {
+                        return `• ${a.name}: Área registrada (especificaciones técnicas pendientes)`;
+                    }
+
+                    return `• ${a.name}: ${parts.join(' | ')}`;
                 });
                 sections.push({
                     id: crypto.randomUUID(),

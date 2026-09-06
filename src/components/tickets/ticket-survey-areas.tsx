@@ -50,7 +50,7 @@ const COMMON_AREA_SUGGESTIONS = [
 ];
 
 function suggestBtuCapacity(areaM2: number): { btu: number; text: string } {
-    if (areaM2 <= 0) return { btu: 12000, text: "12,000 BTU (1 Ton)" };
+    if (!areaM2 || areaM2 <= 0) return { btu: 0, text: "Sin cálculo (ingrese medidas o elija BTU)" };
     const rawBtu = areaM2 * 650;
     if (rawBtu <= 12000) return { btu: 12000, text: "12,000 BTU (1 Ton)" };
     if (rawBtu <= 18000) return { btu: 18000, text: "18,000 BTU (1.5 Ton)" };
@@ -124,16 +124,17 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     const handleAddArea = (nameToAdd?: string) => {
         const current = areasRef.current;
         const name = nameToAdd || newAreaName.trim() || `Área #${current.length + 1}`;
+        const isTechnical = /techo|condensador|tablero|acometida|eléctrico|maquin/i.test(name);
         const newArea: SurveyArea = {
             id: `area-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             name,
-            lengthMeters: 5,
-            widthMeters: 4,
-            areaSquareMeters: 20,
-            requiredBtu: 18000,
-            recommendedEquipment: "Split Inverter 18,000 BTU 220V",
+            lengthMeters: 0,
+            widthMeters: 0,
+            areaSquareMeters: 0,
+            requiredBtu: 0,
+            recommendedEquipment: isTechnical ? "Soportes / Ubicación técnica" : "",
             voltage: "220V",
-            pipeDistanceMeters: 10,
+            pipeDistanceMeters: 0,
             notes: "",
             photos: []
         };
@@ -165,10 +166,24 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                 const wid = updates.widthMeters !== undefined ? Number(updates.widthMeters) : Number(a.widthMeters || 0);
                 const m2 = Math.round((len * wid) * 10) / 10;
                 merged.areaSquareMeters = m2;
-                const rec = suggestBtuCapacity(m2);
-                merged.requiredBtu = rec.btu;
-                if (!updates.recommendedEquipment) {
-                    merged.recommendedEquipment = `Split Inverter ${rec.text} ${merged.voltage || '220V'}`;
+                if (m2 > 0) {
+                    const rec = suggestBtuCapacity(m2);
+                    if (rec.btu > 0 && (!a.requiredBtu || a.requiredBtu === 0)) {
+                        merged.requiredBtu = rec.btu;
+                        if (!a.recommendedEquipment) {
+                            merged.recommendedEquipment = `Split Inverter ${rec.text} ${merged.voltage || '220V'}`;
+                        }
+                    }
+                }
+            }
+
+            // If requiredBtu changed manually and recommendedEquipment is empty or standard default, update it
+            if (updates.requiredBtu !== undefined) {
+                const btu = updates.requiredBtu;
+                if (btu > 0) {
+                    if (!merged.recommendedEquipment || merged.recommendedEquipment.startsWith('Split Inverter')) {
+                        merged.recommendedEquipment = `Split Inverter ${btu.toLocaleString()} BTU ${merged.voltage || '220V'}`;
+                    }
                 }
             }
 
@@ -420,7 +435,9 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                             />
                                         </div>
                                         <span className={`text-[11px] font-mono hidden md:inline flex-shrink-0 ${isExpanded ? "text-slate-300" : "text-slate-500"}`}>
-                                            {area.areaSquareMeters || 0} m² • {area.requiredBtu?.toLocaleString() || 12000} BTU • {areaPhotos.length} fotos
+                                            {(area.areaSquareMeters && area.areaSquareMeters > 0) ? `${area.areaSquareMeters} m² • ` : ''}
+                                            {area.requiredBtu && area.requiredBtu > 0 ? `${area.requiredBtu.toLocaleString()} BTU • ` : ''}
+                                            {areaPhotos.length} {areaPhotos.length === 1 ? 'foto' : 'fotos'}
                                         </span>
                                     </div>
 
@@ -453,7 +470,7 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                                     <Ruler className="w-4 h-4 text-blue-600" /> Dimensiones & Carga Térmica
                                                 </span>
                                                 <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]">
-                                                    Recomendado: {suggestBtuCapacity(area.areaSquareMeters || 0).text}
+                                                    {suggestBtuCapacity(area.areaSquareMeters || 0).text}
                                                 </Badge>
                                             </div>
 
@@ -499,14 +516,33 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                                 <div>
                                                     <Label className="text-[11px] font-bold">Área Calculada</Label>
                                                     <div className="h-9 px-3 flex items-center bg-slate-100 rounded-xl text-xs font-mono font-bold text-slate-800">
-                                                        {area.areaSquareMeters || 0} m²
+                                                        {area.areaSquareMeters && area.areaSquareMeters > 0 ? `${area.areaSquareMeters} m²` : "Sin medir"}
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <Label className="text-[11px] font-bold">BTU Sugeridos</Label>
-                                                    <div className="h-9 px-3 flex items-center bg-amber-50 border border-amber-200 rounded-xl text-xs font-mono font-bold text-amber-900">
-                                                        {area.requiredBtu?.toLocaleString() || 12000} BTU
-                                                    </div>
+                                                    <Label className="text-[11px] font-bold text-amber-900">Capacidad / BTU</Label>
+                                                    <select
+                                                        className="w-full h-9 border rounded-xl px-2 text-xs bg-amber-50/70 border-amber-300 font-mono font-bold text-amber-950 focus:bg-white transition-colors"
+                                                        value={area.requiredBtu || 0}
+                                                        onChange={(e) => {
+                                                            const btuVal = Number(e.target.value);
+                                                            handleAreaChange(area.id, {
+                                                                requiredBtu: btuVal,
+                                                                recommendedEquipment: btuVal > 0 
+                                                                    ? `Split Inverter ${btuVal.toLocaleString()} BTU ${area.voltage || '220V'}`
+                                                                    : (area.recommendedEquipment || "")
+                                                            });
+                                                        }}
+                                                    >
+                                                        <option value={0}>Sin definir / No aplica (Área técnica)</option>
+                                                        <option value={9000}>9,000 BTU (0.75 Ton)</option>
+                                                        <option value={12000}>12,000 BTU (1.0 Ton)</option>
+                                                        <option value={18000}>18,000 BTU (1.5 Ton)</option>
+                                                        <option value={24000}>24,000 BTU (2.0 Ton)</option>
+                                                        <option value={36000}>36,000 BTU (3.0 Ton)</option>
+                                                        <option value={48000}>48,000 BTU (4.0 Ton)</option>
+                                                        <option value={60000}>60,000 BTU (5.0 Ton)</option>
+                                                    </select>
                                                 </div>
                                             </div>
 
