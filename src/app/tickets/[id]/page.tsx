@@ -34,7 +34,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2 } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -61,8 +61,12 @@ export default function TicketDetailPage() {
     const [newTaskText, setNewTaskText] = useState("");
     const [newTaskAssignedId, setNewTaskAssignedId] = useState("unassigned");
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editedDescription, setEditedDescription] = useState("");
+    const [isSavingDescription, setIsSavingDescription] = useState(false);
 
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
+    const canEditTicketInfo = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE';
 
     useEffect(() => {
         if (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE') {
@@ -213,6 +217,42 @@ export default function TicketDetailPage() {
     const updateTicket = (updated: Ticket) => {
         setTicket(updated);
         setIsDirty(true);
+    };
+
+    useEffect(() => {
+        if (ticket && !isEditingDescription) {
+            setEditedDescription(ticket.description || "");
+        }
+    }, [ticket?.description, isEditingDescription]);
+
+    const handleSaveDescription = async () => {
+        if (!ticket) return;
+        setIsSavingDescription(true);
+        try {
+            const updatedTicket: Ticket = {
+                ...ticket,
+                description: editedDescription,
+                updatedAt: Timestamp.now()
+            };
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            setTicket(updatedTicket);
+            setIsDirty(false);
+            setIsEditingDescription(false);
+
+            await addDoc(collection(db, "ticketEvents"), {
+                ticketId,
+                userId: currentUserId,
+                userName: currentUserName,
+                type: 'NOTE',
+                description: `Actualizó la descripción inicial del ticket`,
+                timestamp: serverTimestamp()
+            });
+        } catch (error) {
+            console.error("Error saving description:", error);
+            alert("Error al guardar la descripción.");
+        } finally {
+            setIsSavingDescription(false);
+        }
     };
 
     const handleAddChecklistItem = async () => {
@@ -675,8 +715,74 @@ export default function TicketDetailPage() {
                                     </div>
 
                                     <div className="col-span-2">
-                                        <span className="text-gray-500 block">Descripción Inicial</span>
-                                        <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md">{ticket.description}</p>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-gray-500 font-medium text-xs">Descripción Inicial</span>
+                                            {canEditTicketInfo && !isEditingDescription && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center gap-1 font-normal"
+                                                    onClick={() => {
+                                                        setEditedDescription(ticket.description || "");
+                                                        setIsEditingDescription(true);
+                                                    }}
+                                                >
+                                                    <Edit2 className="h-3 w-3" />
+                                                    Editar
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {isEditingDescription ? (
+                                            <div className="space-y-2 bg-blue-50/60 p-3 rounded-lg border border-blue-200">
+                                                <Textarea
+                                                    value={editedDescription}
+                                                    onChange={(e) => setEditedDescription(e.target.value)}
+                                                    placeholder="Escribe o actualiza la descripción inicial del requerimiento..."
+                                                    rows={4}
+                                                    className="bg-white text-sm text-gray-800 border-gray-300 focus-visible:ring-blue-500"
+                                                />
+                                                <div className="flex justify-end gap-2 pt-1">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-8 text-xs bg-white"
+                                                        onClick={() => {
+                                                            setEditedDescription(ticket.description || "");
+                                                            setIsEditingDescription(false);
+                                                        }}
+                                                        disabled={isSavingDescription}
+                                                    >
+                                                        Cancelar
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+                                                        onClick={handleSaveDescription}
+                                                        disabled={isSavingDescription}
+                                                    >
+                                                        {isSavingDescription ? (
+                                                            <>
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                Guardando...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Save className="h-3.5 w-3.5" />
+                                                                Guardar
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="mt-1 text-gray-700 bg-slate-50 p-3 rounded-md text-sm whitespace-pre-wrap leading-relaxed border border-slate-100">
+                                                {ticket.description || <span className="text-gray-400 italic">Sin descripción inicial</span>}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* 📍 LOCATION LINK — Readonly for Technicians, editable for Admin/Managers */}
