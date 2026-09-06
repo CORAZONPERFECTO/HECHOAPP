@@ -225,10 +225,35 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
 
             case 'list': {
                 const listSec = section as ListSection;
+                const handleUpdateListItem = (idx: number, newVal: string) => {
+                    if (onUpdateSection) {
+                        const newItems = [...listSec.items];
+                        newItems[idx] = newVal;
+                        onUpdateSection(section.id, { items: newItems } as any);
+                    }
+                };
+
                 return (
                     <ul key={section.id} className="space-y-2 mb-5 text-sm pl-1">
                         {listSec.items.filter(item => item && item.trim()).map((rawItem, i) => {
                             const item = rawItem.trim();
+                            if (isInteractive) {
+                                return (
+                                    <li key={i} className="flex items-start gap-2.5 leading-relaxed">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
+                                        <div className="flex-1">
+                                            <InlineEditableText
+                                                value={item}
+                                                onSave={(newVal) => handleUpdateListItem(i, newVal)}
+                                                disabled={false}
+                                                className="text-sm leading-relaxed font-medium text-slate-800 dark:text-zinc-200"
+                                                as="input"
+                                            />
+                                        </div>
+                                    </li>
+                                );
+                            }
+
                             const colonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
                             if (colonMatch) {
                                 const key = colonMatch[1].trim();
@@ -384,32 +409,56 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                 </div>
 
                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-zinc-50 mb-4 tracking-tight">
-                    {report.header.title}
+                    <InlineEditableText
+                        value={report.header.title}
+                        onSave={(val) => onUpdateHeader && onUpdateHeader({ title: val })}
+                        disabled={!isInteractive}
+                        className="text-2xl md:text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight"
+                        as="input"
+                    />
                 </h1>
 
                 {/* Metadata Pills */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs bg-slate-50/80 dark:bg-zinc-900/60 p-4 rounded-2xl border border-slate-200/60 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <div>
+                        <div className="min-w-0 flex-1">
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Cliente</span>
-                            <span className="font-bold text-slate-800 dark:text-zinc-200">{report.header.clientName || 'Cliente General'}</span>
+                            <InlineEditableText
+                                value={report.header.clientName || 'Cliente General'}
+                                onSave={(val) => onUpdateHeader && onUpdateHeader({ clientName: val })}
+                                disabled={!isInteractive}
+                                className="font-bold text-slate-800 dark:text-zinc-200"
+                                as="input"
+                            />
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-                        <div>
+                        <div className="min-w-0 flex-1">
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Ubicación</span>
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200 truncate">{report.header.address || 'En sitio'}</span>
+                            <InlineEditableText
+                                value={report.header.address || 'En sitio'}
+                                onSave={(val) => onUpdateHeader && onUpdateHeader({ address: val })}
+                                disabled={!isInteractive}
+                                className="font-semibold text-slate-800 dark:text-zinc-200 truncate"
+                                as="input"
+                            />
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                         <Wrench className="w-4 h-4 text-purple-600 shrink-0" />
-                        <div>
+                        <div className="min-w-0 flex-1">
                             <span className="text-slate-400 block text-[10px] uppercase font-bold">Técnico Responsable</span>
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200">{report.header.technicianName || 'HECHO SRL'}</span>
+                            <InlineEditableText
+                                value={report.header.technicianName || 'HECHO SRL'}
+                                onSave={(val) => onUpdateHeader && onUpdateHeader({ technicianName: val })}
+                                disabled={!isInteractive}
+                                className="font-semibold text-slate-800 dark:text-zinc-200"
+                                as="input"
+                            />
                         </div>
                     </div>
                 </div>

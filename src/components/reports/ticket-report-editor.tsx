@@ -210,6 +210,20 @@ export function TicketReportEditor({
         onChange({ ...report, sections: newSections });
     };
 
+    const handleUpdateSectionById = (sectionId: string, updates: Partial<TicketReportSection>) => {
+        const idx = report.sections.findIndex(s => s.id === sectionId);
+        if (idx !== -1) {
+            updateSection(idx, { ...report.sections[idx], ...updates } as TicketReportSection);
+        }
+    };
+
+    const handleUpdateHeaderFields = (updates: Partial<TicketReportNew['header']>) => {
+        onChange({
+            ...report,
+            header: { ...report.header, ...updates }
+        });
+    };
+
     const deleteSection = (index: number) => {
         if (confirm("¿Eliminar este bloque?")) {
             const newSections = report.sections.filter((_, i) => i !== index);
@@ -471,7 +485,7 @@ export function TicketReportEditor({
 
                 {/* Editor Panel */}
                 {(viewMode === 'edit' || viewMode === 'split') && (
-                    <div className={`flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar ${viewMode === 'split' ? 'border-r dark:border-zinc-800' : ''}`}>
+                    <div className={`overflow-y-auto p-4 md:p-6 custom-scrollbar ${viewMode === 'split' ? 'w-full lg:w-1/2 border-r dark:border-zinc-800' : 'flex-1'}`}>
                         <div className="max-w-3xl mx-auto space-y-6">
                             {/* Header Editor */}
                             <Card className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -669,9 +683,27 @@ export function TicketReportEditor({
 
                 {/* Live Preview Panel */}
                 {(viewMode === 'preview' || viewMode === 'split') && (
-                    <div className={`flex-1 bg-gray-100 dark:bg-zinc-950 overflow-y-auto p-4 md:p-8`}>
-                        <div className="max-w-4xl mx-auto bg-white dark:bg-black shadow-lg min-h-[800px] p-8 md:p-12 transition-colors duration-200">
-                            <TicketReportView report={report} />
+                    <div className={`flex flex-col bg-slate-100 dark:bg-zinc-950 overflow-hidden ${viewMode === 'split' ? 'w-full lg:w-1/2' : 'flex-1'}`}>
+                        {/* Live document banner in split mode */}
+                        {viewMode === 'split' && (
+                            <div className="shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
+                                <span className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-zinc-100">
+                                    <Eye className="w-3.5 h-3.5 text-blue-600" /> Hoja en Tiempo Real
+                                </span>
+                                <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium hidden sm:inline">
+                                    ✨ Haz clic en cualquier texto para editar directamente en la hoja
+                                </span>
+                            </div>
+                        )}
+                        <div className={`flex-1 overflow-y-auto custom-scrollbar ${viewMode === 'split' ? 'p-3 md:p-6' : 'p-4 md:p-8'}`}>
+                            <div className="max-w-4xl mx-auto transition-all duration-200">
+                                <TicketReportView 
+                                    report={report}
+                                    isInteractive={!readOnly}
+                                    onUpdateSection={handleUpdateSectionById}
+                                    onUpdateHeader={handleUpdateHeaderFields}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
