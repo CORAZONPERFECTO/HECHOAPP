@@ -64,3 +64,46 @@ Cuando quieras pedirme tareas en el chat, puedes usar estas fórmulas directas:
    El editor de informes utiliza un sidebar izquierdo vertical para inserción de bloques, manteniendo la barra de acciones fijada en la parte superior fuera del scroll container.
 3. **Exportación de PDF Limpia:**  
    En `src/lib/export-utils.ts`, cualquier foto que carezca de URL HTTPS válida es filtrada automáticamente para evitar la generación de placeholders grises vacíos en el documento final.
+
+---
+
+## 🏡 5. Gestión de Clientes: Villas con Iguala vs. Servicios Eventuales
+
+### A. Clasificación de la Visita / Cliente
+- **Villa con Iguala (Cliente Igualado / Contrato Activo):**
+  - Se activa el **Censo Técnico Completo de la Villa**: registro de ambientes (`surveyAreas`), capacidades BTU, marca, modelo, serial, refrigerante, y fotos de placa técnica y tarjeta.
+  - Los datos de la villa **se heredan automáticamente** de visita en visita al crear tickets de mantenimiento preventivo.
+  - El técnico visualiza directamente la lista de áreas de la villa y sube fotos organizadas por cada aire.
+- **Servicio Eventual / Sin Iguala (Visita Puntual):**
+  - No se realiza el levantamiento exhaustivo de placas ni se crean áreas persistentes, ya que no se tiene certeza de continuidad del servicio.
+  - Se utiliza el flujo estándar de evidencias fotográficas generales (*Antes / Durante / Después*).
+
+### B. Herramienta: "Bitácora Digital de la Villa" (Villa Care Pass)
+- **Propósito:** Portal de transparencia y valor agregado para el propietario de la villa con iguala.
+- **Alcance visible para el cliente:**
+  1. **Lo que se hizo:** Historial de mantenimientos anteriores, fotos de trabajo y piezas atendidas.
+  2. **Lo que se está haciendo:** Servicio actual en curso e informe final del día.
+  3. **Lo que se va a hacer:** Próximo mantenimiento preventivo programado según calendario de iguala.
+  4. **Ficha Técnica de Equipos:** Registro de inventario de aires con su tipo de gas y fotos de placa/tarjeta.
+
+### C. Política de Retención y Depuración (Ventana de 3 Años)
+- El historial fotográfico y técnico activo en la bitácora cubre **3 años**.
+- **Regla de oro:** El sistema **NUNCA** borra datos automáticamente sin supervisión humana.
+- Al cumplirse 3 años de una evidencia, el sistema genera una **notificación / alerta al Administrador**:
+  > *"La Villa [Nombre] tiene registros fotográficos con más de 3 años de antigüedad. ¿Deseas mantenerlos en archivo histórico o liberar espacio de Firebase Storage?"*
+- El Administrador tiene el control absoluto para decidir conservar o depurar.
+
+---
+
+## 🌌 6. Catálogo de Misiones & Versiones (Constelaciones de HECHOAPP)
+
+Para coordinar el desarrollo con precisión, cada gran paquete de implementación lleva el nombre clave de una constelación o estrella:
+
+| Misión / Constelación | Estado | Alcance & Módulos |
+| :--- | :--- | :--- |
+| **Misión ATLAS** | ✅ Completada | Playbook operativo, Editor de informes Split-View interactivo, corrección de BTU sin defaults forzados, censo técnico de placas/tarjetas y navegación GPS con fallback. |
+| **Misión POLARIS** | 🚀 En Curso | **1.** Selector Villa con Iguala vs. Servicio Eventual.<br>**2.** Herencia automática de áreas y equipos censados entre visitas.<br>**3.** Pestaña de evidencias híbrida (por áreas para igualas, por fases antes/después para eventuales).<br>**4.** Plantilla de informe de Mantenimiento Multi-Área para Villas.<br>**5.** Arquitectura de la Bitácora Digital de la Villa (*Villa Care Pass*) con política de retención de 3 años. |
+| **Misión ORIÓN** | 🔭 Planificada | Portal público/privado interactivo de la Villa para el propietario con historial cronológico, timeline de 3 años y vista 360° de sus unidades. |
+| **Misión PHOENIX** | 🔭 Planificada | Automatización de alertas de vencimiento de contratos de iguala, mantenimiento recurrente y panel de depuración inteligente de almacenamiento. |
+
+
