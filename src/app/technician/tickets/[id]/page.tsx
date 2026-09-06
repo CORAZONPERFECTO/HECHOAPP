@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play, Navigation } from "lucide-react";
 import { Ticket, TicketPhoto, TicketVideo } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -535,18 +535,21 @@ export default function TechnicianTicketPage() {
                                     <MapPin className="h-3.5 w-3.5 text-red-500 shrink-0" />
                                     <span>{ticket.locationName}</span>
                                 </div>
-                                <a
-                                    href={
-                                        ticket.locationUrl && ticket.locationUrl.match(/https?:\/\/[^\s]+/)
-                                            ? ticket.locationUrl.match(/https?:\/\/[^\s]+/)?.[0]
-                                            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ticket.locationName + " " + ticket.clientName)}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 text-xs flex items-center gap-1 hover:underline mt-1 font-semibold"
-                                >
-                                    {ticket.locationUrl ? "📍 Abrir Ubicación del Cliente →" : "📍 Ver en Mapa →"}
-                                </a>
+                                <div className="pt-1">
+                                    <a
+                                        href={
+                                            ticket.locationUrl && ticket.locationUrl.match(/https?:\/\/[^\s]+/)
+                                                ? ticket.locationUrl.match(/https?:\/\/[^\s]+/)?.[0]
+                                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([ticket.locationName, ticket.locationStreet, ticket.locationHouseNumber, ticket.locationArea].filter(Boolean).join(" ") || ticket.clientName)}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm w-full justify-center sm:w-auto"
+                                    >
+                                        <Navigation className="h-3.5 w-3.5 shrink-0" />
+                                        <span>{ticket.locationUrl ? "📍 Navegar a la Villa (Google Maps / Waze)" : "📍 Ver Dirección en Google Maps"}</span>
+                                    </a>
+                                </div>
                             </CardContent>
                         </Card>
 

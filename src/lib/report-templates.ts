@@ -268,6 +268,16 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                         parts.push(`Equipo: Split Inverter ${btu.toLocaleString()} BTU (${volt})`);
                     }
 
+                    // Ficha Técnica (Marca, Modelo, Serial, Refrigerante)
+                    const techParts: string[] = [];
+                    if (a.brand) techParts.push(`Marca: ${a.brand}`);
+                    if (a.modelNumber) techParts.push(`Mod: ${a.modelNumber}`);
+                    if (a.serialNumber) techParts.push(`S/N: ${a.serialNumber}`);
+                    if (a.refrigerant) techParts.push(`Gas: ${a.refrigerant}`);
+                    if (techParts.length > 0) {
+                        parts.push(`[${techParts.join(' | ')}]`);
+                    }
+
                     if (parts.length === 0) {
                         return `• ${a.name}: Área registrada (especificaciones técnicas pendientes)`;
                     }
@@ -285,13 +295,14 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             const areaPhotoUrls = new Set<string>();
             if (areas.length > 0) {
                 areas.forEach((area) => {
-                    if (area.photos && area.photos.length > 0) {
+                    const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
+                    if (hasPhotos) {
                         sections.push(createTitle(`Evidencias Fotográficas: ${area.name}`));
                         if (area.notes) {
                             sections.push(createText(`Observaciones: ${area.notes}`));
                         }
-                        // Fotos del área
-                        area.photos.forEach((photo) => {
+                        // Fotos generales del área
+                        (area.photos || []).forEach((photo) => {
                             if (photo.url) {
                                 areaPhotoUrls.add(photo.url);
                                 sections.push({
@@ -303,6 +314,28 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                                 });
                             }
                         });
+                        // Foto de Placa Técnica
+                        if (area.platePhotoUrl) {
+                            areaPhotoUrls.add(area.platePhotoUrl);
+                            sections.push({
+                                id: crypto.randomUUID(),
+                                type: 'photo',
+                                photoUrl: area.platePhotoUrl,
+                                description: `Placa Técnica - ${area.name}${area.brand || area.modelNumber ? ` (${[area.brand, area.modelNumber].filter(Boolean).join(' ')})` : ''}`,
+                                size: 'medium'
+                            });
+                        }
+                        // Foto de Tarjeta / Conexión Eléctrica
+                        if (area.boardPhotoUrl) {
+                            areaPhotoUrls.add(area.boardPhotoUrl);
+                            sections.push({
+                                id: crypto.randomUUID(),
+                                type: 'photo',
+                                photoUrl: area.boardPhotoUrl,
+                                description: `Tarjeta Electrónica / Conexión Condensador - ${area.name}`,
+                                size: 'medium'
+                            });
+                        }
                     }
                 });
             }

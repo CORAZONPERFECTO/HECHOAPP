@@ -61,6 +61,13 @@ export interface SurveyArea {
     drainStatus?: string; // ej. "Drenaje por gravedad existente"
     notes?: string;
     photos: TicketPhoto[];
+    // Ficha Técnica del Equipo (Opcional - Placa & Tarjeta)
+    brand?: string;
+    modelNumber?: string;
+    serialNumber?: string;
+    refrigerant?: string;
+    platePhotoUrl?: string;
+    boardPhotoUrl?: string;
 }
 
 export interface SurveyBudget {

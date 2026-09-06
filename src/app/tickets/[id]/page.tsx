@@ -812,17 +812,17 @@ export default function TicketDetailPage() {
                                     {/* 📍 LOCATION LINK — Readonly for Technicians, editable for Admin/Managers */}
                                     <div className="col-span-2">
                                         <LocationInput
-                                            label="Ubicación del Cliente"
-                                            value={ticket.locationUrl || ticket.locationName || ""}
+                                            label="Link de Ubicación GPS (Google Maps / Waze)"
+                                            value={ticket.locationUrl || ""}
                                             onChange={(val) => {
                                                 if (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') {
-                                                    updateTicket({ ...ticket, locationUrl: val, locationName: val });
+                                                    updateTicket({ ...ticket, locationUrl: val });
                                                 }
                                             }}
                                             placeholder={
                                                 (currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS')
-                                                ? "Pega el link de Google Maps o WhatsApp del cliente..."
-                                                : "Dirección de servicio"
+                                                ? "Pega el link de Google Maps o WhatsApp de la villa..."
+                                                : "Sin link de ubicación registrado"
                                             }
                                             showGpsButton={false}
                                             showOpenLink={true}
@@ -830,7 +830,7 @@ export default function TicketDetailPage() {
                                         />
                                         {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
                                             <p className="text-xs text-gray-400 mt-1">
-                                                💡 El técnico podrá abrir esta ubicación directamente desde su app.
+                                                💡 El técnico podrá abrir esta ubicación directamente desde su app con un clic.
                                             </p>
                                         )}
                                     </div>

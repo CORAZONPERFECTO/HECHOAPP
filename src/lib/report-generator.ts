@@ -193,6 +193,22 @@ export function generateReportFromTicket(
                     });
                 }
             });
+            if (area.platePhotoUrl && !allPhotosForReport.some(existing => existing.url === area.platePhotoUrl)) {
+                allPhotosForReport.push({
+                    url: area.platePhotoUrl,
+                    type: 'SURVEY',
+                    area: area.name,
+                    description: `Placa Técnica - ${area.name}${area.brand || area.modelNumber ? ` (${[area.brand, area.modelNumber].filter(Boolean).join(' ')})` : ''}`
+                });
+            }
+            if (area.boardPhotoUrl && !allPhotosForReport.some(existing => existing.url === area.boardPhotoUrl)) {
+                allPhotosForReport.push({
+                    url: area.boardPhotoUrl,
+                    type: 'SURVEY',
+                    area: area.name,
+                    description: `Tarjeta / Conexión Condensador - ${area.name}`
+                });
+            }
         });
     }
 
@@ -399,6 +415,22 @@ export function updatePhotosFromTicket(
                             description: p.description || `Evidencia en ${area.name}`
                         });
                     }
+                });
+            }
+            if (area.platePhotoUrl && !allCandidatePhotos.some(existing => existing.url === area.platePhotoUrl)) {
+                allCandidatePhotos.push({
+                    url: area.platePhotoUrl,
+                    type: 'SURVEY',
+                    area: area.name,
+                    description: `Placa Técnica - ${area.name}${area.brand || area.modelNumber ? ` (${[area.brand, area.modelNumber].filter(Boolean).join(' ')})` : ''}`
+                });
+            }
+            if (area.boardPhotoUrl && !allCandidatePhotos.some(existing => existing.url === area.boardPhotoUrl)) {
+                allCandidatePhotos.push({
+                    url: area.boardPhotoUrl,
+                    type: 'SURVEY',
+                    area: area.name,
+                    description: `Tarjeta / Conexión Condensador - ${area.name}`
                 });
             }
         });

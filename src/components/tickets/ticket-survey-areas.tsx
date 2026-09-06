@@ -27,7 +27,9 @@ import {
     FileText,
     Layers,
     Maximize2,
-    Loader2
+    Loader2,
+    Cpu,
+    Barcode
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -72,13 +74,14 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
     const [uploadingAreaId, setUploadingAreaId] = useState<string | null>(null);
     const [uploadProgress, setUploadProgress] = useState<string>("");
+    const [uploadingSpecial, setUploadingSpecial] = useState<{ areaId: string; type: 'plate' | 'board' } | null>(null);
 
     // Sync from prop when not actively uploading photos
     useEffect(() => {
-        if (!uploadingAreaId && ticket.surveyAreas) {
+        if (!uploadingAreaId && !uploadingSpecial && ticket.surveyAreas) {
             setLocalAreas(ticket.surveyAreas);
         }
-    }, [ticket.surveyAreas, uploadingAreaId]);
+    }, [ticket.surveyAreas, uploadingAreaId, uploadingSpecial]);
 
     const updateAreas = async (newAreas: SurveyArea[]) => {
         // Immediate local state update to prevent UI flickers
@@ -303,6 +306,49 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
         handleAreaChange(areaId, { photos });
     };
 
+    const handleUploadSpecialPhoto = async (areaId: string, type: 'plate' | 'board', e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingSpecial({ areaId, type });
+        try {
+            const { storage } = await import("@/lib/firebase");
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { compressImage } = await import("@/lib/image-utils");
+
+            // Compress crisp 2K HD (max 2048px, quality 0.92)
+            const compressedBlob = await compressImage(file, 2048, 0.92);
+            const cleanName = file.name.replace(/\s+/g, '_');
+            const prefix = type === 'plate' ? 'placa' : 'tarjeta';
+            const filename = `tickets/${ticket.id || 'general'}/surveys/${prefix}_${Date.now()}_${cleanName}`;
+            const storageRef = ref(storage, filename);
+
+            await uploadBytes(storageRef, compressedBlob, {
+                contentType: 'image/jpeg',
+                customMetadata: {
+                    ticketId: ticket.id || '',
+                    areaId,
+                    type: prefix
+                }
+            });
+
+            const url = await getDownloadURL(storageRef);
+            if (url) {
+                handleAreaChange(areaId, type === 'plate' ? { platePhotoUrl: url } : { boardPhotoUrl: url });
+            }
+        } catch (err: any) {
+            console.error(`Error uploading ${type} photo to Firebase Storage:`, err);
+            alert(`Error al subir la imagen: ${err?.message || 'Verifica tu conexión a internet.'}`);
+        } finally {
+            setUploadingSpecial(null);
+            e.target.value = "";
+        }
+    };
+
+    const handleRemoveSpecialPhoto = (areaId: string, type: 'plate' | 'board') => {
+        handleAreaChange(areaId, type === 'plate' ? { platePhotoUrl: undefined } : { boardPhotoUrl: undefined });
+    };
+
     // Resumen de Carga Térmica Total
     const totalM2 = areas.reduce((acc, a) => acc + (a.areaSquareMeters || 0), 0);
     const totalBtu = areas.reduce((acc, a) => acc + (a.requiredBtu || 0), 0);
@@ -437,7 +483,9 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                         <span className={`text-[11px] font-mono hidden md:inline flex-shrink-0 ${isExpanded ? "text-slate-300" : "text-slate-500"}`}>
                                             {(area.areaSquareMeters && area.areaSquareMeters > 0) ? `${area.areaSquareMeters} m² • ` : ''}
                                             {area.requiredBtu && area.requiredBtu > 0 ? `${area.requiredBtu.toLocaleString()} BTU • ` : ''}
+                                            {area.brand ? `${area.brand} • ` : ''}
                                             {areaPhotos.length} {areaPhotos.length === 1 ? 'foto' : 'fotos'}
+                                            {(area.platePhotoUrl || area.boardPhotoUrl) ? ' • 🏷️ Ficha' : ''}
                                         </span>
                                     </div>
 
@@ -592,7 +640,191 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                             </div>
                                         </div>
 
-                                        {/* 2. Galería de Evidencias Fotográficas del Área */}
+                                        {/* 2. Censo Técnico del Equipo / Condensador (Opcional - Placas & Tarjetas) */}
+                                        <div className="space-y-3 pt-2 bg-slate-50/80 p-4 rounded-2xl border border-slate-200">
+                                            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Cpu className="w-4 h-4 text-purple-600" />
+                                                    <span className="text-xs font-black text-slate-800">
+                                                        Ficha Técnica del Equipo / Condensador
+                                                    </span>
+                                                    <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-[10px] font-bold">
+                                                        Opcional
+                                                    </Badge>
+                                                </div>
+                                                <span className="text-[11px] text-slate-500 hidden sm:inline">
+                                                    Identificación preventiva de repuestos, compresores y tarjetas
+                                                </span>
+                                            </div>
+
+                                            {/* Datos Técnicos de Placa */}
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">Marca</Label>
+                                                    <Input
+                                                        className="h-9 text-xs bg-white border-slate-300 font-semibold"
+                                                        placeholder="Ej: Carrier, Daikin, Midea..."
+                                                        value={area.brand || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { brand: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">Modelo / N° de Parte</Label>
+                                                    <Input
+                                                        className="h-9 text-xs bg-white border-slate-300 font-mono font-medium"
+                                                        placeholder="Ej: 38HDC024, MSAFB..."
+                                                        value={area.modelNumber || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { modelNumber: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">N° de Serie</Label>
+                                                    <Input
+                                                        className="h-9 text-xs bg-white border-slate-300 font-mono font-medium"
+                                                        placeholder="Ej: SN-492810..."
+                                                        value={area.serialNumber || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { serialNumber: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">Refrigerante</Label>
+                                                    <select
+                                                        className="w-full h-9 border border-slate-300 rounded-xl px-2 text-xs bg-white font-semibold text-slate-800"
+                                                        value={area.refrigerant || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { refrigerant: e.target.value })}
+                                                    >
+                                                        <option value="">Seleccionar gas...</option>
+                                                        <option value="R410A">R410A (Ecológico)</option>
+                                                        <option value="R32">R32 (Nueva generación)</option>
+                                                        <option value="R22">R22 (Convencional)</option>
+                                                        <option value="R404A">R404A (Media/Baja temp)</option>
+                                                        <option value="R134a">R134a</option>
+                                                        <option value="R407C">R407C</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {/* Subida de Fotos Específicas: Placa Técnica y Tarjeta */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                                {/* Slot 1: Foto Placa Técnica */}
+                                                <div className="bg-white rounded-xl border border-dashed border-slate-300 p-3 flex flex-col justify-between">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                            <Barcode className="w-4 h-4 text-blue-600" /> Foto Placa Técnica (Sticker)
+                                                        </span>
+                                                        {uploadingSpecial?.areaId === area.id && uploadingSpecial?.type === 'plate' && (
+                                                            <span className="text-[10px] text-blue-600 font-bold flex items-center gap-1 animate-pulse">
+                                                                <Loader2 className="w-3 h-3 animate-spin" /> Subiendo...
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {area.platePhotoUrl ? (
+                                                        <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 group">
+                                                            <img
+                                                                src={area.platePhotoUrl}
+                                                                alt={`Placa técnica ${area.name}`}
+                                                                className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                                                onClick={() => setPreviewPhoto(area.platePhotoUrl!)}
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    className="h-7 text-[11px] px-2 bg-white/90 hover:bg-white text-slate-800 font-semibold"
+                                                                    onClick={() => setPreviewPhoto(area.platePhotoUrl!)}
+                                                                >
+                                                                    <Maximize2 className="w-3 h-3 mr-1" /> Ver Placa
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    className="h-7 text-[11px] px-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                                                                    onClick={() => handleRemoveSpecialPhoto(area.id, 'plate')}
+                                                                >
+                                                                    <Trash2 className="w-3 h-3 mr-1" /> Quitar
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-lg p-4 cursor-pointer bg-slate-50/60 hover:bg-blue-50/40 transition-colors">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                disabled={uploadingSpecial?.areaId === area.id}
+                                                                onChange={(e) => handleUploadSpecialPhoto(area.id, 'plate', e)}
+                                                            />
+                                                            <Camera className="w-6 h-6 text-blue-500 mb-1" />
+                                                            <span className="text-xs font-bold text-slate-700">Subir Placa Técnica</span>
+                                                            <span className="text-[10px] text-slate-400 text-center">Sticker con modelo, voltaje y especificaciones</span>
+                                                        </label>
+                                                    )}
+                                                </div>
+
+                                                {/* Slot 2: Foto Tarjeta / Conexión Eléctrica */}
+                                                <div className="bg-white rounded-xl border border-dashed border-slate-300 p-3 flex flex-col justify-between">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                                            <Cpu className="w-4 h-4 text-purple-600" /> Foto Tarjeta / Conexión
+                                                        </span>
+                                                        {uploadingSpecial?.areaId === area.id && uploadingSpecial?.type === 'board' && (
+                                                            <span className="text-[10px] text-purple-600 font-bold flex items-center gap-1 animate-pulse">
+                                                                <Loader2 className="w-3 h-3 animate-spin" /> Subiendo...
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {area.boardPhotoUrl ? (
+                                                        <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-900 group">
+                                                            <img
+                                                                src={area.boardPhotoUrl}
+                                                                alt={`Tarjeta electrónica ${area.name}`}
+                                                                className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                                                onClick={() => setPreviewPhoto(area.boardPhotoUrl!)}
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="secondary"
+                                                                    className="h-7 text-[11px] px-2 bg-white/90 hover:bg-white text-slate-800 font-semibold"
+                                                                    onClick={() => setPreviewPhoto(area.boardPhotoUrl!)}
+                                                                >
+                                                                    <Maximize2 className="w-3 h-3 mr-1" /> Ver Tarjeta
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    className="h-7 text-[11px] px-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                                                                    onClick={() => handleRemoveSpecialPhoto(area.id, 'board')}
+                                                                >
+                                                                    <Trash2 className="w-3 h-3 mr-1" /> Quitar
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-purple-400 rounded-lg p-4 cursor-pointer bg-slate-50/60 hover:bg-purple-50/40 transition-colors">
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                disabled={uploadingSpecial?.areaId === area.id}
+                                                                onChange={(e) => handleUploadSpecialPhoto(area.id, 'board', e)}
+                                                            />
+                                                            <Zap className="w-6 h-6 text-purple-500 mb-1" />
+                                                            <span className="text-xs font-bold text-slate-700">Subir Foto de Tarjeta</span>
+                                                            <span className="text-[10px] text-slate-400 text-center">PCB Inverter, bornera o conexión condensador</span>
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Galería de Evidencias Fotográficas del Área */}
                                         <div className="space-y-3 pt-2">
                                             <div className="flex items-center justify-between border-b pb-1.5 flex-wrap gap-2">
                                                 <div className="flex items-center gap-2">
