@@ -80,71 +80,80 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
     const [newAreaBtu, setNewAreaBtu] = useState("12,000 BTU");
     const [newAreaGas, setNewAreaGas] = useState("R410A");
 
-    // Escuchar documento de la ubicación / villa
+    // 1. Cargar datos de la villa y tickets (Soporta acceso público sin auth mediante API interna y listener en tiempo real)
     useEffect(() => {
         if (!locationId) return;
-        const locRef = doc(db, "locations", locationId);
-        const unsubscribe = onSnapshot(locRef, (snap) => {
-            if (snap.exists()) {
-                const data = { id: snap.id, ...snap.data() } as Location;
-                setLocation(data);
-                setNextDateInput(data.nextMaintenanceDate || "");
-                setFrequencyInput(data.maintenanceFrequency || "MENSUAL");
-                setLocationUrlInput(data.locationUrl || "");
-            }
-        });
-        return () => unsubscribe();
-    }, [locationId]);
 
-    // Escuchar tickets asociados a la villa
-    useEffect(() => {
-        if (!locationId) return;
+        let isMounted = true;
+
+        // Intentar carga inicial rápida y universal por API (funciona para el propietario público sin sesión)
+        fetch(`/api/villas/${locationId}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (!isMounted || !data?.location) return;
+                setLocation(data.location);
+                setNextDateInput(data.location.nextMaintenanceDate || "");
+                setFrequencyInput(data.location.maintenanceFrequency || "MENSUAL");
+                setLocationUrlInput(data.location.locationUrl || "");
+                if (data.tickets) {
+                    setTickets(data.tickets);
+                }
+                setLoading(false);
+            })
+            .catch(() => {
+                // Silencioso, el snapshot continuará
+            });
+
+        // 2. Escuchar cambios en vivo con Firestore
+        const locRef = doc(db, "locations", locationId);
+        const unsubLoc = onSnapshot(
+            locRef,
+            (snap) => {
+                if (snap.exists()) {
+                    const data = { id: snap.id, ...snap.data() } as Location;
+                    setLocation(data);
+                    setNextDateInput(data.nextMaintenanceDate || "");
+                    setFrequencyInput(data.maintenanceFrequency || "MENSUAL");
+                    setLocationUrlInput(data.locationUrl || "");
+                    setLoading(false);
+                }
+            },
+            () => {
+                // Si da error de permisos por ser público, no bloquear la UI si la API ya respondió
+                setLoading(false);
+            }
+        );
 
         const q = query(
             collection(db, "tickets"),
-            where("locationId", "==", locationId),
-            orderBy("createdAt", "desc")
+            where("locationId", "==", locationId)
         );
 
-        const unsubscribe = onSnapshot(q, async (snap) => {
-            let loadedTickets = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
-
-            if (loadedTickets.length === 0 && location?.clientId) {
-                try {
-                    const fallbackQ = query(
-                        collection(db, "tickets"),
-                        where("clientId", "==", location.clientId),
-                        orderBy("createdAt", "desc")
-                    );
-                    const fallbackSnap = await new Promise<any>((resolve) => {
-                        const unsub = onSnapshot(fallbackQ, (res) => {
-                            unsub();
-                            resolve(res);
-                        });
-                    });
-
-                    const filtered = fallbackSnap.docs
-                        .map((d: any) => ({ id: d.id, ...d.data() } as Ticket))
-                        .filter((t: Ticket) => {
-                            const locName = (location.nombre || "").toLowerCase();
-                            const tLoc = (t.locationName || t.specificLocation || "").toLowerCase();
-                            return tLoc.includes(locName) || locName.includes(tLoc);
-                        });
-
-                    if (filtered.length > 0) {
-                        loadedTickets = filtered;
-                    }
-                } catch (e) {
-                    console.error("Error in fallback tickets query:", e);
+        const unsubTickets = onSnapshot(
+            q,
+            (snap) => {
+                const loadedTickets = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
+                loadedTickets.sort((a, b) => {
+                    const dateA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const dateB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return dateB - dateA;
+                });
+                if (loadedTickets.length > 0) {
+                    setTickets(loadedTickets);
                 }
+                setLoading(false);
+            },
+            () => {
+                setLoading(false);
             }
+        );
 
-            setTickets(loadedTickets);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [locationId, location?.clientId, location?.nombre]);
+        return () => {
+            isMounted = false;
+            unsubLoc();
+            unsubTickets();
+        };
+    }, [locationId]);
 
     // Extraer el censo de equipos más actualizado
     const currentEquipmentCensus = useMemo<TicketSurveyArea[]>(() => {
