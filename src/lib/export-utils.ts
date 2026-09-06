@@ -45,57 +45,145 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
 }
 
 /**
- * Carga una imagen asegurando compatibilidad con jsPDF sin pérdida de resolución
+ * Carga y decodifica cualquier formato de imagen (data URL, blob, Firebase Storage, HTTP/HTTPS)
+ * garantizando conversión a JPEG nítido de alta resolución y compatibilidad absoluta con jsPDF.
  */
 async function loadImage(url: string): Promise<LoadedImageResult> {
     if (!url || typeof url !== 'string' || !url.trim()) {
         return createPlaceholderData();
     }
 
-    const fetchBlob = async (targetUrl: string): Promise<Blob> => {
-        try {
-            const res = await fetch(targetUrl, { cache: 'no-store' });
-            if (!res.ok) throw new Error(`Fetch failed: ${res.statusText}`);
-            return await res.blob();
-        } catch (e) {
-            throw e;
-        }
-    };
+    const trimmedUrl = url.trim();
 
-    try {
-        let blob: Blob;
-
-        try {
-            blob = await fetchBlob(url);
-        } catch (e) {
-            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(url)}`;
-            blob = await fetchBlob(proxyUrl);
-        }
-
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => reject(new Error("FileReader failed"));
-            reader.readAsDataURL(blob);
-        });
-
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const image = new Image();
-            image.crossOrigin = "anonymous";
-            image.onload = () => resolve(image);
-            image.onerror = () => reject(new Error("Image decode failed"));
-            image.src = dataUrl;
-        });
-
+    // Helper: Convertir cualquier HTMLImageElement a LoadedImageResult con formato JPEG uniforme
+    const imageToResult = (img: HTMLImageElement): LoadedImageResult => {
         const width = img.naturalWidth || img.width || 800;
         const height = img.naturalHeight || img.height || 600;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                // Fondo blanco por si la imagen tiene transparencia
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                return { img, dataUrl: jpegDataUrl, width, height };
+            }
+        } catch {
+            // Si el canvas está contaminado por CORS, usamos la imagen con dataUrl existente
+        }
+        return { img, dataUrl: trimmedUrl, width, height };
+    };
 
-        return { img, dataUrl, width, height };
+    // Helper: Cargar HTMLImageElement desde un src
+    const loadHtmlImage = (src: string, useCors = false): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            if (useCors) {
+                img.crossOrigin = "anonymous";
+            }
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+            img.src = src;
+        });
+    };
 
-    } catch (finalError) {
-        console.warn("Error cargando imagen para PDF:", url, finalError);
-        return createPlaceholderData();
+    // 1. SI YA ES DATA URL (Base64) - NO HACER FETCH
+    if (trimmedUrl.startsWith('data:')) {
+        try {
+            const img = await loadHtmlImage(trimmedUrl, false);
+            return imageToResult(img);
+        } catch (dataErr) {
+            console.warn("Error decodificando data URL:", dataErr);
+        }
     }
+
+    // 2. SI ES BLOB LOCAL (blob:http...) - NO HACER PROXY
+    if (trimmedUrl.startsWith('blob:')) {
+        try {
+            const img = await loadHtmlImage(trimmedUrl, false);
+            return imageToResult(img);
+        } catch (blobErr) {
+            console.warn("Error decodificando blob URL:", blobErr);
+        }
+    }
+
+    // 3. INTENTO DIRECTO CON CORS EN NAVEGADOR
+    try {
+        const img = await loadHtmlImage(trimmedUrl, true);
+        const result = imageToResult(img);
+        if (result.dataUrl.startsWith('data:image/jpeg')) {
+            return result;
+        }
+    } catch {
+        // Fallback a fetch / proxy
+    }
+
+    // 4. INTENTO FETCH DIRECTO COMO BLOB
+    try {
+        const res = await fetch(trimmedUrl, { mode: 'cors', cache: 'default' });
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            const img = await loadHtmlImage(dataUrl, false);
+            return imageToResult(img);
+        }
+    } catch {
+        // Fallback a proxy
+    }
+
+    // 5. INTENTO A TRAVÉS DE PROXY SERVER-SIDE (GET)
+    try {
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(trimmedUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            const img = await loadHtmlImage(dataUrl, false);
+            return imageToResult(img);
+        }
+    } catch {
+        // Fallback a proxy POST
+    }
+
+    // 6. INTENTO A TRAVÉS DE PROXY SERVER-SIDE (POST)
+    try {
+        const res = await fetch('/api/proxy-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: trimmedUrl })
+        });
+        if (res.ok) {
+            const blob = await res.blob();
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            const img = await loadHtmlImage(dataUrl, false);
+            return imageToResult(img);
+        }
+    } catch (finalErr) {
+        console.warn("Todos los métodos de carga de imagen fallaron para:", trimmedUrl, finalErr);
+    }
+
+    return createPlaceholderData();
 }
 
 function createPlaceholderData(): LoadedImageResult {
@@ -121,7 +209,7 @@ function createPlaceholderData(): LoadedImageResult {
         ctx.fillStyle = '#94a3b8';
         ctx.fillText('HECHO SRL • Registro Técnico', 200, 165);
     }
-    const dataUrl = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     const img = new Image();
     img.src = dataUrl;
     return { img, dataUrl, width: 400, height: 300 };
@@ -211,7 +299,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 const ratio = imgData.width / imgData.height;
                 const logoH = 14;
                 const logoW = Math.min(34, logoH * ratio);
-                pdf.addImage(imgData.dataUrl, 'PNG', margin, 7, logoW, logoH, undefined, 'FAST');
+                pdf.addImage(imgData.dataUrl, 'JPEG', margin, 7, logoW, logoH, undefined, 'FAST');
                 logoDrawn = true;
             } catch {
                 logoDrawn = false;
@@ -733,7 +821,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             try {
                 const imgData = await loadImage(report.signatures.technicianSignature);
                 const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(imgData.dataUrl, 'PNG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                pdf.addImage(imgData.dataUrl, 'JPEG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
             } catch { }
         }
         pdf.setDrawColor(160, 174, 192);
@@ -755,7 +843,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             try {
                 const imgData = await loadImage(report.signatures.clientSignature);
                 const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(imgData.dataUrl, 'PNG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
             } catch { }
         }
         pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
