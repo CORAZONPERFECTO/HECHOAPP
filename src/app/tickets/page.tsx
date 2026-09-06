@@ -20,6 +20,7 @@ import { TicketCalendar } from "@/components/tickets/ticket-calendar";
 import { TicketMap } from "@/components/tickets/ticket-map";
 import { SLAIndicator } from "@/components/tickets/sla-indicator";
 import { SLADashboard } from "@/components/tickets/sla-dashboard";
+import { RecurringMaintenanceTracker } from "@/components/tickets/recurring-maintenance-tracker";
 import { startOfDay, endOfDay, addDays, isSameDay, isAfter, isBefore, startOfWeek, endOfWeek } from "date-fns";
 
 type DateFilterType = "ALL" | "TODAY" | "TOMORROW" | "THIS_WEEK" | "UNSCHEDULED" | "OVERDUE" | "HISTORY" | "PENDING_BILLING";
@@ -350,7 +351,7 @@ export default function TicketsPage() {
                         <SLADashboard />
 
                         <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-                            <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
+                            <TabsList className="grid w-full max-w-3xl grid-cols-5 mb-6">
                                 <TabsTrigger value="list" className="flex items-center gap-2">
                                     <List className="h-4 w-4" />
                                     Lista
@@ -366,6 +367,10 @@ export default function TicketsPage() {
                                 <TabsTrigger value="map" className="flex items-center gap-2">
                                     <MapIcon className="h-4 w-4" />
                                     Operaciones
+                                </TabsTrigger>
+                                <TabsTrigger value="recurring" className="flex items-center gap-2 text-emerald-700 data-[state=active]:text-emerald-800 font-semibold">
+                                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                                    Control Igualas
                                 </TabsTrigger>
                             </TabsList>
 
@@ -389,6 +394,10 @@ export default function TicketsPage() {
 
                             <TabsContent value="map" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
                                 <TicketMap tickets={filteredTickets} onTicketClick={handleTicketClick} />
+                            </TabsContent>
+
+                            <TabsContent value="recurring" className="transition-all duration-200 ease-in-out animate-in fade-in-50 slide-in-from-bottom-2">
+                                <RecurringMaintenanceTracker />
                             </TabsContent>
                         </Tabs>
                     </>
