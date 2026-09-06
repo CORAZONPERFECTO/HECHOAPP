@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
+import { TicketSurveyAreas } from "@/components/tickets/ticket-survey-areas";
 import { VideoUploader } from "@/components/technician/video-uploader";
 import { TechnicianDocumentsCard } from "@/components/tickets/technician-documents-card";
 import { PermissionRequest } from "@/components/technician/permission-request";
@@ -794,34 +795,43 @@ export default function TechnicianTicketPage() {
 
                     {/* Fotos Tab */}
                     <TabsContent value="fotos" className="space-y-4">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Evidencias Fotográficas</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <PhotoUploader
-                                    label="Antes del Servicio"
-                                    type="BEFORE"
-                                    photos={ticket.photos || []}
-                                    onChange={handlePhotoUpdate}
-                                    allowGallery={false}
-                                />
-                                <PhotoUploader
-                                    label="Durante el Servicio"
-                                    type="DURING"
-                                    photos={ticket.photos || []}
-                                    onChange={handlePhotoUpdate}
-                                    allowGallery={false}
-                                />
-                                <PhotoUploader
-                                    label="Después del Servicio"
-                                    type="AFTER"
-                                    photos={ticket.photos || []}
-                                    onChange={handlePhotoUpdate}
-                                    allowGallery={false}
-                                />
-                            </CardContent>
-                        </Card>
+                        {ticket.serviceType === 'LEVANTAMIENTO' || ticket.serviceType === 'INSPECCION' || ticket.serviceType === 'VERIFICACION' ? (
+                            <TicketSurveyAreas
+                                ticket={ticket as any}
+                                onChange={(updatedTicket) => {
+                                    setTicket(updatedTicket as any);
+                                }}
+                            />
+                        ) : (
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-base">Evidencias Fotográficas</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <PhotoUploader
+                                        label="Antes del Servicio"
+                                        type="BEFORE"
+                                        photos={ticket.photos || []}
+                                        onChange={handlePhotoUpdate}
+                                        allowGallery={false}
+                                    />
+                                    <PhotoUploader
+                                        label="Durante el Servicio"
+                                        type="DURING"
+                                        photos={ticket.photos || []}
+                                        onChange={handlePhotoUpdate}
+                                        allowGallery={false}
+                                    />
+                                    <PhotoUploader
+                                        label="Después del Servicio"
+                                        type="AFTER"
+                                        photos={ticket.photos || []}
+                                        onChange={handlePhotoUpdate}
+                                        allowGallery={false}
+                                    />
+                                </CardContent>
+                            </Card>
+                        )}
 
                         {allowVideoUpload && (
                             <VideoUploader

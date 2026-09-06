@@ -4,15 +4,21 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Allow authenticated users to upload photos to tickets folder
+    // Allow authenticated users to upload photos to tickets folder and public read for client reports
     match /tickets/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Allow authenticated users to upload survey photos and public read for client reports
+    match /surveys/{allPaths=**} {
+      allow read: if true;
       allow write: if request.auth != null;
     }
     
-    // Allow authenticated users to upload to reports folder
+    // Allow authenticated users to upload to reports folder and public read
     match /reports/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
@@ -28,9 +34,9 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
 
-    // Allow authenticated users to manage company branding assets (logos)
+    // Allow public read for company branding assets (logos)
     match /company/{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 

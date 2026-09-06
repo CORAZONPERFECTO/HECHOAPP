@@ -367,15 +367,36 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
                 {/* Editor Content */}
                 <div className="flex-1 overflow-hidden relative min-h-[600px]">
-                    <TicketReportEditor
-                        report={report}
-                        onChange={setReport}
-                        onSave={async (r) => handleSave(r)}
-                        onUpdatePhotos={handleUpdatePhotos}
-                        onRegenerate={handleRegenerate}
-                        availablePhotos={ticket.photos || []}
-                        saving={saving}
-                    />
+                    {(() => {
+                        const allAvailablePhotos: import("@/types/schema").TicketPhoto[] = [...(ticket.photos || [])];
+                        if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
+                            ticket.surveyAreas.forEach(area => {
+                                if (area.photos && Array.isArray(area.photos)) {
+                                    area.photos.forEach(p => {
+                                        if (p && p.url && !allAvailablePhotos.some(existing => existing.url === p.url)) {
+                                            allAvailablePhotos.push({
+                                                ...p,
+                                                area: p.area || area.name,
+                                                description: p.description || `Evidencia en ${area.name}`
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
+                        return (
+                            <TicketReportEditor
+                                report={report}
+                                onChange={setReport}
+                                onSave={async (r) => handleSave(r)}
+                                onUpdatePhotos={handleUpdatePhotos}
+                                onRegenerate={handleRegenerate}
+                                availablePhotos={allAvailablePhotos}
+                                saving={saving}
+                            />
+                        );
+                    })()}
                 </div>
             </div>
 

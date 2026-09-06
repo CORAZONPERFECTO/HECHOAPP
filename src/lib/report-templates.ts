@@ -51,6 +51,24 @@ const createText = (content: string): TextSection => ({
     content
 });
 
+const getAllTicketPhotos = (ticket: Ticket): TicketPhoto[] => {
+    const photos: TicketPhoto[] = [...(ticket.photos || [])];
+    if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
+        ticket.surveyAreas.forEach(area => {
+            (area.photos || []).forEach(p => {
+                if (p && p.url && !photos.some(existing => existing.url === p.url)) {
+                    photos.push({
+                        ...p,
+                        area: p.area || area.name,
+                        description: p.description || `Evidencia en ${area.name}`
+                    });
+                }
+            });
+        });
+    }
+    return photos;
+};
+
 export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     'MANTENIMIENTO': {
         id: 'maintenance',
@@ -58,7 +76,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
         description: 'Plantilla estándar para servicios de mantenimiento preventivo.',
         generateSections: (ticket: Ticket) => {
             const sections: TicketReportSection[] = [];
-            const { before, during, after } = groupPhotos(ticket.photos || []);
+            const allPhotos = getAllTicketPhotos(ticket);
+            const { before, during, after } = groupPhotos(allPhotos);
 
             // 1. Resumen Ejecutivo
             sections.push(createTitle('Reporte de Mantenimiento Preventivo', 'h1'));
@@ -116,7 +135,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
         description: 'Plantilla para instalación de equipos nuevos.',
         generateSections: (ticket: Ticket) => {
             const sections: TicketReportSection[] = [];
-            const { before, during, after } = groupPhotos(ticket.photos || []);
+            const allPhotos = getAllTicketPhotos(ticket);
+            const { before, during, after } = groupPhotos(allPhotos);
 
             sections.push(createTitle('Reporte de Instalación', 'h1'));
             sections.push(createText(`Instalación de equipo en ${ticket.locationName}. Se procedió según las normas técnicas y especificaciones del fabricante.`));
@@ -164,7 +184,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
         description: 'Plantilla enfocada en diagnóstico y solución de fallas.',
         generateSections: (ticket: Ticket) => {
             const sections: TicketReportSection[] = [];
-            const { before, during, after } = groupPhotos(ticket.photos || []);
+            const allPhotos = getAllTicketPhotos(ticket);
+            const { before, during, after } = groupPhotos(allPhotos);
 
             sections.push(createTitle('Reporte de Reparación', 'h1'));
 
@@ -177,7 +198,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             sections.push(createText(ticket.diagnosis || "Describir el diagnóstico técnico de la avería encontrada..."));
 
             if (before.length > 0) {
-                sections.push(createTitle('Evidencia de la Falla')); // Optional subtitle logic
+                sections.push(createTitle('Evidencia de la Falla'));
                 sections.push(...createPhotoSections(before));
             }
 
@@ -239,6 +260,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             }
 
             // 3. Evidencias Fotográficas por Ambiente / Área (Tamaño proporcional)
+            const areaPhotoUrls = new Set<string>();
             if (areas.length > 0) {
                 areas.forEach((area) => {
                     if (area.photos && area.photos.length > 0) {
@@ -249,6 +271,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                         // Fotos del área
                         area.photos.forEach((photo) => {
                             if (photo.url) {
+                                areaPhotoUrls.add(photo.url);
                                 sections.push({
                                     id: crypto.randomUUID(),
                                     type: 'photo',
@@ -260,9 +283,13 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                         });
                     }
                 });
-            } else if (ticket.photos && ticket.photos.length > 0) {
-                sections.push(createTitle('Evidencias Fotográficas'));
-                sections.push(...createPhotoSections(ticket.photos));
+            }
+
+            // También agregar fotos adicionales de ticket.photos que no estén en ningún área
+            const extraPhotos = (ticket.photos || []).filter(p => p.url && !areaPhotoUrls.has(p.url));
+            if (extraPhotos.length > 0) {
+                sections.push(createTitle('Otras Evidencias Fotográficas'));
+                sections.push(...createPhotoSections(extraPhotos));
             }
 
             // 4. Diagnóstico Técnico & Hallazgos
@@ -336,7 +363,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                 sections.push(createText(ticket.solution));
             }
 
-            const { before, during, after } = groupPhotos(ticket.photos || []);
+            const allPhotos = getAllTicketPhotos(ticket);
+            const { before, during, after } = groupPhotos(allPhotos);
             if (before.length > 0 || during.length > 0 || after.length > 0) {
                 sections.push(createTitle('Evidencia Fotográfica'));
                 if (before.length > 0) sections.push(...createPhotoSections(before));

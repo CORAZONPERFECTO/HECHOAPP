@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Ticket, SurveyArea, TicketPhoto, SurveyBudget } from "@/types/tickets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { 
     Plus, 
@@ -26,7 +26,8 @@ import {
     CheckCircle2,
     FileText,
     Layers,
-    Maximize2
+    Maximize2,
+    Loader2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -60,35 +61,59 @@ function suggestBtuCapacity(areaM2: number): { btu: number; text: string } {
 }
 
 export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSurveyAreasProps) {
-    const areas: SurveyArea[] = ticket.surveyAreas || [];
-    const [expandedAreaId, setExpandedAreaId] = useState<string | null>(areas[0]?.id || null);
+    const [localAreas, setLocalAreas] = useState<SurveyArea[]>(ticket.surveyAreas || []);
+    const areasRef = useRef<SurveyArea[]>(localAreas);
+    areasRef.current = localAreas;
+    const areas = localAreas;
+
+    const [expandedAreaId, setExpandedAreaId] = useState<string | null>(localAreas[0]?.id || null);
     const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
     const [newAreaName, setNewAreaName] = useState("");
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+    const [uploadingAreaId, setUploadingAreaId] = useState<string | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<string>("");
+
+    // Sync from prop when not actively uploading photos
+    useEffect(() => {
+        if (!uploadingAreaId && ticket.surveyAreas) {
+            setLocalAreas(ticket.surveyAreas);
+        }
+    }, [ticket.surveyAreas, uploadingAreaId]);
 
     const updateAreas = async (newAreas: SurveyArea[]) => {
-        // También consolidamos las fotos de todas las áreas en ticket.photos para compatibilidad global
-        const allPhotos: TicketPhoto[] = [];
+        // Immediate local state update to prevent UI flickers
+        setLocalAreas(newAreas);
+        areasRef.current = newAreas;
+
+        // Consolidate survey photos from all areas
+        const allSurveyPhotos: TicketPhoto[] = [];
         newAreas.forEach(a => {
             if (a.photos && a.photos.length > 0) {
-                allPhotos.push(...a.photos);
+                allSurveyPhotos.push(...a.photos);
             }
         });
+
+        // Preserve non-survey photos (e.g. BEFORE/DURING/AFTER)
+        const nonSurveyPhotos = (ticket.photos || []).filter(
+            p => p.type !== 'SURVEY' && !allSurveyPhotos.some(sp => sp.url === p.url)
+        );
+        const mergedPhotos = [...allSurveyPhotos, ...nonSurveyPhotos];
 
         const updatedTicket: Ticket = {
             ...ticket,
             surveyAreas: newAreas,
-            photos: allPhotos.length > 0 ? allPhotos : ticket.photos
+            photos: mergedPhotos
         };
 
         onChange(updatedTicket);
 
-        // Guardar inmediatamente en Firestore para asegurar persistencia al cambiar de pestaña
+        // Immediately persist to Firestore
         if (ticket.id) {
             try {
                 await setDoc(doc(db, "tickets", ticket.id), {
                     surveyAreas: newAreas,
-                    photos: allPhotos.length > 0 ? allPhotos : (ticket.photos || [])
+                    photos: mergedPhotos,
+                    updatedAt: serverTimestamp()
                 }, { merge: true });
             } catch (err) {
                 console.warn("Auto-syncing survey areas to Firestore:", err);
@@ -97,7 +122,8 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     };
 
     const handleAddArea = (nameToAdd?: string) => {
-        const name = nameToAdd || newAreaName.trim() || `Área #${areas.length + 1}`;
+        const current = areasRef.current;
+        const name = nameToAdd || newAreaName.trim() || `Área #${current.length + 1}`;
         const newArea: SurveyArea = {
             id: `area-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             name,
@@ -112,14 +138,15 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
             photos: []
         };
 
-        const updated = [...areas, newArea];
+        const updated = [...current, newArea];
         updateAreas(updated);
         setExpandedAreaId(newArea.id);
         setNewAreaName("");
     };
 
     const handleDeleteArea = (id: string) => {
-        const updated = areas.filter(a => a.id !== id);
+        const current = areasRef.current;
+        const updated = current.filter(a => a.id !== id);
         updateAreas(updated);
         if (expandedAreaId === id) {
             setExpandedAreaId(updated[0]?.id || null);
@@ -127,11 +154,12 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     };
 
     const handleAreaChange = (id: string, updates: Partial<SurveyArea>) => {
-        const updated = areas.map(a => {
+        const current = areasRef.current;
+        const updated = current.map(a => {
             if (a.id !== id) return a;
             const merged = { ...a, ...updates };
 
-            // Recalcular m2 y BTU si cambian largo o ancho
+            // Recalculate m2 and BTU if dimensions change
             if (updates.lengthMeters !== undefined || updates.widthMeters !== undefined) {
                 const len = updates.lengthMeters !== undefined ? Number(updates.lengthMeters) : Number(a.lengthMeters || 0);
                 const wid = updates.widthMeters !== undefined ? Number(updates.widthMeters) : Number(a.widthMeters || 0);
@@ -144,7 +172,7 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                 }
             }
 
-            // Si el nombre del área cambió, actualizar el nombre en las fotos del área
+            // If area name changed, update photo descriptions accordingly
             if (updates.name && merged.photos) {
                 merged.photos = merged.photos.map(p => ({
                     ...p,
@@ -162,77 +190,100 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        const area = areas.find(a => a.id === areaId);
+        const currentAreas = areasRef.current;
+        const area = currentAreas.find(a => a.id === areaId);
         if (!area) return;
 
-        const newPhotosList = [...(area.photos || [])];
+        setUploadingAreaId(areaId);
+        setUploadProgress(`Preparando ${files.length} ${files.length === 1 ? 'foto' : 'fotos'}...`);
 
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            let url = "";
+        try {
+            const { storage, auth } = await import("@/lib/firebase");
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { compressImage } = await import("@/lib/image-utils");
 
-            if (onPhotoUpload) {
-                try {
-                    url = await onPhotoUpload(file);
-                } catch (err) {
-                    console.warn("Custom onPhotoUpload failed, falling back to direct HD upload:", err);
+            const user = auth.currentUser;
+            const uid = user?.uid || "admin";
+
+            // Always read the latest version of the area
+            const freshArea = areasRef.current.find(a => a.id === areaId) || area;
+            const newPhotosList = [...(freshArea.photos || [])];
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                setUploadProgress(`Subiendo ${i + 1}/${files.length}...`);
+                let url = "";
+
+                if (onPhotoUpload) {
+                    try {
+                        url = await onPhotoUpload(file);
+                    } catch (err) {
+                        console.warn("Custom onPhotoUpload failed, falling back to direct Storage upload:", err);
+                    }
                 }
-            }
 
-            if (!url) {
-                try {
-                    const { storage, auth } = await import("@/lib/firebase");
-                    const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-                    const { compressImage } = await import("@/lib/image-utils");
-
+                if (!url) {
+                    // Compress to crisp 2K HD (max 2048px, quality 0.92)
                     const compressedBlob = await compressImage(file, 2048, 0.92);
-                    const user = auth.currentUser;
-                    const uid = user?.uid || "admin";
                     const cleanName = file.name.replace(/\s+/g, '_');
-                    const filename = `surveys/${uid}/${Date.now()}_${cleanName}`;
+                    const filename = `tickets/${ticket.id || 'general'}/surveys/${Date.now()}_${cleanName}`;
                     const storageRef = ref(storage, filename);
 
                     await uploadBytes(storageRef, compressedBlob, {
                         contentType: 'image/jpeg',
-                        customMetadata: { ticketId: ticket.id, areaId: area.id, areaName: area.name }
+                        customMetadata: { 
+                            ticketId: ticket.id || '', 
+                            areaId: freshArea.id, 
+                            areaName: freshArea.name 
+                        }
                     });
 
                     url = await getDownloadURL(storageRef);
-                } catch (err) {
-                    console.warn("Direct Storage upload failed, falling back to high-res data URL:", err);
-                    url = await new Promise<string>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result as string);
-                        reader.readAsDataURL(file);
-                    });
                 }
+
+                if (!url || url.startsWith('blob:') || url.startsWith('data:')) {
+                    throw new Error("No se pudo obtener una URL de almacenamiento permanente válida.");
+                }
+
+                newPhotosList.push({
+                    url,
+                    type: "SURVEY",
+                    area: freshArea.name,
+                    areaId: freshArea.id,
+                    description: `Evidencia en ${freshArea.name}`,
+                    size: "medium"
+                });
             }
 
-            newPhotosList.push({
-                url,
-                type: "SURVEY",
-                area: area.name,
-                areaId: area.id,
-                description: `Evidencia en ${area.name}`,
-                size: "medium"
+            // Merge into latest areas from ref and persist
+            const updated = areasRef.current.map(a => {
+                if (a.id !== areaId) return a;
+                return { ...a, photos: newPhotosList };
             });
-        }
 
-        handleAreaChange(areaId, { photos: newPhotosList });
+            await updateAreas(updated);
+        } catch (err: any) {
+            console.error("Error uploading survey photos to Firebase Storage:", err);
+            alert(`Error al subir las imágenes: ${err?.message || 'Verifica tu conexión a internet.'}`);
+        } finally {
+            setUploadingAreaId(null);
+            setUploadProgress("");
+            e.target.value = "";
+        }
     };
 
     const handleRemovePhotoFromArea = (areaId: string, photoIndex: number) => {
-        const area = areas.find(a => a.id === areaId);
-        if (!area) return;
-        const photos = [...(area.photos || [])];
+        const targetArea = areasRef.current.find(a => a.id === areaId);
+        if (!targetArea) return;
+        const photos = [...(targetArea.photos || [])];
         photos.splice(photoIndex, 1);
         handleAreaChange(areaId, { photos });
     };
 
     const handlePhotoDescriptionChange = (areaId: string, photoIndex: number, desc: string) => {
-        const area = areas.find(a => a.id === areaId);
-        if (!area) return;
-        const photos = [...(area.photos || [])];
+        const targetArea = areasRef.current.find(a => a.id === areaId);
+        if (!targetArea) return;
+        const photos = [...(targetArea.photos || [])];
         photos[photoIndex] = { ...photos[photoIndex], description: desc };
         handleAreaChange(areaId, { photos });
     };
@@ -507,21 +558,44 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
 
                                         {/* 2. Galería de Evidencias Fotográficas del Área */}
                                         <div className="space-y-3 pt-2">
-                                            <div className="flex items-center justify-between border-b pb-1.5">
-                                                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                                    <Camera className="w-4 h-4 text-emerald-600" /> Evidencias Fotográficas ({area.name})
-                                                </span>
+                                            <div className="flex items-center justify-between border-b pb-1.5 flex-wrap gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                                        <Camera className="w-4 h-4 text-emerald-600" /> Evidencias Fotográficas ({area.name})
+                                                    </span>
+                                                    {uploadingAreaId === area.id && (
+                                                        <span className="text-[11px] text-blue-600 font-bold flex items-center gap-1 animate-pulse">
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            {uploadProgress}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <label>
                                                     <input
                                                         type="file"
                                                         accept="image/*"
                                                         multiple
+                                                        disabled={uploadingAreaId === area.id}
                                                         className="hidden"
                                                         onChange={(e) => handleAddPhotoToArea(area.id, e)}
                                                     />
-                                                    <Button type="button" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-8 gap-1" asChild>
+                                                    <Button 
+                                                        type="button" 
+                                                        size="sm" 
+                                                        disabled={uploadingAreaId === area.id}
+                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl h-8 gap-1 disabled:opacity-50" 
+                                                        asChild
+                                                    >
                                                         <span>
-                                                            <Upload className="w-3.5 h-3.5" /> Subir Fotos
+                                                            {uploadingAreaId === area.id ? (
+                                                                <>
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Subiendo...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="w-3.5 h-3.5" /> Subir Fotos
+                                                                </>
+                                                            )}
                                                         </span>
                                                     </Button>
                                                 </label>

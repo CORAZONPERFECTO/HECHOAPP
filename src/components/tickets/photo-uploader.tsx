@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TicketPhoto } from "@/types/schema";
-import { Camera, X, Upload, Trash2 } from "lucide-react";
+import { Camera, X, Upload, Trash2, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage, auth } from "@/lib/firebase";
 
 const AREAS = [
     "Habitación", "Baño", "Cocina", "Sala", "Comedor",
@@ -24,12 +26,20 @@ interface PhotoUploaderProps {
 }
 
 export function PhotoUploader({ photos, onChange, type, label, allowGallery = false, onPhotoAdded }: PhotoUploaderProps) {
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<string>("");
+
     const currentPhotos = photos.filter(p => p.type === type);
 
-    const addWatermark = (file: File): Promise<string> => {
+    const processAndWatermark = (file: File): Promise<Blob> => {
         return new Promise((resolve, reject) => {
             const img = document.createElement("img");
-            img.src = URL.createObjectURL(file);
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                img.src = e.target?.result as string;
+            };
+
             img.onload = () => {
                 const canvas = document.createElement("canvas");
                 const ctx = canvas.getContext("2d");
@@ -59,76 +69,111 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
 
+                const finalize = (lat: number | null, lng: number | null) => {
+                    const date = new Date().toLocaleString('es-DO');
+                    const locationText = lat && lng ? ` | Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}` : "";
+                    const text = `HECHO SRL • ${date}${locationText}`;
+
+                    const fontSize = Math.max(Math.floor(width / 50), 16);
+                    ctx.font = `bold ${fontSize}px sans-serif`;
+                    ctx.fillStyle = "white";
+                    ctx.shadowColor = "rgba(0,0,0,0.85)";
+                    ctx.shadowBlur = 6;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
+                    ctx.textAlign = "right";
+                    ctx.textBaseline = "bottom";
+
+                    ctx.fillText(text, width - 20, height - 20);
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error("Canvas blob conversion failed"));
+                        }
+                    }, "image/jpeg", 0.92);
+                };
+
                 // Get location and finalize
                 if ("geolocation" in navigator) {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
-                            drawText(ctx, canvas.width, canvas.height, position.coords.latitude, position.coords.longitude);
-                            resolve(canvas.toDataURL("image/jpeg", 0.92));
+                            finalize(position.coords.latitude, position.coords.longitude);
                         },
                         (error) => {
-                            console.warn("Geolocation error:", error);
-                            drawText(ctx, canvas.width, canvas.height, null, null); // Draw without location
-                            resolve(canvas.toDataURL("image/jpeg", 0.92));
+                            console.warn("Geolocation warning:", error);
+                            finalize(null, null);
                         },
                         { timeout: 4000, maximumAge: 60000 }
                     );
                 } else {
-                    drawText(ctx, canvas.width, canvas.height, null, null);
-                    resolve(canvas.toDataURL("image/jpeg", 0.92));
+                    finalize(null, null);
                 }
             };
-            img.onerror = reject;
+
+            img.onerror = (err) => reject(err);
+            reader.onerror = (err) => reject(err);
+            reader.readAsDataURL(file);
         });
     };
 
-    const drawText = (ctx: CanvasRenderingContext2D, width: number, height: number, lat: number | null, lng: number | null) => {
-        const date = new Date().toLocaleString('es-DO');
-        const locationText = lat && lng ? ` | Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}` : "";
-        const text = `HECHO SRL • ${date}${locationText}`;
-
-        const fontSize = Math.max(Math.floor(width / 50), 16);
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.fillStyle = "white";
-        ctx.shadowColor = "rgba(0,0,0,0.85)";
-        ctx.shadowBlur = 6;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        ctx.textAlign = "right";
-        ctx.textBaseline = "bottom";
-
-        ctx.fillText(text, width - 20, height - 20);
-    };
-
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-            try {
-                const watermarkedUrl = await addWatermark(file);
+        setUploading(true);
+        setUploadProgress(`Preparando ${files.length} ${files.length === 1 ? 'foto' : 'fotos'}...`);
+
+        try {
+            const user = auth.currentUser;
+            const uid = user?.uid || "admin";
+            const newUploadedPhotos: TicketPhoto[] = [];
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                setUploadProgress(`Subiendo ${i + 1}/${files.length}...`);
+
+                // 1. Process & watermark
+                let blob: Blob;
+                try {
+                    blob = await processAndWatermark(file);
+                } catch (err) {
+                    console.warn("Watermark failed, using original file as blob:", err);
+                    blob = file;
+                }
+
+                // 2. Upload to Firebase Storage
+                const cleanName = file.name.replace(/\s+/g, '_');
+                const filename = `tickets/${uid}/${Date.now()}_${type}_${cleanName}`;
+                const storageRef = ref(storage, filename);
+
+                await uploadBytes(storageRef, blob, {
+                    contentType: 'image/jpeg',
+                    customMetadata: { uploadedBy: uid, photoType: type }
+                });
+
+                const downloadUrl = await getDownloadURL(storageRef);
 
                 const newPhoto: TicketPhoto = {
-                    url: watermarkedUrl,
+                    url: downloadUrl,
                     type: type,
-                    timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
+                    timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
                     description: file.name
                 };
 
-                onChange([...photos, newPhoto]);
-                if (onPhotoAdded) onPhotoAdded(newPhoto);
-            } catch (error) {
-                console.error("Error processing image:", error);
-                // Fallback to original if processing fails
-                const fakeUrl = URL.createObjectURL(file);
-                const newPhoto: TicketPhoto = {
-                    url: fakeUrl,
-                    type: type,
-                    timestamp: { seconds: Date.now() / 1000, nanoseconds: 0 },
-                    description: file.name
-                };
-                onChange([...photos, newPhoto]);
+                newUploadedPhotos.push(newPhoto);
                 if (onPhotoAdded) onPhotoAdded(newPhoto);
             }
+
+            onChange([...photos, ...newUploadedPhotos]);
+        } catch (error) {
+            console.error("Error uploading photo to Firebase Storage:", error);
+            alert("Hubo un error al subir la foto a Firebase Storage. Por favor verifica tu conexión.");
+        } finally {
+            setUploading(false);
+            setUploadProgress("");
+            e.target.value = "";
         }
     };
 
@@ -139,7 +184,15 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
     return (
         <div className="space-y-3">
             <div className="flex justify-between items-center">
-                <h3 className="text-sm font-medium text-gray-700">{label}</h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-gray-700">{label}</h3>
+                    {uploading && (
+                        <span className="text-xs text-blue-600 font-medium flex items-center gap-1.5 animate-pulse">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            {uploadProgress}
+                        </span>
+                    )}
+                </div>
                 <div className="flex gap-2">
                     {/* Camera Button */}
                     <div className="relative">
@@ -147,11 +200,12 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                             type="file"
                             accept="image/*"
                             capture="environment"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            disabled={uploading}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                             onChange={handleFileChange}
                         />
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <Camera className="h-4 w-4" />
+                        <Button variant="outline" size="sm" disabled={uploading} className="gap-2">
+                            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                             <span className="hidden sm:inline">Cámara</span>
                         </Button>
                     </div>
@@ -162,11 +216,12 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                             <input
                                 type="file"
                                 accept="image/*"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={handleFileChange}
                                 multiple
+                                disabled={uploading}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                onChange={handleFileChange}
                             />
-                            <Button variant="outline" size="sm" className="gap-2">
+                            <Button variant="outline" size="sm" disabled={uploading} className="gap-2">
                                 <Upload className="h-4 w-4" />
                                 <span className="hidden sm:inline">Galería</span>
                             </Button>
@@ -246,7 +301,14 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                 </div>
             ) : (
                 <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-400 text-sm">
-                    No hay fotos registradas
+                    {uploading ? (
+                        <div className="flex flex-col items-center justify-center gap-2 py-2">
+                            <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                            <span className="text-blue-600 font-medium text-xs">{uploadProgress}</span>
+                        </div>
+                    ) : (
+                        "No hay fotos registradas"
+                    )}
                 </div>
             )}
         </div>

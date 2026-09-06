@@ -168,7 +168,22 @@ export function generateReportFromTicket(
     } as TextSection);
 
     // --- 4. EVIDENCIA FOTOGRÁFICA (TODAS LAS FOTOS) ---
-    if (ticket.photos && ticket.photos.length > 0) {
+    const allPhotosForReport: any[] = [...(ticket.photos || [])];
+    if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
+        ticket.surveyAreas.forEach(area => {
+            (area.photos || []).forEach(p => {
+                if (p && p.url && !allPhotosForReport.some(existing => existing.url === p.url)) {
+                    allPhotosForReport.push({
+                        ...p,
+                        area: p.area || area.name,
+                        description: p.description || `Evidencia en ${area.name}`
+                    });
+                }
+            });
+        });
+    }
+
+    if (allPhotosForReport.length > 0) {
         sections.push({
             id: uuid(),
             type: 'h2',
@@ -178,7 +193,7 @@ export function generateReportFromTicket(
         sections.push({
             id: uuid(),
             type: 'gallery',
-            photos: ticket.photos.map(photo => ({
+            photos: allPhotosForReport.map(photo => ({
                 photoUrl: photo.url,
                 description: photo.description || photo.details || (photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 'Durante la Ejecución'),
                 photoMeta: {

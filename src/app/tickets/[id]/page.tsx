@@ -1,7 +1,7 @@
 "use client";
 // Ticket Detail Page - Updated 2025-12-09
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, onSnapshot, collection, query, where, addDoc, serverTimestamp, deleteDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -48,6 +48,10 @@ export default function TicketDetailPage() {
 
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [isDirty, setIsDirty] = useState(false);
+    const isDirtyRef = useRef(false);
+    isDirtyRef.current = isDirty;
+    const ticketRef = useRef<Ticket | null>(null);
+    ticketRef.current = ticket;
     const [events, setEvents] = useState<TicketEvent[]>([]);
     const [activeTab, setActiveTab] = useState("info");
     const [currentUserId, setCurrentUserId] = useState("");
@@ -132,7 +136,7 @@ export default function TicketDetailPage() {
                 updatedAt: Timestamp.now()
             };
 
-            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket, { merge: true });
             setTicket(updatedTicket);
 
             await addDoc(collection(db, "ticketEvents"), {
@@ -192,7 +196,7 @@ export default function TicketDetailPage() {
             delete updatedTicket.startMileage;
             delete updatedTicket.endMileage;
 
-            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket, { merge: true });
             setTicket(updatedTicket);
 
             await addDoc(collection(db, "ticketEvents"), {
@@ -216,7 +220,9 @@ export default function TicketDetailPage() {
 
     const updateTicket = (updated: Ticket) => {
         setTicket(updated);
+        ticketRef.current = updated;
         setIsDirty(true);
+        isDirtyRef.current = true;
     };
 
     useEffect(() => {
@@ -234,7 +240,7 @@ export default function TicketDetailPage() {
                 description: editedDescription,
                 updatedAt: Timestamp.now()
             };
-            await setDoc(doc(db, "tickets", ticketId), updatedTicket);
+            await setDoc(doc(db, "tickets", ticketId), updatedTicket, { merge: true });
             setTicket(updatedTicket);
             setIsDirty(false);
             setIsEditingDescription(false);
@@ -350,8 +356,10 @@ export default function TicketDetailPage() {
 
         const timeoutId = setTimeout(async () => {
             try {
-                await setDoc(doc(db, "tickets", ticketId), ticket);
+                const toSave = ticketRef.current || ticket;
+                await setDoc(doc(db, "tickets", ticketId), toSave, { merge: true });
                 setIsDirty(false);
+                isDirtyRef.current = false;
             } catch (error) {
                 console.error("Error auto-saving ticket:", error);
             }
@@ -387,8 +395,24 @@ export default function TicketDetailPage() {
 
         const unsubscribe = onSnapshot(doc(db, "tickets", ticketId), (docSnap) => {
             if (docSnap.exists()) {
-                setTicket({ id: docSnap.id, ...docSnap.data() } as Ticket);
-                setIsDirty(false);
+                const serverData = { id: docSnap.id, ...docSnap.data() } as Ticket;
+
+                if (isDirtyRef.current) {
+                    // Protect unsaved local changes from being clobbered by server snapshots
+                    setTicket(prev => {
+                        if (!prev) return serverData;
+                        return {
+                            ...serverData,
+                            ...prev,
+                            // Preserve in-memory surveyAreas and photos if locally dirty
+                            surveyAreas: prev.surveyAreas && prev.surveyAreas.length > 0 ? prev.surveyAreas : serverData.surveyAreas,
+                            photos: prev.photos && prev.photos.length > 0 ? prev.photos : serverData.photos
+                        };
+                    });
+                } else {
+                    setTicket(serverData);
+                    ticketRef.current = serverData;
+                }
             }
         });
 
@@ -1110,7 +1134,12 @@ export default function TicketDetailPage() {
                                         label="Fotos Antes"
                                         type="BEFORE"
                                         photos={ticket.photos || []}
-                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        onChange={(photos) => {
+                                            updateTicket({ ...ticket, photos });
+                                            if (ticketId) {
+                                                setDoc(doc(db, "tickets", ticketId), { photos }, { merge: true }).catch(err => console.warn("Error syncing photos:", err));
+                                            }
+                                        }}
                                         allowGallery={true}
                                         onPhotoAdded={handlePhotoAdded}
                                     />
@@ -1119,7 +1148,12 @@ export default function TicketDetailPage() {
                                         label="Fotos Durante"
                                         type="DURING"
                                         photos={ticket.photos || []}
-                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        onChange={(photos) => {
+                                            updateTicket({ ...ticket, photos });
+                                            if (ticketId) {
+                                                setDoc(doc(db, "tickets", ticketId), { photos }, { merge: true }).catch(err => console.warn("Error syncing photos:", err));
+                                            }
+                                        }}
                                         allowGallery={true}
                                         onPhotoAdded={handlePhotoAdded}
                                     />
@@ -1128,7 +1162,12 @@ export default function TicketDetailPage() {
                                         label="Fotos Después"
                                         type="AFTER"
                                         photos={ticket.photos || []}
-                                        onChange={(photos) => updateTicket({ ...ticket, photos })}
+                                        onChange={(photos) => {
+                                            updateTicket({ ...ticket, photos });
+                                            if (ticketId) {
+                                                setDoc(doc(db, "tickets", ticketId), { photos }, { merge: true }).catch(err => console.warn("Error syncing photos:", err));
+                                            }
+                                        }}
                                         allowGallery={true}
                                         onPhotoAdded={handlePhotoAdded}
                                     />
