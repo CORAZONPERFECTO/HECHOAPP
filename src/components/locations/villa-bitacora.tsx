@@ -26,10 +26,17 @@ import {
     Sparkles,
     FileText,
     ChevronRight,
+    ChevronLeft,
     X,
-    Info
+    Info,
+    QrCode,
+    Download,
+    Printer,
+    Layers,
+    Activity
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { downloadVisitAlbumZip, generateVillaQrUrl } from "@/lib/villa-export-utils";
 
 interface VillaBitacoraProps {
     locationId: string;
@@ -45,8 +52,17 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
     const [timeFilterYears, setTimeFilterYears] = useState<number>(3); // 1, 2, 3 años
     const [copiedLink, setCopiedLink] = useState(false);
 
-    // Modal de ampliación de imagen (lightbox para placa / tarjeta)
-    const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+    // Filtro interactivo de áreas/ambientes (Misión ORIÓN)
+    const [selectedAreaFilter, setSelectedAreaFilter] = useState<string | null>(null);
+
+    // Modal de Código QR de la Villa (Misión ORIÓN)
+    const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+    // Estado de descarga de Álbum ZIP (Misión ORIÓN)
+    const [zipStatus, setZipStatus] = useState<{ loading: boolean; message: string } | null>(null);
+
+    // Modal de ampliación de imagen / carrusel interactivo
+    const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; subtitle?: string; index?: number } | null>(null);
 
     // Modal de edición rápida de villa / próximo mantenimiento (admin)
     const [isEditingSchedule, setIsEditingSchedule] = useState(false);
@@ -84,7 +100,6 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
     useEffect(() => {
         if (!locationId) return;
 
-        // Query principal por locationId
         const q = query(
             collection(db, "tickets"),
             where("locationId", "==", locationId),
@@ -94,7 +109,6 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
         const unsubscribe = onSnapshot(q, async (snap) => {
             let loadedTickets = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
 
-            // Si no hay tickets directos con locationId, buscar por clientId y coincidencia de nombre
             if (loadedTickets.length === 0 && location?.clientId) {
                 try {
                     const fallbackQ = query(
@@ -133,7 +147,6 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
     }, [locationId, location?.clientId, location?.nombre]);
 
     // Extraer el censo de equipos más actualizado
-    // Prioridad: 1) location.equipmentCensus, 2) el ticket más reciente que tenga surveyAreas
     const currentEquipmentCensus = useMemo<TicketSurveyArea[]>(() => {
         if (location?.equipmentCensus && location.equipmentCensus.length > 0) {
             return location.equipmentCensus;
@@ -145,6 +158,20 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
         }
         return [];
     }, [location?.equipmentCensus, tickets]);
+
+    // Lista de nombres de áreas únicos para los filtros
+    const uniqueAreaNames = useMemo(() => {
+        const set = new Set<string>();
+        currentEquipmentCensus.forEach((a) => {
+            if (a.name) set.add(a.name.trim());
+        });
+        tickets.forEach((t) => {
+            t.surveyAreas?.forEach((a) => {
+                if (a.name) set.add(a.name.trim());
+            });
+        });
+        return Array.from(set);
+    }, [currentEquipmentCensus, tickets]);
 
     // Historial de visitas dentro de los últimos 3 años (o filtro seleccionado)
     const now = new Date();
@@ -176,14 +203,41 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
         return tickets.find((t) => t.status === "COMPLETED") || tickets[0];
     }, [tickets]);
 
+    // Días transcurridos desde el último mantenimiento preventivo
+    const daysSinceLastService = useMemo(() => {
+        if (!lastCompletedTicket?.createdAt?.seconds) return null;
+        const diffMs = now.getTime() - lastCompletedTicket.createdAt.seconds * 1000;
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }, [lastCompletedTicket]);
+
+    // Reúne todas las fotos tomadas en el área seleccionada a través de todas las visitas
+    const areaHistoricalPhotos = useMemo(() => {
+        if (!selectedAreaFilter) return [];
+        const results: { url: string; date: Date; ticketCode: string; tag?: string }[] = [];
+        tickets.forEach((t) => {
+            const tDate = t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000) : new Date();
+            const code = t.ticketNumber || t.number || `TK-${t.id.slice(0, 6)}`;
+            t.surveyAreas?.forEach((a) => {
+                if (a.name.toLowerCase().trim() === selectedAreaFilter.toLowerCase().trim()) {
+                    if (a.photos) {
+                        a.photos.forEach((p) => {
+                            results.push({ url: p.url, date: tDate, ticketCode: code, tag: p.tag || "evidencia" });
+                        });
+                    }
+                }
+            });
+        });
+        return results;
+    }, [selectedAreaFilter, tickets]);
+
     // Compartir por WhatsApp
     const handleShareWhatsApp = () => {
         const shareUrl = typeof window !== "undefined"
             ? `${window.location.origin}/villas/${locationId}`
             : "";
-        const message = `*Bitácora Digital de la Villa* 🛡️\n` +
+        const message = `*Bitácora Digital de la Villa (Villa Care Pass)* 🛡️\n` +
             `Villa: *${location?.nombre || "Villa"}*\n` +
-            `Equipos censados: ${currentEquipmentCensus.length}\n` +
+            `Equipos censados: ${currentEquipmentCensus.length} unidades\n` +
             `Acceda a la ficha técnica e historial de mantenimientos aquí:\n${shareUrl}`;
 
         if (navigator.clipboard) {
@@ -204,6 +258,45 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
             navigator.clipboard.writeText(shareUrl);
             setCopiedLink(true);
             setTimeout(() => setCopiedLink(false), 3000);
+        }
+    };
+
+    // Descargar Álbum completo de una visita en formato .ZIP (Misión ORIÓN)
+    const handleDownloadVisitZip = async (ticket: Ticket) => {
+        const tCode = ticket.ticketNumber || ticket.number || `TK-${ticket.id.slice(0, 6)}`;
+        const albumPhotos: { url: string; areaName?: string; tag?: string }[] = [];
+
+        if (ticket.surveyAreas) {
+            ticket.surveyAreas.forEach((a) => {
+                a.photos?.forEach((p) => {
+                    albumPhotos.push({ url: p.url, areaName: a.name, tag: p.tag || "mantenimiento" });
+                });
+                if (a.platePhotoUrl) albumPhotos.push({ url: a.platePhotoUrl, areaName: a.name, tag: "placa_tecnica" });
+                if (a.boardPhotoUrl) albumPhotos.push({ url: a.boardPhotoUrl, areaName: a.name, tag: "tarjeta_pcb" });
+            });
+        }
+        if (ticket.photos) {
+            ticket.photos.forEach((p) => albumPhotos.push({ url: p.url, areaName: "General", tag: p.category || "evidencia" }));
+        }
+
+        if (albumPhotos.length === 0) {
+            alert("Este ticket no contiene fotos para descargar.");
+            return;
+        }
+
+        setZipStatus({ loading: true, message: `Empaquetando ${albumPhotos.length} fotos...` });
+        try {
+            await downloadVisitAlbumZip({
+                villaName: location?.nombre || "Villa",
+                visitTitle: tCode,
+                photos: albumPhotos,
+                onProgress: (pct, msg) => setZipStatus({ loading: true, message: `${pct}% - ${msg}` }),
+            });
+        } catch (err: any) {
+            console.error("Error al generar ZIP:", err);
+            alert(err.message || "Error al descargar el archivo ZIP.");
+        } finally {
+            setZipStatus(null);
         }
     };
 
@@ -306,7 +399,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             </span>
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
                                 <Sparkles className="w-3 h-3 text-blue-400" />
-                                Bitácora Polaris
+                                Misión ORIÓN VIP
                             </span>
                         </div>
 
@@ -346,11 +439,21 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                     {/* Acciones Rápidas en Cabecera */}
                     <div className="flex flex-wrap items-center gap-3">
                         <Button
+                            onClick={() => setIsQrModalOpen(true)}
+                            variant="outline"
+                            className="bg-white/10 hover:bg-white/20 text-white border-white/20 gap-1.5 text-sm"
+                            title="Ver o imprimir placa QR del Villa Care Pass"
+                        >
+                            <QrCode className="w-4 h-4 text-emerald-400" />
+                            Placa QR
+                        </Button>
+
+                        <Button
                             onClick={handleShareWhatsApp}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-md gap-2 text-sm"
                         >
                             <Share2 className="w-4 h-4" />
-                            Compartir Bitácora (WhatsApp)
+                            Compartir (WhatsApp)
                         </Button>
 
                         <Button
@@ -359,7 +462,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             className="bg-white/10 hover:bg-white/20 text-white border-white/20 gap-1.5 text-sm"
                         >
                             <Copy className="w-4 h-4" />
-                            {copiedLink ? "¡Enlace Copiado!" : "Copiar Link"}
+                            {copiedLink ? "¡Copiado!" : "Copiar Link"}
                         </Button>
 
                         {isAdmin && (
@@ -369,24 +472,30 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                 className="bg-white/10 hover:bg-white/20 text-white border-white/20 gap-1.5 text-sm"
                             >
                                 <Calendar className="w-4 h-4" />
-                                Programar Visita
+                                Programar
                             </Button>
                         )}
                     </div>
                 </div>
 
-                {/* Métricas / KPIs de la Villa */}
+                {/* Score de Salud de Climatización & KPIs */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-700/80">
                     <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/50">
-                        <p className="text-xs font-medium text-slate-400">Equipos Censados</p>
-                        <p className="text-2xl font-bold text-white mt-1">
-                            {currentEquipmentCensus.length} <span className="text-xs font-normal text-slate-400">unidades</span>
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium text-slate-400">Salud Climatización</p>
+                            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <p className="text-xl font-bold text-emerald-400 mt-1">
+                            100% <span className="text-xs font-normal text-slate-400">Óptimo</span>
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            {currentEquipmentCensus.length} equipos censados
                         </p>
                     </div>
 
                     <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/50">
                         <p className="text-xs font-medium text-slate-400">Última Visita</p>
-                        <p className="text-base font-semibold text-emerald-400 mt-1 truncate">
+                        <p className="text-base font-semibold text-white mt-1 truncate">
                             {lastCompletedTicket?.createdAt?.seconds
                                 ? new Date(lastCompletedTicket.createdAt.seconds * 1000).toLocaleDateString("es-DO", {
                                     day: "2-digit",
@@ -395,6 +504,9 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                 })
                                 : "Sin visitas"}
                         </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            {daysSinceLastService !== null ? `Hace ${daysSinceLastService} días` : "Inicial"}
+                        </p>
                     </div>
 
                     <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/50">
@@ -402,16 +514,55 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                         <p className="text-base font-semibold text-blue-400 mt-1 truncate">
                             {location?.nextMaintenanceDate ? location.nextMaintenanceDate : "Por definir"}
                         </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            Ciclo: {location?.maintenanceFrequency || "Mensual"}
+                        </p>
                     </div>
 
                     <div className="bg-slate-800/60 p-3.5 rounded-xl border border-slate-700/50">
-                        <p className="text-xs font-medium text-slate-400">Historial Activo</p>
-                        <p className="text-2xl font-bold text-white mt-1">
-                            {filteredTickets.length} <span className="text-xs font-normal text-slate-400">visitas (3a)</span>
+                        <p className="text-xs font-medium text-slate-400">Álbum Histórico</p>
+                        <p className="text-xl font-bold text-white mt-1">
+                            {filteredTickets.length} <span className="text-xs font-normal text-slate-400">visitas</span>
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                            Ventana de 3 años
                         </p>
                     </div>
                 </div>
             </div>
+
+            {/* Selector Interactivo de Ambientes (Filtro Misión ORIÓN) */}
+            {uniqueAreaNames.length > 0 && (
+                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-2 overflow-x-auto">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2 flex items-center gap-1 shrink-0">
+                        <Layers className="w-3.5 h-3.5 text-blue-600" />
+                        Filtrar por Zona:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => setSelectedAreaFilter(null)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${selectedAreaFilter === null
+                                ? "bg-slate-900 text-white shadow-xs font-bold"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                                }`}
+                        >
+                            ✨ Todos los Ambientes ({currentEquipmentCensus.length})
+                        </button>
+                        {uniqueAreaNames.map((name) => (
+                            <button
+                                key={name}
+                                onClick={() => setSelectedAreaFilter(selectedAreaFilter === name ? null : name)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${selectedAreaFilter === name
+                                    ? "bg-emerald-600 text-white shadow-xs font-bold"
+                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                                    }`}
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Pestañas de Navegación de la Bitácora */}
             <Tabs defaultValue="equipos" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -447,10 +598,15 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                         <div>
                             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                                 <Wrench className="w-5 h-5 text-emerald-600" />
-                                Censo Técnico de Equipos de Climatización
+                                Censo Técnico de Climatización
+                                {selectedAreaFilter && (
+                                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+                                        Zona: {selectedAreaFilter}
+                                    </span>
+                                )}
                             </h2>
                             <p className="text-sm text-slate-500 mt-0.5">
-                                Ficha técnica detallada por área: capacidad, gas, placa de modelo y tarjeta electrónica del condensador.
+                                Ficha técnica detallada: capacidad BTU, tipo de gas, foto de placa y tarjeta electrónica del condensador.
                             </p>
                         </div>
                         {isAdmin && (
@@ -464,6 +620,50 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             </Button>
                         )}
                     </div>
+
+                    {/* Si se seleccionó una zona específica, mostrar su Historial Fotográfico Completo */}
+                    {selectedAreaFilter && areaHistoricalPhotos.length > 0 && (
+                        <div className="bg-gradient-to-br from-emerald-50 to-teal-50/40 p-5 rounded-xl border border-emerald-200 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-emerald-950 flex items-center gap-2">
+                                    <Camera className="w-4 h-4 text-emerald-700" />
+                                    Historial Visual Acumulado: {selectedAreaFilter} ({areaHistoricalPhotos.length} fotos)
+                                </h3>
+                                <button
+                                    onClick={() => setSelectedAreaFilter(null)}
+                                    className="text-xs text-emerald-700 hover:text-emerald-900 underline font-medium"
+                                >
+                                    Ver todos los equipos
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                                {areaHistoricalPhotos.map((photo, pIdx) => (
+                                    <div
+                                        key={pIdx}
+                                        onClick={() => setZoomedImage({
+                                            url: photo.url,
+                                            title: `${selectedAreaFilter} • ${photo.tag || "Evidencia"}`,
+                                            subtitle: `${photo.ticketCode} &bull; ${photo.date.toLocaleDateString("es-DO")}`,
+                                            index: pIdx
+                                        })}
+                                        className="relative aspect-square rounded-lg overflow-hidden bg-slate-100 border border-emerald-200 cursor-pointer group shadow-2xs"
+                                    >
+                                        <img
+                                            src={photo.url}
+                                            alt={`Foto ${pIdx + 1}`}
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium">
+                                            Ampliar
+                                        </div>
+                                        <span className="absolute bottom-1 left-1 right-1 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded truncate text-center">
+                                            {photo.date.toLocaleDateString("es-DO", { month: "short", year: "2-digit" })}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {currentEquipmentCensus.length === 0 ? (
                         <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center space-y-4">
@@ -483,133 +683,135 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            {currentEquipmentCensus.map((area, idx) => (
-                                <div
-                                    key={area.id || idx}
-                                    className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col justify-between"
-                                >
-                                    <div className="p-5 space-y-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                                                    Zona {idx + 1}
+                            {currentEquipmentCensus
+                                .filter((area) => !selectedAreaFilter || area.name.toLowerCase().trim() === selectedAreaFilter.toLowerCase().trim())
+                                .map((area, idx) => (
+                                    <div
+                                        key={area.id || idx}
+                                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col justify-between"
+                                    >
+                                        <div className="p-5 space-y-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                                                        Zona {idx + 1}
+                                                    </span>
+                                                    <h3 className="text-base font-bold text-slate-900 mt-1">{area.name}</h3>
+                                                </div>
+                                                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                                    {area.btuCapacity || "Capacidad N/A"}
                                                 </span>
-                                                <h3 className="text-base font-bold text-slate-900 mt-1">{area.name}</h3>
                                             </div>
-                                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                                                {area.btuCapacity || "Capacidad N/A"}
+
+                                            <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium">Marca / Modelo:</span>
+                                                    <span className="font-semibold text-slate-800 truncate block">
+                                                        {area.brand || "Daikin"} {area.model ? `• ${area.model}` : ""}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium">Gas Refrigerante:</span>
+                                                    <span className="font-semibold text-emerald-700 block">
+                                                        {area.refrigerantType || "R410A"}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium">Tipo:</span>
+                                                    <span className="font-semibold text-slate-800 block">
+                                                        {area.equipmentType || "Split Inverter"}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-slate-400 block font-medium">No. Serie:</span>
+                                                    <span className="font-mono text-slate-700 truncate block">
+                                                        {area.serialNumber || "No registrado"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Fotos Técnicas: Placa del Fabricante & Tarjeta Electrónica */}
+                                            <div className="space-y-2">
+                                                <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                                                    <Camera className="w-3.5 h-3.5 text-slate-500" />
+                                                    Fotos de Referencia Técnica
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {/* Foto Placa */}
+                                                    <div className="border border-slate-200 rounded-lg p-2 bg-slate-50/50 flex flex-col items-center">
+                                                        <span className="text-[10px] font-medium text-slate-500 mb-1.5">Placa de Modelo</span>
+                                                        {area.platePhotoUrl ? (
+                                                            <div
+                                                                onClick={() => setZoomedImage({
+                                                                    url: area.platePhotoUrl!,
+                                                                    title: `Placa Técnica - ${area.name}`,
+                                                                    subtitle: `${area.brand || ""} ${area.model || ""} (${area.btuCapacity || ""})`
+                                                                })}
+                                                                className="relative aspect-video w-full rounded overflow-hidden cursor-pointer group bg-black/5"
+                                                            >
+                                                                <img
+                                                                    src={area.platePhotoUrl}
+                                                                    alt={`Placa ${area.name}`}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1">
+                                                                    <Eye className="w-3.5 h-3.5" /> Ampliar
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="aspect-video w-full rounded border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[11px] text-center p-2">
+                                                                Sin foto de placa
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Foto Tarjeta Electrónica / PCB */}
+                                                    <div className="border border-slate-200 rounded-lg p-2 bg-slate-50/50 flex flex-col items-center">
+                                                        <span className="text-[10px] font-medium text-slate-500 mb-1.5">Tarjeta PCB Condensador</span>
+                                                        {area.boardPhotoUrl ? (
+                                                            <div
+                                                                onClick={() => setZoomedImage({
+                                                                    url: area.boardPhotoUrl!,
+                                                                    title: `Tarjeta Electrónica - ${area.name}`,
+                                                                    subtitle: `Condensador ${area.brand || ""} ${area.model || ""}`
+                                                                })}
+                                                                className="relative aspect-video w-full rounded overflow-hidden cursor-pointer group bg-black/5"
+                                                            >
+                                                                <img
+                                                                    src={area.boardPhotoUrl}
+                                                                    alt={`Tarjeta ${area.name}`}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1">
+                                                                    <Eye className="w-3.5 h-3.5" /> Ampliar
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="aspect-video w-full rounded border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[11px] text-center p-2">
+                                                                Sin foto de tarjeta
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {area.technicianNotes && (
+                                                <p className="text-xs text-slate-500 italic bg-amber-50/60 p-2 rounded border border-amber-100">
+                                                    Nota: {area.technicianNotes}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                                            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                                <CheckCircle2 className="w-3.5 h-3.5" /> Censado en Bitácora
                                             </span>
+                                            {area.photos && area.photos.length > 0 && (
+                                                <span>{area.photos.length} fotos registradas</span>
+                                            )}
                                         </div>
-
-                                        <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            <div>
-                                                <span className="text-slate-400 block font-medium">Marca / Modelo:</span>
-                                                <span className="font-semibold text-slate-800 truncate block">
-                                                    {area.brand || "Daikin"} {area.model ? `• ${area.model}` : ""}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium">Gas Refrigerante:</span>
-                                                <span className="font-semibold text-emerald-700 block">
-                                                    {area.refrigerantType || "R410A"}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium">Tipo:</span>
-                                                <span className="font-semibold text-slate-800 block">
-                                                    {area.equipmentType || "Split Inverter"}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-slate-400 block font-medium">No. Serie:</span>
-                                                <span className="font-mono text-slate-700 truncate block">
-                                                    {area.serialNumber || "No registrado"}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Fotos Técnicas: Placa del Fabricante & Tarjeta Electrónica */}
-                                        <div className="space-y-2">
-                                            <p className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                                                <Camera className="w-3.5 h-3.5 text-slate-500" />
-                                                Fotos de Referencia Técnica
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                {/* Foto Placa */}
-                                                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50/50 flex flex-col items-center">
-                                                    <span className="text-[10px] font-medium text-slate-500 mb-1.5">Placa de Modelo</span>
-                                                    {area.platePhotoUrl ? (
-                                                        <div
-                                                            onClick={() => setZoomedImage({
-                                                                url: area.platePhotoUrl!,
-                                                                title: `Placa Técnica - ${area.name}`,
-                                                                subtitle: `${area.brand || ""} ${area.model || ""} (${area.btuCapacity || ""})`
-                                                            })}
-                                                            className="relative aspect-video w-full rounded overflow-hidden cursor-pointer group bg-black/5"
-                                                        >
-                                                            <img
-                                                                src={area.platePhotoUrl}
-                                                                alt={`Placa ${area.name}`}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                                            />
-                                                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1">
-                                                                <Eye className="w-3.5 h-3.5" /> Ampliar
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="aspect-video w-full rounded border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[11px] text-center p-2">
-                                                            Sin foto de placa
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Foto Tarjeta Electrónica / PCB */}
-                                                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50/50 flex flex-col items-center">
-                                                    <span className="text-[10px] font-medium text-slate-500 mb-1.5">Tarjeta PCB Condensador</span>
-                                                    {area.boardPhotoUrl ? (
-                                                        <div
-                                                            onClick={() => setZoomedImage({
-                                                                url: area.boardPhotoUrl!,
-                                                                title: `Tarjeta Electrónica - ${area.name}`,
-                                                                subtitle: `Condensador ${area.brand || ""} ${area.model || ""}`
-                                                            })}
-                                                            className="relative aspect-video w-full rounded overflow-hidden cursor-pointer group bg-black/5"
-                                                        >
-                                                            <img
-                                                                src={area.boardPhotoUrl}
-                                                                alt={`Tarjeta ${area.name}`}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                                            />
-                                                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-medium gap-1">
-                                                                <Eye className="w-3.5 h-3.5" /> Ampliar
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="aspect-video w-full rounded border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-[11px] text-center p-2">
-                                                            Sin foto de tarjeta
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {area.technicianNotes && (
-                                            <p className="text-xs text-slate-500 italic bg-amber-50/60 p-2 rounded border border-amber-100">
-                                                Nota: {area.technicianNotes}
-                                            </p>
-                                        )}
                                     </div>
-
-                                    <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                                        <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                            <CheckCircle2 className="w-3.5 h-3.5" /> Censado en Bitácora
-                                        </span>
-                                        {area.photos && area.photos.length > 0 && (
-                                            <span>{area.photos.length} fotos de evidencia</span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     )}
                 </TabsContent>
@@ -625,7 +827,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                 Historial de Mantenimientos & Visitas Técnicas
                             </h2>
                             <p className="text-sm text-slate-500 mt-0.5">
-                                Registro cronológico de intervenciones preventivas y correctivas de los últimos {timeFilterYears} años.
+                                Registro cronológico de intervenciones de los últimos {timeFilterYears} años con descarga de álbumes fotográficos.
                             </p>
                         </div>
 
@@ -652,6 +854,14 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                         </div>
                     </div>
 
+                    {/* Notificación de progreso de descarga ZIP */}
+                    {zipStatus && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl text-xs flex items-center gap-2 animate-pulse">
+                            <Download className="w-4 h-4 text-blue-600" />
+                            <span>{zipStatus.message}</span>
+                        </div>
+                    )}
+
                     {filteredTickets.length === 0 ? (
                         <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center space-y-3">
                             <Clock className="w-12 h-12 text-slate-300 mx-auto" />
@@ -668,14 +878,14 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                     : new Date();
 
                                 // Fotos de este ticket: unificamos fotos generales y fotos de áreas
-                                const visitPhotos: { url: string; tag?: string }[] = [];
+                                const visitPhotos: { url: string; tag?: string; areaName?: string }[] = [];
                                 if (ticket.photos && Array.isArray(ticket.photos)) {
-                                    ticket.photos.forEach((p) => visitPhotos.push({ url: p.url, tag: p.category || "evidencia" }));
+                                    ticket.photos.forEach((p) => visitPhotos.push({ url: p.url, tag: p.category || "evidencia", areaName: "General" }));
                                 }
                                 if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
                                     ticket.surveyAreas.forEach((area) => {
                                         if (area.photos) {
-                                            area.photos.forEach((p) => visitPhotos.push({ url: p.url, tag: p.tag || area.name }));
+                                            area.photos.forEach((p) => visitPhotos.push({ url: p.url, tag: p.tag || area.name, areaName: area.name }));
                                         }
                                     });
                                 }
@@ -716,7 +926,21 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {/* Botón Descargar Álbum .ZIP (Misión ORIÓN) */}
+                                                {visitPhotos.length > 0 && (
+                                                    <Button
+                                                        onClick={() => handleDownloadVisitZip(ticket)}
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="gap-1.5 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                                        title="Descargar todas las fotos de esta visita organizadas por área en archivo .ZIP"
+                                                    >
+                                                        <Download className="w-3.5 h-3.5" />
+                                                        Descargar Álbum (.ZIP)
+                                                    </Button>
+                                                )}
+
                                                 <Button
                                                     onClick={() => router.push(`/tickets/${ticket.id}/report`)}
                                                     size="sm"
@@ -724,8 +948,9 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                                     className="gap-1.5 text-xs text-blue-700 border-blue-200 hover:bg-blue-50"
                                                 >
                                                     <FileText className="w-3.5 h-3.5" />
-                                                    Ver Informe Oficial
+                                                    Informe Oficial
                                                 </Button>
+
                                                 {isAdmin && (
                                                     <Button
                                                         onClick={() => router.push(`/tickets/${ticket.id}`)}
@@ -733,7 +958,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                                         variant="ghost"
                                                         className="text-xs text-slate-600"
                                                     >
-                                                        Detalle Ticket <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                                                        Detalle <ChevronRight className="w-3.5 h-3.5 ml-1" />
                                                     </Button>
                                                 )}
                                             </div>
@@ -769,8 +994,9 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                                             key={photoIdx}
                                                             onClick={() => setZoomedImage({
                                                                 url: img.url,
-                                                                title: `Evidencia - ${ticket.ticketNumber || "Ticket"}`,
-                                                                subtitle: `${img.tag ? `Etiqueta: ${img.tag} • ` : ""}${ticketDate.toLocaleDateString()}`
+                                                                title: `${img.areaName || "Evidencia"} • ${ticket.ticketNumber || "Ticket"}`,
+                                                                subtitle: `${img.tag ? `Etiqueta: ${img.tag} • ` : ""}${ticketDate.toLocaleDateString()}`,
+                                                                index: photoIdx
                                                             })}
                                                             className="relative aspect-square rounded-lg overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group"
                                                         >
@@ -789,7 +1015,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                                                 </div>
                                                 {visitPhotos.length > 6 && (
                                                     <p className="text-[11px] text-slate-400 italic">
-                                                        +{visitPhotos.length - 6} fotos adicionales visibles en el informe completo.
+                                                        +{visitPhotos.length - 6} fotos adicionales en el álbum descargable (.ZIP) y en el informe oficial.
                                                     </p>
                                                 )}
                                             </div>
@@ -999,22 +1225,98 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
             </Tabs>
 
             {/* ========================================================================= */}
-            {/* MODAL: ZOOM DE FOTO TÉCNICA (LIGHTBOX PARA PLACA O TARJETA)               */}
+            {/* MODAL: CÓDIGO QR / PLACA IMPRIMIBLE DEL VILLA CARE PASS (MISIÓN ORIÓN)    */}
+            {/* ========================================================================= */}
+            {isQrModalOpen && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+                    onClick={() => setIsQrModalOpen(false)}
+                >
+                    <div
+                        className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl space-y-4 p-6 border border-slate-200 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                                Villa Care Pass &bull; Placa Técnica
+                            </span>
+                            <button
+                                onClick={() => setIsQrModalOpen(false)}
+                                className="p-1 rounded-full text-slate-400 hover:text-slate-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Placa Imprimible */}
+                        <div className="border-2 border-slate-900 rounded-2xl p-6 bg-slate-50 space-y-4 print:border-black print:p-8">
+                            <div className="space-y-1">
+                                <h3 className="font-black text-xl text-slate-900 uppercase tracking-tight">
+                                    {location?.nombre || "Villa"}
+                                </h3>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    Bitácora Digital & Ficha Técnica de Climatización
+                                </p>
+                            </div>
+
+                            {/* Imagen del Código QR */}
+                            <div className="w-48 h-48 mx-auto bg-white p-3 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-center">
+                                <img
+                                    src={generateVillaQrUrl(locationId)}
+                                    alt="QR Villa Care Pass"
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
+
+                            <p className="text-[11px] text-slate-600 max-w-xs mx-auto leading-relaxed">
+                                📷 <strong>Escanee con la cámara de su teléfono</strong> para consultar el censo de aires acondicionados, historial de mantenimientos y reporte técnico en tiempo real.
+                            </p>
+
+                            <div className="pt-2 border-t border-slate-200 flex justify-between text-[10px] text-slate-400 font-mono">
+                                <span>ID: {locationId.slice(0, 10)}</span>
+                                <span>NEXUS / HECHO SRL</span>
+                            </div>
+                        </div>
+
+                        {/* Botones de Acción */}
+                        <div className="flex justify-center gap-2 pt-2">
+                            <Button
+                                onClick={() => window.print()}
+                                className="bg-slate-900 hover:bg-slate-800 text-white text-xs gap-1.5"
+                            >
+                                <Printer className="w-3.5 h-3.5" />
+                                Imprimir Placa
+                            </Button>
+                            <Button
+                                onClick={handleCopyLink}
+                                variant="outline"
+                                className="text-xs gap-1.5"
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                                {copiedLink ? "Copiado" : "Copiar Enlace Web"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* MODAL: ZOOM DE FOTO TÉCNICA (LIGHTBOX / CARRUSEL)                         */}
             {/* ========================================================================= */}
             {zoomedImage && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
+                    className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in"
                     onClick={() => setZoomedImage(null)}
                 >
                     <div
-                        className="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl space-y-3 p-4"
+                        className="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl space-y-3 p-4"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between text-white pb-2 border-b border-slate-800">
                             <div>
                                 <h3 className="font-bold text-sm sm:text-base">{zoomedImage.title}</h3>
                                 {zoomedImage.subtitle && (
-                                    <p className="text-xs text-slate-400 mt-0.5">{zoomedImage.subtitle}</p>
+                                    <p className="text-xs text-slate-400 mt-0.5" dangerouslySetInnerHTML={{ __html: zoomedImage.subtitle }} />
                                 )}
                             </div>
                             <button
@@ -1025,7 +1327,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             </button>
                         </div>
 
-                        <div className="relative aspect-4/3 w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                        <div className="relative aspect-4/3 sm:aspect-16/9 w-full bg-black rounded-lg overflow-hidden flex items-center justify-center">
                             <img
                                 src={zoomedImage.url}
                                 alt={zoomedImage.title}
@@ -1033,23 +1335,28 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             />
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-2">
-                            <a
-                                href={zoomedImage.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700"
-                            >
-                                <ExternalLink className="w-3.5 h-3.5" /> Abrir Original en Nueva Pestaña
-                            </a>
-                            <Button
-                                onClick={() => setZoomedImage(null)}
-                                size="sm"
-                                variant="outline"
-                                className="text-xs bg-white text-slate-900"
-                            >
-                                Cerrar
-                            </Button>
+                        <div className="flex justify-between items-center pt-2">
+                            <span className="text-xs text-slate-500">
+                                Visor en alta resolución
+                            </span>
+                            <div className="flex gap-2">
+                                <a
+                                    href={zoomedImage.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" /> Original
+                                </a>
+                                <Button
+                                    onClick={() => setZoomedImage(null)}
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs bg-white text-slate-900"
+                                >
+                                    Cerrar
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>

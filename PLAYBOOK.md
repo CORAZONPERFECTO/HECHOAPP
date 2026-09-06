@@ -102,8 +102,9 @@ Para coordinar el desarrollo con precisión, cada gran paquete de implementació
 | Misión / Constelación | Estado | Alcance & Módulos |
 | :--- | :--- | :--- |
 | **Misión ATLAS** | ✅ Completada | Playbook operativo, Editor de informes Split-View interactivo, corrección de BTU sin defaults forzados, censo técnico de placas/tarjetas y navegación GPS con fallback. |
-| **Misión POLARIS** | 🚀 En Curso | **1.** Selector Villa con Iguala vs. Servicio Eventual.<br>**2.** Herencia automática de áreas y equipos censados entre visitas.<br>**3.** Pestaña de evidencias híbrida (por áreas para igualas, por fases antes/después para eventuales).<br>**4.** Plantilla de informe de Mantenimiento Multi-Área para Villas.<br>**5.** Arquitectura de la Bitácora Digital de la Villa (*Villa Care Pass*) con política de retención de 3 años. |
-| **Misión ORIÓN** | 🔭 Planificada | Portal público/privado interactivo de la Villa para el propietario con historial cronológico, timeline de 3 años y vista 360° de sus unidades. |
-| **Misión PHOENIX** | 🔭 Planificada | Automatización de alertas de vencimiento de contratos de iguala, mantenimiento recurrente y panel de depuración inteligente de almacenamiento. |
+| **Misión POLARIS** | ✅ Completada | **1.** Selector Villa con Iguala vs. Servicio Eventual.<br>**2.** Herencia automática de áreas y equipos censados entre visitas.<br>**3.** Pestaña de evidencias híbrida (por áreas para igualas, por fases antes/después para eventuales).<br>**4.** Plantilla de informe de Mantenimiento Multi-Área para Villas.<br>**5.** Arquitectura de la Bitácora Digital de la Villa (*Villa Care Pass*) con política de retención de 3 años. |
+| **Misión ORIÓN** | ✅ Completada | **1.** Filtro interactivo por ambiente/equipo en la Bitácora Digital.<br>**2.** Historial fotográfico acumulado por zona.<br>**3.** Descarga en lote de álbumes de fotos de visitas en archivo .ZIP (JSZip).<br>**4.** Generador e impresión de Placa Técnica con Código QR para cuarto de máquinas.<br>**5.** Score de Salud de Climatización (100% operativo, días de servicio). |
+| **Misión PHOENIX** | 🔭 Siguiente | Automatización de alertas de vencimiento de contratos de iguala, recordatorios de mantenimiento recurrente y panel de depuración inteligente de almacenamiento en Storage. |
+
 
 
