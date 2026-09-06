@@ -1,4 +1,5 @@
 import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, GallerySection, PhotoSection, BeforeAfterSection } from "@/types/schema";
+import { REPORT_TEMPLATES } from "./report-templates";
 import { Timestamp } from "firebase/firestore";
 
 /**
@@ -34,6 +35,41 @@ export function generateReportFromTicket(
     ticket: Ticket,
     customPolicies?: { warrantyPolicies?: string; defaultRecommendations?: string }
 ): TicketReportNew {
+    // Si existe una plantilla especializada para el tipo de servicio (ej: LEVANTAMIENTO, MANTENIMIENTO, REPARACION, INSTALACION, INSPECCION)
+    if (ticket.serviceType && REPORT_TEMPLATES[ticket.serviceType]) {
+        const templateSections = REPORT_TEMPLATES[ticket.serviceType].generateSections(ticket);
+        
+        // Agregar términos de garantía al final si no están presentes
+        const hasWarranty = templateSections.some(s => s.type === 'h2' && (s as TitleSection).content?.toLowerCase().includes('garantía'));
+        if (!hasWarranty) {
+            templateSections.push({
+                id: uuid(),
+                type: 'h2',
+                content: 'Términos de Garantía y Condiciones'
+            } as TitleSection);
+            templateSections.push({
+                id: uuid(),
+                type: 'text',
+                content: customPolicies?.warrantyPolicies || 
+                    '1. Garantía de 30 días sobre la mano de obra del servicio realizado.\n2. La garantía no cubre averías ocasionadas por fluctuaciones de voltaje, descargas eléctricas, mal uso o manipulación por terceros no autorizados.\n3. Los repuestos e insumos cuentan con la garantía directa otorgada por el fabricante.'
+            } as TextSection);
+        }
+
+        return {
+            ticketId: ticket.id,
+            header: {
+                clientName: ticket.clientName,
+                ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 6),
+                address: ticket.locationName || ticket.specificLocation || '',
+                date: formatTicketDate(ticket.createdAt),
+                technicianName: ticket.technicianName || 'Técnico Especialista',
+                title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
+            },
+            sections: templateSections,
+            lastGeneratedFromTicketAt: new Date().toISOString()
+        };
+    }
+
     const sections: TicketReportSection[] = [];
 
     // --- 0. DATOS GENERALES DEL SERVICIO ---
@@ -58,7 +94,22 @@ export function generateReportFromTicket(
         items: generalDataItems
     } as ListSection);
 
-    // --- 1. DIAGNÓSTICO & HALLAZGOS ---
+    // --- 1. DESCRIPCIÓN INICIAL / REQUERIMIENTO DEL CLIENTE (UNA SOLA VEZ) ---
+    if (ticket.description && ticket.description.trim()) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Descripción del Requerimiento Inicial'
+        } as TitleSection);
+
+        sections.push({
+            id: uuid(),
+            type: 'text',
+            content: ticket.description
+        } as TextSection);
+    }
+
+    // --- 2. DIAGNÓSTICO & HALLAZGOS (NO DUPLICA DESCRIPCIÓN) ---
     sections.push({
         id: uuid(),
         type: 'h2',
@@ -68,10 +119,10 @@ export function generateReportFromTicket(
     sections.push({
         id: uuid(),
         type: 'text',
-        content: ticket.diagnosis || ticket.description || 'Se realizó inspección inicial y diagnóstico técnico de las condiciones del equipo e instalaciones.'
+        content: ticket.diagnosis || 'Se realizó inspección técnica de las condiciones del equipo e instalaciones.'
     } as TextSection);
 
-    // --- 2. TRABAJO REALIZADO & SOLUCIÓN ---
+    // --- 3. TRABAJO REALIZADO & SOLUCIÓN (NO DUPLICA DESCRIPCIÓN) ---
     sections.push({
         id: uuid(),
         type: 'h2',
@@ -81,7 +132,7 @@ export function generateReportFromTicket(
     sections.push({
         id: uuid(),
         type: 'text',
-        content: ticket.solution || (ticket.description ? `Ejecución de servicio técnico: ${ticket.description}` : 'Mantenimiento preventivo y correctivo ejecutado conforme a los estándares de calidad de HECHO SRL.')
+        content: ticket.solution || 'Mantenimiento y trabajos técnicos ejecutados conforme a los estándares de calidad de HECHO SRL.'
     } as TextSection);
 
     // --- 2.5 MATERIALES Y REPUESTOS (SI APLICA) ---

@@ -5,7 +5,7 @@
  * @param quality The quality of the output image (0 to 1).
  * @returns A Promise that resolves to the compressed Blob.
  */
-export async function compressImage(file: File, maxWidth: number = 800, quality: number = 0.7): Promise<Blob> {
+export async function compressImage(file: File, maxWidth: number = 2048, quality: number = 0.92): Promise<Blob> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -14,12 +14,18 @@ export async function compressImage(file: File, maxWidth: number = 800, quality:
             img.src = event.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
+                let width = img.naturalWidth || img.width;
+                let height = img.naturalHeight || img.height;
 
-                if (width > maxWidth) {
-                    height = (height * maxWidth) / width;
-                    width = maxWidth;
+                const MAX = maxWidth;
+                if (width > MAX || height > MAX) {
+                    if (width > height) {
+                        height = Math.round((height * MAX) / width);
+                        width = MAX;
+                    } else {
+                        width = Math.round((width * MAX) / height);
+                        height = MAX;
+                    }
                 }
 
                 canvas.width = width;
@@ -31,6 +37,8 @@ export async function compressImage(file: File, maxWidth: number = 800, quality:
                     return;
                 }
 
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
 
                 // Use the original file type or fallback to jpeg. Prefer png for transparency.

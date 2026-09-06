@@ -150,10 +150,37 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                 try {
                     url = await onPhotoUpload(file);
                 } catch (err) {
-                    url = URL.createObjectURL(file);
+                    console.warn("Custom onPhotoUpload failed, falling back to direct HD upload:", err);
                 }
-            } else {
-                url = URL.createObjectURL(file);
+            }
+
+            if (!url) {
+                try {
+                    const { storage, auth } = await import("@/lib/firebase");
+                    const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+                    const { compressImage } = await import("@/lib/image-utils");
+
+                    const compressedBlob = await compressImage(file, 2048, 0.92);
+                    const user = auth.currentUser;
+                    const uid = user?.uid || "admin";
+                    const cleanName = file.name.replace(/\s+/g, '_');
+                    const filename = `surveys/${uid}/${Date.now()}_${cleanName}`;
+                    const storageRef = ref(storage, filename);
+
+                    await uploadBytes(storageRef, compressedBlob, {
+                        contentType: 'image/jpeg',
+                        customMetadata: { ticketId: ticket.id, areaId: area.id, areaName: area.name }
+                    });
+
+                    url = await getDownloadURL(storageRef);
+                } catch (err) {
+                    console.warn("Direct Storage upload failed, falling back to high-res data URL:", err);
+                    url = await new Promise<string>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.readAsDataURL(file);
+                    });
+                }
             }
 
             newPhotosList.push({

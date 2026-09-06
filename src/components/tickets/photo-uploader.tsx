@@ -38,28 +38,44 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
                     return;
                 }
 
-                canvas.width = img.width;
-                canvas.height = img.height;
+                let width = img.naturalWidth || img.width;
+                let height = img.naturalHeight || img.height;
+                const MAX = 2048;
 
-                // Draw original image
-                ctx.drawImage(img, 0, 0);
+                if (width > MAX || height > MAX) {
+                    if (width > height) {
+                        height = Math.round((height * MAX) / width);
+                        width = MAX;
+                    } else {
+                        width = Math.round((width * MAX) / height);
+                        height = MAX;
+                    }
+                }
 
-                // Get location
+                canvas.width = width;
+                canvas.height = height;
+
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Get location and finalize
                 if ("geolocation" in navigator) {
                     navigator.geolocation.getCurrentPosition(
                         (position) => {
                             drawText(ctx, canvas.width, canvas.height, position.coords.latitude, position.coords.longitude);
-                            resolve(canvas.toDataURL("image/jpeg", 0.8));
+                            resolve(canvas.toDataURL("image/jpeg", 0.92));
                         },
                         (error) => {
                             console.warn("Geolocation error:", error);
                             drawText(ctx, canvas.width, canvas.height, null, null); // Draw without location
-                            resolve(canvas.toDataURL("image/jpeg", 0.8));
-                        }
+                            resolve(canvas.toDataURL("image/jpeg", 0.92));
+                        },
+                        { timeout: 4000, maximumAge: 60000 }
                     );
                 } else {
                     drawText(ctx, canvas.width, canvas.height, null, null);
-                    resolve(canvas.toDataURL("image/jpeg", 0.8));
+                    resolve(canvas.toDataURL("image/jpeg", 0.92));
                 }
             };
             img.onerror = reject;
@@ -67,29 +83,21 @@ export function PhotoUploader({ photos, onChange, type, label, allowGallery = fa
     };
 
     const drawText = (ctx: CanvasRenderingContext2D, width: number, height: number, lat: number | null, lng: number | null) => {
-        const date = new Date().toLocaleString();
-        const locationText = lat && lng ? `\nLat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}` : "";
-        const text = `${date}${locationText}`;
+        const date = new Date().toLocaleString('es-DO');
+        const locationText = lat && lng ? ` | Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}` : "";
+        const text = `HECHO SRL • ${date}${locationText}`;
 
-        const fontSize = width * 0.03; // Responsive font size
+        const fontSize = Math.max(Math.floor(width / 50), 16);
         ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.fillStyle = "white";
-        ctx.shadowColor = "black";
-        ctx.shadowBlur = 4;
+        ctx.shadowColor = "rgba(0,0,0,0.85)";
+        ctx.shadowBlur = 6;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
         ctx.textAlign = "right";
         ctx.textBaseline = "bottom";
 
-        const lines = text.split("\n");
-        const lineHeight = fontSize * 1.2;
-        const x = width - 20;
-        const y = height - 20;
-
-        ctx.fillStyle = "white";
-        lines.reverse().forEach((line, index) => {
-            ctx.fillText(line, x, y - (index * lineHeight));
-        });
+        ctx.fillText(text, width - 20, height - 20);
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
