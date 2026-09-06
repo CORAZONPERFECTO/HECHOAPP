@@ -743,14 +743,18 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photoBoxH = 62;
             const rowH = photoBoxH + 16;
 
-            for (let i = 0; i < galSection.photos.length; i += cols) {
+            // Solo fotos con URL real (https://...) — omitir placeholders vacíos
+            const validPhotos = galSection.photos.filter(p => p.photoUrl && p.photoUrl.trim().startsWith('http'));
+            if (validPhotos.length === 0) continue;
+
+            for (let i = 0; i < validPhotos.length; i += cols) {
                 await checkAndAddPage(rowH + 4);
 
                 for (let c = 0; c < cols; c++) {
                     const photoIdx = i + c;
-                    if (photoIdx >= galSection.photos.length) break;
+                    if (photoIdx >= validPhotos.length) break;
 
-                    const photo = galSection.photos[photoIdx];
+                    const photo = validPhotos[photoIdx];
                     const x = margin + (c * (photoBoxW + gap));
 
                     try {

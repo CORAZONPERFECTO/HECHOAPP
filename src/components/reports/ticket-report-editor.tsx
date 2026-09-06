@@ -330,8 +330,8 @@ export function TicketReportEditor({
 
     return (
         <div className="flex flex-col h-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 transition-colors duration-200">
-            {/* Sticky Action Bar */}
-            <div className="sticky top-0 z-20 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 shadow-sm">
+            {/* ─── ACTION BAR — fixed row, never inside a scroll container ─── */}
+            <div className="shrink-0 bg-white dark:bg-zinc-900 border-b dark:border-zinc-800 shadow-sm z-10">
                 <div className="flex items-center justify-between px-4 py-2">
                     <div className="flex items-center gap-3">
                         <Button
@@ -345,7 +345,7 @@ export function TicketReportEditor({
 
                         <div className="h-6 w-px bg-gray-200 dark:bg-zinc-700" />
 
-                        {/* View Mode Toggles for Desktop/Mobile */}
+                        {/* View Mode Toggles */}
                         <div className="flex bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                             <Button
                                 variant={viewMode === 'edit' ? 'secondary' : 'ghost'}
@@ -384,7 +384,6 @@ export function TicketReportEditor({
                         >
                             <RefreshCw className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
                             <span className="hidden lg:inline">Actualizar Fotos</span>
-                            {/* NEW: Badge for new photos */}
                             {(() => {
                                 const reportPhotoUrls = new Set<string>();
                                 report.sections.forEach(s => {
@@ -403,7 +402,6 @@ export function TicketReportEditor({
                                     }
                                 });
                                 const newCount = availablePhotos.filter(p => !reportPhotoUrls.has(p.url)).length;
-
                                 if (newCount > 0) {
                                     return (
                                         <span className="ml-1 -mr-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm animate-pulse">
@@ -436,11 +434,44 @@ export function TicketReportEditor({
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-hidden flex">
+            {/* ─── MAIN WORKSPACE: sidebar + editor + preview ─── */}
+            <div className="flex-1 overflow-hidden flex min-h-0">
+
+                {/* Left Sidebar — Block insertion (only in edit/split mode) */}
+                {(viewMode === 'edit' || viewMode === 'split') && !readOnly && (
+                    <div className="shrink-0 w-14 flex flex-col items-center gap-1 pt-3 pb-4 bg-white dark:bg-zinc-900 border-r dark:border-zinc-800 overflow-y-auto">
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-center leading-tight px-1">
+                            Bloques
+                        </span>
+
+                        {([
+                            { type: 'h2', icon: <Type className="h-4 w-4" />, label: 'Título', accent: false },
+                            { type: 'text', icon: <Layout className="h-4 w-4" />, label: 'Texto', accent: false },
+                            { type: 'list', icon: <List className="h-4 w-4" />, label: 'Lista', accent: false },
+                            { type: 'photo', icon: <ImageIcon className="h-4 w-4" />, label: 'Foto', accent: false },
+                            { type: 'beforeAfter', icon: <Columns className="h-4 w-4" />, label: 'Antes/Dep', accent: true },
+                            { type: 'divider', icon: <Minus className="h-4 w-4" />, label: 'Línea', accent: false },
+                        ] as const).map(({ type, icon, label, accent }) => (
+                            <button
+                                key={type}
+                                onClick={() => addSection(type as TicketReportSection['type'])}
+                                title={label}
+                                className={`flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center
+                                    ${accent
+                                        ? 'hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                        : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-slate-300'
+                                    }`}
+                            >
+                                {icon}
+                                <span className="text-[8px] font-medium leading-tight text-center">{label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {/* Editor Panel */}
                 {(viewMode === 'edit' || viewMode === 'split') && (
-                    <div className={`flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar ${viewMode === 'split' ? 'w-1/2 border-r dark:border-zinc-800' : 'w-full'}`}>
+                    <div className={`flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar ${viewMode === 'split' ? 'border-r dark:border-zinc-800' : ''}`}>
                         <div className="max-w-3xl mx-auto space-y-6">
                             {/* Header Editor */}
                             <Card className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -544,32 +575,6 @@ export function TicketReportEditor({
                                 </CardContent>
                             </Card>
 
-                            {/* Add Block Menu */}
-                            <Card className="dark:bg-zinc-900 dark:border-zinc-800 sticky top-0 z-10 shadow-md">
-                                <CardContent className="p-3">
-                                    <div className="flex flex-wrap gap-2 justify-center">
-                                        <Button variant="outline" size="sm" onClick={() => addSection('h2')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
-                                            <Type className="h-3.5 w-3.5" /> Título
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => addSection('text')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
-                                            <Type className="h-3.5 w-3.5" /> Texto
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => addSection('list')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
-                                            <List className="h-3.5 w-3.5" /> Lista
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => addSection('photo')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
-                                            <ImageIcon className="h-3.5 w-3.5" /> Foto
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => addSection('beforeAfter')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                                            <Columns className="h-3.5 w-3.5" /> Antes/Después
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => addSection('divider')} className="gap-2 h-8 text-xs dark:hover:bg-zinc-800">
-                                            <Minus className="h-3.5 w-3.5" /> Separador
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
                             {/* Sortable Sections */}
                             <div className="space-y-4 pb-20">
                                 <DndContext
@@ -664,7 +669,7 @@ export function TicketReportEditor({
 
                 {/* Live Preview Panel */}
                 {(viewMode === 'preview' || viewMode === 'split') && (
-                    <div className={`flex-1 bg-gray-100 dark:bg-zinc-950 overflow-y-auto p-4 md:p-8 ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
+                    <div className={`flex-1 bg-gray-100 dark:bg-zinc-950 overflow-y-auto p-4 md:p-8`}>
                         <div className="max-w-4xl mx-auto bg-white dark:bg-black shadow-lg min-h-[800px] p-8 md:p-12 transition-colors duration-200">
                             <TicketReportView report={report} />
                         </div>
