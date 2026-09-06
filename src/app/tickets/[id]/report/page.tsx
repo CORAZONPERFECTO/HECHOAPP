@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, Timestamp } from "firebase/firestore"; // Added updateDoc, onSnapshot, Timestamp
 import { db, auth } from "@/lib/firebase"; // Added auth
 import { Ticket, TicketReport, ReportSection, TicketReportSection, TicketReportNew } from "@/types/schema";
-import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
+import { generateReportFromTicket, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { ExportMenu } from "@/components/reports/export-menu";
@@ -170,8 +170,14 @@ export default function TicketReportPage() {
 
             let currentReport: TicketReportNew;
             if (reportDoc.exists()) {
-                // Load existing report
-                currentReport = reportDoc.data() as TicketReportNew;
+                // Load existing report and clean any duplicate sections
+                const rawReport = reportDoc.data() as TicketReportNew;
+                const cleanSections = deduplicateReportSections(rawReport.sections || []);
+                currentReport = { ...rawReport, sections: cleanSections };
+
+                if (JSON.stringify(cleanSections) !== JSON.stringify(rawReport.sections)) {
+                    await setDoc(doc(db, "ticketReports", ticketId), currentReport);
+                }
             } else {
                 // Generate new report
                 currentReport = generateReportFromTicket(ticketData);

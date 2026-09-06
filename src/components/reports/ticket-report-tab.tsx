@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Ticket, TicketReportNew, UserRole } from "@/types/schema";
-import { generateReportFromTicket, updatePhotosFromTicket } from "@/lib/report-generator";
+import { generateReportFromTicket, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,14 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
             let currentReport: TicketReportNew;
             if (reportDoc.exists()) {
-                currentReport = reportDoc.data() as TicketReportNew;
+                const rawReport = reportDoc.data() as TicketReportNew;
+                const cleanSections = deduplicateReportSections(rawReport.sections || []);
+                currentReport = { ...rawReport, sections: cleanSections };
+
+                // Si se detectaron y removieron duplicados en Firestore, guardar la versión limpia
+                if (JSON.stringify(cleanSections) !== JSON.stringify(rawReport.sections)) {
+                    await setDoc(doc(db, "ticketReports", ticket.id), currentReport);
+                }
             } else {
                 currentReport = generateReportFromTicket(ticket, policies);
                 await setDoc(doc(db, "ticketReports", ticket.id), currentReport);

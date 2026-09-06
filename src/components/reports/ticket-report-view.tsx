@@ -4,6 +4,7 @@ import { useState } from "react";
 import { InlineEditableText } from "@/components/ui/inline-editable-text";
 import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
 import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
+import { deduplicateReportSections } from "@/lib/report-generator";
 import { Lightbulb, ShieldCheck, Wrench, FileText, CheckCircle2, User, Calendar, MapPin, ZoomIn, X, Edit3 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -417,7 +418,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
 
             {/* Sections Content */}
             <div className="space-y-2">
-                {report.sections.map((section, index) => renderSection(section, index, report.sections))}
+                {deduplicateReportSections(report.sections || []).map((section, index, allClean) => renderSection(section, index, allClean))}
 
                 {/* Signatures */}
                 {report.signatures && (

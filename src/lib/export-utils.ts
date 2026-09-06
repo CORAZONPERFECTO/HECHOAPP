@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType, Table } from 'docx';
 import { saveAs } from 'file-saver';
 import { TicketReportNew, PhotoSection, Quote, CompanySettings, BeforeAfterSection, GallerySection, TitleSection, TextSection, ListSection } from '@/types/schema';
+import { deduplicateReportSections } from './report-generator';
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -297,8 +298,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
     yPos += metaBoxHeight + 8;
 
-    // --- FORMATEADOR INTELIGENTE DE SECCIONES ---
-    for (const section of report.sections) {
+    // --- FORMATEADOR INTELIGENTE DE SECCIONES (DEDUPLICACIÓN ACTIVA) ---
+    const cleanSections = deduplicateReportSections(report.sections || []);
+    for (const section of cleanSections) {
         if (section.type === 'h1' || section.type === 'h2') {
             const titleSection = section as TitleSection;
             const headingText = titleSection.content || '';

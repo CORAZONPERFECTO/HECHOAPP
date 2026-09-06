@@ -206,6 +206,8 @@ export function generateReportFromTicket(
         content: warrantyText
     } as TextSection);
 
+    const cleanedSections = deduplicateReportSections(sections);
+
     return {
         ticketId: ticket.id,
         header: {
@@ -216,9 +218,108 @@ export function generateReportFromTicket(
             technicianName: ticket.technicianName || 'Técnico Especialista',
             title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
         },
-        sections,
+        sections: cleanedSections,
         lastGeneratedFromTicketAt: new Date().toISOString()
     };
+}
+
+/**
+ * Deduplica y limpia secciones de reporte eliminando repeticiones de contenido idéntico o prefijado
+ */
+export function deduplicateReportSections(sections: TicketReportSection[]): TicketReportSection[] {
+    if (!sections || sections.length === 0) return [];
+
+    const cleanedSections: TicketReportSection[] = [];
+    const seenTextContent = new Set<string>();
+
+    const normalizeText = (t: string): string => {
+        return t
+            .replace(/^Ejecución de servicio técnico:\s*/i, '')
+            .replace(/^Reporte de Levantamiento Técnico[^:\n]*:\s*/i, '')
+            .replace(/^Descripción del Requerimiento[^:\n]*:\s*/i, '')
+            .replace(/^Falla Reportada:\s*/i, '')
+            .trim()
+            .toLowerCase();
+    };
+
+    for (let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+
+        // 1. Títulos
+        if (section.type === 'h1' || section.type === 'h2') {
+            const titleSection = section as TitleSection;
+            const titleText = (titleSection.content || '').trim();
+            if (!titleText) continue;
+
+            // Verificar si el título actual es idéntico al último título agregado
+            const lastSection = cleanedSections[cleanedSections.length - 1];
+            if (lastSection && (lastSection.type === 'h1' || lastSection.type === 'h2')) {
+                if ((lastSection as TitleSection).content?.trim().toLowerCase() === titleText.toLowerCase()) {
+                    continue; // Saltar título repetido inmediatamente
+                }
+            }
+
+            // Mirar hacia adelante: si el contenido de texto que sigue es un duplicado que va a ser eliminado, no dejar un título huérfano
+            const nextSection = sections[i + 1];
+            if (nextSection && nextSection.type === 'text') {
+                const nextContent = ((nextSection as TextSection).content || '').trim();
+                const normalizedNext = normalizeText(nextContent);
+                // Si el texto que le sigue ya fue visto anteriormente en otra sección, descartamos este título y texto duplicado
+                if (normalizedNext.length > 30 && seenTextContent.has(normalizedNext)) {
+                    continue;
+                }
+            }
+
+            cleanedSections.push(section);
+        }
+        // 2. Textos
+        else if (section.type === 'text') {
+            const textSection = section as TextSection;
+            const rawContent = (textSection.content || '').trim();
+            if (!rawContent) continue;
+
+            const normalized = normalizeText(rawContent);
+
+            // Si el bloque de texto es sustancial (> 30 caracteres) y ya fue visto
+            if (normalized.length > 30 && seenTextContent.has(normalized)) {
+                // Si la sección anterior fue un título huérfano para este texto duplicado, remover el título
+                const lastSection = cleanedSections[cleanedSections.length - 1];
+                if (lastSection && (lastSection.type === 'h1' || lastSection.type === 'h2')) {
+                    const lastTitle = (lastSection as TitleSection).content?.toLowerCase() || '';
+                    if (lastTitle.includes('trabajo realizado') || lastTitle.includes('diagnóstico') || lastTitle.includes('solución') || lastTitle.includes('falla') || lastTitle.includes('requerimiento')) {
+                        cleanedSections.pop();
+                    }
+                }
+                continue; // Descartar texto duplicado
+            }
+
+            if (normalized.length > 30) {
+                seenTextContent.add(normalized);
+            }
+
+            // Si el texto empieza con "Ejecución de servicio técnico: " y el texto en sí es un reporte completo, limpiamos el prefijo
+            if (rawContent.startsWith("Ejecución de servicio técnico: ")) {
+                const cleanedText = rawContent.replace(/^Ejecución de servicio técnico:\s*/i, '');
+                cleanedSections.push({
+                    ...textSection,
+                    content: cleanedText
+                });
+            } else {
+                cleanedSections.push(section);
+            }
+        }
+        // 3. Listas, Fotos, Galerías, etc.
+        else {
+            cleanedSections.push(section);
+        }
+    }
+
+    // Pasada final: eliminar títulos huérfanos al final del reporte
+    while (cleanedSections.length > 0 && (cleanedSections[cleanedSections.length - 1].type === 'h1' || cleanedSections[cleanedSections.length - 1].type === 'h2')) {
+        cleanedSections.pop();
+    }
+
+    return cleanedSections;
 }
 
 /**
