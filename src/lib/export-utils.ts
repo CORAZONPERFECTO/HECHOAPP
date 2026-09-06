@@ -363,8 +363,14 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.text(titleLines, margin, yPos + 4);
     yPos += (titleLines.length * 5.5) + 4;
 
+    // Preparar líneas de dirección/ubicación
+    const rawAddress = report.header.address ? `Ubicación: ${cleanPDFText(report.header.address)}` : '';
+    pdf.setFontSize(7.5);
+    pdf.setFont(FONTS.body, 'normal');
+    const addrLines = rawAddress ? pdf.splitTextToSize(rawAddress, contentWidth - 12) : [];
+    const metaBoxHeight = addrLines.length > 1 ? 30 + (addrLines.length * 3.5) : (addrLines.length === 1 ? 33 : 27);
+
     // Caja de Metadatos
-    const metaBoxHeight = 32;
     pdf.setFillColor(248, 250, 252);
     pdf.setDrawColor(226, 232, 240);
     pdf.setLineWidth(0.4);
@@ -401,10 +407,11 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setTextColor(30, 30, 30);
     pdf.text(cleanPDFText(report.header.technicianName || "HECHO SRL"), col2X, yPos + 23);
 
-    if (report.header.address) {
+    if (addrLines.length > 0) {
         pdf.setFontSize(7.5);
-        pdf.setTextColor(120, 120, 120);
-        pdf.text(`Ubicación: ${cleanPDFText(report.header.address)}`, col1X, yPos + 29);
+        pdf.setFont(FONTS.body, 'normal');
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(addrLines, col1X, yPos + 28.5);
     }
 
     yPos += metaBoxHeight + 8;

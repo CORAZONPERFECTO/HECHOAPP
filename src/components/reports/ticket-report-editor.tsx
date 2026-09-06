@@ -24,6 +24,7 @@ interface TicketReportEditorProps {
     onSave: (report: TicketReportNew) => Promise<void>;
     onUpdatePhotos: () => Promise<void>;
     onRegenerate: () => Promise<void>;
+    onSyncTicketData?: () => Promise<void>;
     availablePhotos?: TicketPhoto[]; // Photos from the ticket for selection
     saving?: boolean;
     readOnly?: boolean;
@@ -133,6 +134,7 @@ export function TicketReportEditor({
     onSave,
     onUpdatePhotos,
     onRegenerate,
+    onSyncTicketData,
     availablePhotos = [],
     saving = false,
     readOnly = false
@@ -389,6 +391,19 @@ export function TicketReportEditor({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {onSyncTicketData && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={onSyncTicketData}
+                                disabled={saving || readOnly}
+                                className="gap-2 hidden md:flex text-blue-600 hover:text-blue-700 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                                title="Actualizar cliente, dirección y técnico desde la ficha del ticket"
+                            >
+                                <RefreshCw className={`h-4 w-4 ${saving ? 'animate-spin' : ''}`} />
+                                <span className="hidden xl:inline">Sincronizar Ticket</span>
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"
@@ -554,6 +569,15 @@ export function TicketReportEditor({
                                             </div>
                                         </div>
                                         <div className="grid gap-1">
+                                            <Label>Ubicación / Dirección del Servicio (Cliente)</Label>
+                                            <Input
+                                                value={report.header.address || ''}
+                                                onChange={(e) => updateHeader('address', e.target.value)}
+                                                placeholder="Ej: PUNTA CANA RESORT - Hacienda, Los mangos Nte. B77"
+                                                className="dark:bg-zinc-800 dark:border-zinc-700 font-medium"
+                                            />
+                                        </div>
+                                        <div className="grid gap-1">
                                             <Label>Técnico Responsable</Label>
                                             <Input
                                                 value={report.header.technicianName || ''}
@@ -575,12 +599,12 @@ export function TicketReportEditor({
                                                     />
                                                 </div>
                                                 <div className="grid gap-1">
-                                                    <Label className="text-xs">Dirección / Contacto</Label>
+                                                    <Label className="text-xs">Dirección de la Empresa (HECHO SRL)</Label>
                                                     <Input
                                                         value={report.header.companyInfo?.address || ''}
                                                         onChange={(e) => updateHeader('companyInfo', { ...report.header.companyInfo, address: e.target.value } as any)}
                                                         className="h-8 text-xs dark:bg-zinc-800 dark:border-zinc-700"
-                                                        placeholder="Dirección, Teléfono, Web..."
+                                                        placeholder="Dirección, Teléfono, Web de HECHO SRL..."
                                                     />
                                                 </div>
                                             </div>

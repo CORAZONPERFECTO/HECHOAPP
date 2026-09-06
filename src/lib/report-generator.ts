@@ -28,6 +28,17 @@ const formatTicketDate = (date: Timestamp | Date | string | number | null | unde
     }
 };
 
+export function buildTicketFullAddress(ticket: Ticket): string {
+    const parts: string[] = [];
+    if (ticket.locationName) parts.push(ticket.locationName);
+    if (ticket.locationStreet) parts.push(ticket.locationStreet);
+    if (ticket.locationHouseNumber) parts.push(`N° ${ticket.locationHouseNumber}`);
+    if (ticket.specificLocation && !ticket.locationName?.includes(ticket.specificLocation)) {
+        parts.push(ticket.specificLocation);
+    }
+    return parts.filter(Boolean).join(', ') || ticket.locationArea || '';
+}
+
 /**
  * Generates a complete report from a ticket with executive structure
  */
@@ -35,6 +46,8 @@ export function generateReportFromTicket(
     ticket: Ticket,
     customPolicies?: { warrantyPolicies?: string; defaultRecommendations?: string }
 ): TicketReportNew {
+    const fullAddress = buildTicketFullAddress(ticket);
+
     // Si existe una plantilla especializada para el tipo de servicio (ej: LEVANTAMIENTO, MANTENIMIENTO, REPARACION, INSTALACION, INSPECCION)
     if (ticket.serviceType && REPORT_TEMPLATES[ticket.serviceType]) {
         const templateSections = REPORT_TEMPLATES[ticket.serviceType].generateSections(ticket);
@@ -60,7 +73,7 @@ export function generateReportFromTicket(
             header: {
                 clientName: ticket.clientName,
                 ticketNumber: ticket.ticketNumber || ticket.id.slice(0, 6),
-                address: ticket.locationName || ticket.specificLocation || '',
+                address: fullAddress,
                 date: formatTicketDate(ticket.createdAt),
                 technicianName: ticket.technicianName || 'Técnico Especialista',
                 title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
@@ -82,7 +95,7 @@ export function generateReportFromTicket(
     const generalDataItems = [
         `Ticket: ${ticket.ticketNumber || ticket.id.slice(0, 8)}`,
         `Cliente: ${ticket.clientName || 'N/D'}`,
-        `Ubicación: ${ticket.locationName || ticket.specificLocation || 'N/D'}`,
+        `Ubicación: ${fullAddress || 'N/D'}`,
         `Fecha de Ejecución: ${formatTicketDate(ticket.createdAt)}`,
         `Técnico Responsable: ${ticket.technicianName || 'Técnico Especialista'}`,
         `Tipo de Servicio: ${ticket.serviceType ? ticket.serviceType.replace(/_/g, ' ') : 'Mantenimiento General'}`

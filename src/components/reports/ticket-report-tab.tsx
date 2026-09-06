@@ -197,6 +197,55 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
         }
     };
 
+    const handleSyncTicketData = async () => {
+        if (!report) return;
+        try {
+            setSaving(true);
+            let currentTicket = ticket;
+            try {
+                const ticketSnap = await getDoc(doc(db, "tickets", ticket.id));
+                if (ticketSnap.exists()) {
+                    currentTicket = { id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
+                }
+            } catch (err) {
+                console.warn("Could not fetch fresh ticket snapshot:", err);
+            }
+
+            // Assemble full address from ticket fields
+            const parts: string[] = [];
+            if (currentTicket.locationName) parts.push(currentTicket.locationName);
+            if (currentTicket.locationStreet) parts.push(currentTicket.locationStreet);
+            if (currentTicket.locationHouseNumber) parts.push(`N° ${currentTicket.locationHouseNumber}`);
+            if (currentTicket.specificLocation && !currentTicket.locationName?.includes(currentTicket.specificLocation)) {
+                parts.push(currentTicket.specificLocation);
+            }
+            const fullAddress = parts.filter(Boolean).join(', ') || currentTicket.locationArea || '';
+
+            const updatedReport: TicketReportNew = {
+                ...report,
+                header: {
+                    ...report.header,
+                    clientName: currentTicket.clientName || report.header.clientName,
+                    address: fullAddress || report.header.address,
+                    technicianName: currentTicket.technicianName || report.header.technicianName,
+                    ticketNumber: currentTicket.ticketNumber || report.header.ticketNumber,
+                }
+            };
+
+            setReport(updatedReport);
+            await handleSave(updatedReport);
+            toast({
+                title: "✅ Datos del Ticket Sincronizados",
+                description: "Se actualizaron cliente, dirección completa y técnico desde el ticket sin alterar tus secciones de texto o fotos."
+            });
+        } catch (error) {
+            console.error("Error syncing ticket data:", error);
+            toast({ title: "Error", description: "No se pudieron sincronizar los datos del ticket", variant: "destructive" });
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleSendWhatsApp = () => {
         const url = `${window.location.origin}/r/${ticket.id}`;
         const template = reportPolicies.whatsappTemplate || DEFAULT_REPORT_POLICIES.whatsappTemplate;
@@ -392,6 +441,7 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                                 onSave={async (r) => handleSave(r)}
                                 onUpdatePhotos={handleUpdatePhotos}
                                 onRegenerate={handleRegenerate}
+                                onSyncTicketData={handleSyncTicketData}
                                 availablePhotos={allAvailablePhotos}
                                 saving={saving}
                             />
