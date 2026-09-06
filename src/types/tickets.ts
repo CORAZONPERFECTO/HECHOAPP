@@ -37,7 +37,9 @@ export interface TicketPhoto {
     url: string;
     type: 'BEFORE' | 'DURING' | 'AFTER' | 'SURVEY';
     description?: string;
-    timestamp?: { seconds: number; nanoseconds: number };
+    category?: string;
+    tag?: string;
+    timestamp?: { seconds: number; nanoseconds: number } | any;
     location?: string;
     area?: string;
     areaId?: string;
@@ -63,12 +65,19 @@ export interface SurveyArea {
     photos: TicketPhoto[];
     // Ficha Técnica del Equipo (Opcional - Placa & Tarjeta)
     brand?: string;
+    model?: string;
     modelNumber?: string;
     serialNumber?: string;
     refrigerant?: string;
+    refrigerantType?: string;
     platePhotoUrl?: string;
     boardPhotoUrl?: string;
+    btuCapacity?: string;
+    equipmentType?: string;
+    technicianNotes?: string;
 }
+
+export type TicketSurveyArea = SurveyArea;
 
 export interface SurveyBudget {
     equipmentItems: Array<{
@@ -127,10 +136,12 @@ export interface TicketVisit {
 
 export interface Ticket {
     id: string;
+    number?: string;
     ticketNumber?: string;
     clientId?: string;
     clientName: string;
     ticketTypeId?: string;
+    locationId?: string;
     locationName: string;
     locationUrl?: string;   // Google Maps / WhatsApp link set by manager or client
     locationArea?: string; // e.g., "CAP CANA"

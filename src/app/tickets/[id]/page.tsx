@@ -34,7 +34,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2 } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2, BookOpen } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -713,6 +713,23 @@ export default function TicketDetailPage() {
                                             }`}>
                                                 {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Visita Eventual'}
                                             </span>
+                                        )}
+
+                                        {/* Acceso a Bitácora Digital si es Villa con Iguala o tiene ubicación */}
+                                        {(ticket.isRetainer || ticket.locationId) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (ticket.locationId) {
+                                                        router.push(`/clients/locations/${ticket.locationId}`);
+                                                    } else if (ticket.clientId) {
+                                                        router.push(`/clients/${ticket.clientId}`);
+                                                    }
+                                                }}
+                                                className="block mt-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                                            >
+                                                📖 Ver Bitácora Digital de la Villa
+                                            </button>
                                         )}
                                     </div>
                                     <div>

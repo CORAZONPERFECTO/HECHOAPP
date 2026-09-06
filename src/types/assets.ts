@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { TicketSurveyArea } from './tickets';
 
 export type EquipmentType = 'AIRE_ACONDICIONADO' | 'REFRIGERACION' | 'LAVADORA' | 'SECADORA' | 'ESTUFA' | 'OTRO';
 
@@ -24,6 +25,18 @@ export interface Location {
     direccion?: string;
     descripcion?: string;
     clientId?: string;
+    clientName?: string;
+    locationArea?: string;
+    specificLocation?: string;
+    locationUrl?: string; // GPS Google Maps / Waze link
+    isRetainer?: boolean; // Villa con Iguala
+    contractType?: 'IGUALA' | 'EVENTUAL';
+    contractStartDate?: string;
+    nextMaintenanceDate?: string;
+    maintenanceFrequency?: 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL';
+    equipmentCensus?: TicketSurveyArea[];
+    retentionPolicyReviewedAt?: any;
+    retentionDecision?: 'PRESERVE_ALL' | 'PURGED_OLD';
     createdAt?: Timestamp | Date;
     updatedAt?: Timestamp | Date;
 }
