@@ -20,6 +20,13 @@ const FONTS = {
     body: 'helvetica'
 };
 
+interface LoadedImageResult {
+    img: HTMLImageElement;
+    dataUrl: string;
+    width: number;
+    height: number;
+}
+
 /**
  * Obtiene la configuración de la empresa
  */
@@ -39,9 +46,9 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
 /**
  * Carga una imagen asegurando compatibilidad con jsPDF sin pérdida de resolución
  */
-async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
+async function loadImage(url: string): Promise<LoadedImageResult> {
     if (!url || typeof url !== 'string' || !url.trim()) {
-        return createPlaceholderImage();
+        return createPlaceholderData();
     }
 
     const fetchBlob = async (targetUrl: string): Promise<Blob> => {
@@ -64,56 +71,63 @@ async function loadImage(url: string, retries = 2): Promise<HTMLImageElement> {
             blob = await fetchBlob(proxyUrl);
         }
 
-        return new Promise((resolve, reject) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = () => reject(new Error("Failed to decode image"));
-                img.src = reader.result as string;
-            };
-            reader.onerror = reject;
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("FileReader failed"));
             reader.readAsDataURL(blob);
         });
 
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const image = new Image();
+            image.crossOrigin = "anonymous";
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error("Image decode failed"));
+            image.src = dataUrl;
+        });
+
+        const width = img.naturalWidth || img.width || 800;
+        const height = img.naturalHeight || img.height || 600;
+
+        return { img, dataUrl, width, height };
+
     } catch (finalError) {
-        return createPlaceholderImage();
+        console.warn("Error cargando imagen para PDF:", url, finalError);
+        return createPlaceholderData();
     }
 }
 
-function createPlaceholderImage(): Promise<HTMLImageElement> {
-    return new Promise((resolve) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 300;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            ctx.fillStyle = '#f1f5f9';
-            ctx.fillRect(0, 0, 400, 300);
+function createPlaceholderData(): LoadedImageResult {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(0, 0, 400, 300);
 
-            ctx.strokeStyle = '#cbd5e1';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(0, 0, 400, 300);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, 400, 300);
 
-            ctx.font = 'bold 18px Arial, sans-serif';
-            ctx.fillStyle = '#64748b';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Evidencia Fotográfica', 200, 140);
+        ctx.font = 'bold 18px Arial, sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Evidencia Fotográfica', 200, 140);
 
-            ctx.font = '12px Arial';
-            ctx.fillStyle = '#94a3b8';
-            ctx.fillText('HECHO SRL • Registro Técnico', 200, 165);
-        }
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = canvas.toDataURL('image/png');
-    });
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('HECHO SRL • Registro Técnico', 200, 165);
+    }
+    const dataUrl = canvas.toDataURL('image/png');
+    const img = new Image();
+    img.src = dataUrl;
+    return { img, dataUrl, width: 400, height: 300 };
 }
 
 /**
- * Calcula las dimensiones y desfases para encajar una imagen proporcionalmente (Aspect-Fit)
- * dentro de un contenedor sin recortar ni deformar sus letras o placas técnicas.
+ * Calcula dimensiones de encaje proporcional (Aspect-Fit)
  */
 function getAspectFitDimensions(
     imgW: number,
@@ -132,11 +146,9 @@ function getAspectFitDimensions(
     let renderH: number;
 
     if (imgRatio > boxRatio) {
-        // Imagen horizontal / panorámica
         renderW = boxW;
         renderH = boxW / imgRatio;
     } else {
-        // Imagen vertical / cuadrada
         renderH = boxH;
         renderW = boxH * imgRatio;
     }
@@ -149,8 +161,6 @@ function getAspectFitDimensions(
 
 /**
  * EXPORTACIÓN: "MODERNO 2026 - FORMATEADOR INTELIGENTE DE INGENIERÍA"
- * Soporte de fotos de alta resolución en proporción exacta (Aspect-Fit), títulos numerados con subrayado,
- * pares clave-valor (Negrita: Cursiva) y cajas de dictamen/evaluación técnica.
  */
 export async function exportToPDFModern(report: TicketReportNew) {
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -161,7 +171,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
     const maxContentY = 272; // Margen de seguridad estricto
 
     const primaryColor = [85, 107, 47]; // #556B2F Verde Oliva
-    const accentDark = [30, 41, 59]; // Slate 800
     const settings = await getCompanySettings();
 
     // Helper: Encabezado corporativo
@@ -174,11 +183,11 @@ export async function exportToPDFModern(report: TicketReportNew) {
         let logoDrawn = false;
         if (settings?.logoUrl) {
             try {
-                const img = await loadImage(settings.logoUrl);
-                const ratio = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
+                const imgData = await loadImage(settings.logoUrl);
+                const ratio = imgData.width / imgData.height;
                 const logoH = 14;
                 const logoW = Math.min(34, logoH * ratio);
-                pdf.addImage(img, 'PNG', margin, 7, logoW, logoH, undefined, 'FAST');
+                pdf.addImage(imgData.dataUrl, 'PNG', margin, 7, logoW, logoH, undefined, 'FAST');
                 logoDrawn = true;
             } catch {
                 logoDrawn = false;
@@ -323,7 +332,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     continue;
                 }
 
-                // 1. REGLA 1: TÍTULOS NUMERADOS (Ej: "1. Capacidad de los Equipos", "2. Verificación de...")
+                // 1. TÍTULOS NUMERADOS (Ej: "1. Capacidad de los Equipos", "2. Verificación de...")
                 const numberedMatch = line.match(/^(\d+[\.\)]\s+)(.*)$/);
                 if (numberedMatch) {
                     await checkAndAddPage(16);
@@ -337,7 +346,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.text(numTitleLines, margin, yPos + 4);
                     yPos += (numTitleLines.length * 5) + 2;
 
-                    // Línea / Raya de subrayado sutil
                     pdf.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                     pdf.setLineWidth(0.4);
                     pdf.line(margin, yPos, margin + Math.min(contentWidth, 120), yPos);
@@ -345,7 +353,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     continue;
                 }
 
-                // 2. REGLA 2: CAJA DE DICTAMEN / EVALUACIÓN GENERAL / ADVERTENCIA
+                // 2. CAJA DE DICTAMEN / EVALUACIÓN GENERAL / ADVERTENCIA
                 const calloutMatch = line.match(/^(Evaluación general|Dictamen técnico|Advertencia|Nota crítica|Conclusión):\s*(.*)$/i);
                 if (calloutMatch) {
                     const tag = calloutMatch[1];
@@ -356,23 +364,19 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
                     await checkAndAddPage(boxH + 4);
 
-                    // Contenedor Callout
                     pdf.setFillColor(248, 250, 252);
                     pdf.setDrawColor(203, 213, 225);
                     pdf.setLineWidth(0.3);
                     pdf.roundedRect(margin, yPos, contentWidth, boxH, 2, 2, 'FD');
 
-                    // Borde lateral de acento
                     pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                     pdf.rect(margin, yPos, 3, boxH, 'F');
 
-                    // Etiqueta en Negrita
                     pdf.setFont(FONTS.header, 'bold');
                     pdf.setFontSize(9);
                     pdf.setTextColor(30, 41, 59);
                     pdf.text(`${tag.toUpperCase()}:`, margin + 8, yPos + 5.5);
 
-                    // Valor en Cursiva
                     pdf.setFont(FONTS.body, 'italic');
                     pdf.setFontSize(9);
                     pdf.setTextColor(51, 65, 85);
@@ -382,8 +386,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     continue;
                 }
 
-                // 3. REGLA 3: CAMPOS CON DOS PUNTOS (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
-                // Formato: Etiqueta en NEGRITA, valor en CURSIVA
+                // 3. CAMPOS CON DOS PUNTOS (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
                 const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
                 if (colonMatch) {
                     const key = colonMatch[1].trim();
@@ -516,7 +519,6 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const cardH = 82;
             await checkAndAddPage(cardH + 6);
 
-            // Contenedor comparativo
             pdf.setFillColor(248, 250, 252);
             pdf.setDrawColor(226, 232, 240);
             pdf.setLineWidth(0.3);
@@ -531,20 +533,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photoBoxH = 54;
             const photoY = yPos + 9;
 
-            // Foto Antes
             if (baSection.beforePhotoUrl) {
                 try {
-                    const img = await loadImage(baSection.beforePhotoUrl);
-                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+                    const imgData = await loadImage(baSection.beforePhotoUrl);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, photoBoxW, photoBoxH);
                     
-                    // Fondo interior para la foto
                     pdf.setFillColor(241, 245, 249);
                     pdf.roundedRect(margin + 5, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
                     
-                    // Render sin distorsión
-                    pdf.addImage(img, 'JPEG', margin + 5 + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 5 + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
-                    // Badge ANTES
                     pdf.setFillColor(225, 29, 72);
                     pdf.rect(margin + 5, photoY, 18, 5, 'F');
                     pdf.setFontSize(7.5);
@@ -554,18 +552,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 } catch { }
             }
 
-            // Foto Después
             if (baSection.afterPhotoUrl) {
                 try {
-                    const img = await loadImage(baSection.afterPhotoUrl);
-                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+                    const imgData = await loadImage(baSection.afterPhotoUrl);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, photoBoxW, photoBoxH);
                     
                     pdf.setFillColor(241, 245, 249);
                     pdf.roundedRect(margin + 11 + photoBoxW, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
                     
-                    pdf.addImage(img, 'JPEG', margin + 11 + photoBoxW + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 11 + photoBoxW + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
-                    // Badge DESPUÉS
                     pdf.setFillColor(16, 185, 129);
                     pdf.rect(margin + 11 + photoBoxW, photoY, 20, 5, 'F');
                     pdf.setFontSize(7.5);
@@ -589,82 +585,40 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const photoSec = section as PhotoSection;
             if (!photoSec.photoUrl) continue;
 
-            const isLarge = (photoSec as any).size === 'large' || (photoSec as any).size === 'full';
+            // Foto amplia y nítida (Full width de la página)
+            const boxW = contentWidth; // 180mm
+            const boxH = 85; // 85mm de altura para visualización nítida de placas y detalles
+            const hasDesc = !!photoSec.description;
+            const cardH = boxH + (hasDesc ? 14 : 4);
 
-            if (isLarge || !photoSec.description) {
-                // Layout Grande / Panorámico
-                const boxW = contentWidth;
-                const boxH = 90;
-                const hasDesc = !!photoSec.description;
-                const totalH = boxH + (hasDesc ? 14 : 4);
+            await checkAndAddPage(cardH + 4);
 
-                await checkAndAddPage(totalH + 4);
+            try {
+                const imgData = await loadImage(photoSec.photoUrl);
+                const fit = getAspectFitDimensions(imgData.width, imgData.height, boxW, boxH);
 
-                try {
-                    const img = await loadImage(photoSec.photoUrl);
-                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, boxW, boxH);
+                // Marco contenedor sutil
+                pdf.setFillColor(248, 250, 252);
+                pdf.setDrawColor(226, 232, 240);
+                pdf.setLineWidth(0.3);
+                pdf.roundedRect(margin, yPos, boxW, boxH, 2, 2, 'FD');
 
-                    pdf.setFillColor(248, 250, 252);
-                    pdf.setDrawColor(226, 232, 240);
-                    pdf.setLineWidth(0.3);
-                    pdf.roundedRect(margin, yPos, boxW, boxH, 2, 2, 'FD');
+                // Imagen en proporción real
+                pdf.addImage(imgData.dataUrl, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
-                    pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
-
-                    if (photoSec.description) {
-                        pdf.setFontSize(8.5);
-                        pdf.setFont(FONTS.body, 'italic');
-                        pdf.setTextColor(71, 85, 105);
-                        const descLines = pdf.splitTextToSize(photoSec.description, contentWidth);
-                        pdf.text(descLines, margin + 2, yPos + boxH + 5);
-                    }
-                } catch { }
-
-                yPos += totalH + 6;
-            } else {
-                // Layout Estándar con panel lateral
-                const cardH = 75;
-                await checkAndAddPage(cardH + 4);
-
-                const pBoxW = 105;
-                const pBoxH = 68;
-
-                try {
-                    const img = await loadImage(photoSec.photoUrl);
-                    const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, pBoxW, pBoxH);
-
-                    // Contenedor foto
-                    pdf.setFillColor(248, 250, 252);
-                    pdf.setDrawColor(226, 232, 240);
-                    pdf.setLineWidth(0.3);
-                    pdf.roundedRect(margin, yPos, pBoxW, pBoxH, 2, 2, 'FD');
-
-                    // Imagen sin distorsión
-                    pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
-
-                    // Panel lateral descriptivo
-                    const descX = margin + pBoxW + 6;
-                    const descW = contentWidth - pBoxW - 6;
-
-                    pdf.setFillColor(248, 250, 252);
-                    pdf.roundedRect(descX, yPos, descW, pBoxH, 2, 2, 'FD');
-
+                // Pie de foto descriptivo
+                if (photoSec.description) {
                     pdf.setFontSize(8.5);
-                    pdf.setFont(FONTS.header, 'bold');
-                    pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-                    pdf.text("EVIDENCIA TÉCNICA", descX + 5, yPos + 7);
-
-                    if (photoSec.description) {
-                        pdf.setFontSize(8.5);
-                        pdf.setFont(FONTS.body, 'normal');
-                        pdf.setTextColor(45, 55, 72);
-                        const descLines = pdf.splitTextToSize(photoSec.description, descW - 10);
-                        pdf.text(descLines, descX + 5, yPos + 14);
-                    }
-                } catch { }
-
-                yPos += cardH + 4;
+                    pdf.setFont(FONTS.body, 'italic');
+                    pdf.setTextColor(71, 85, 105);
+                    const descLines = pdf.splitTextToSize(`📷 ${photoSec.description}`, contentWidth - 4);
+                    pdf.text(descLines, margin + 2, yPos + boxH + 5);
+                }
+            } catch (e) {
+                console.warn("Error dibujando foto en PDF:", e);
             }
+
+            yPos += cardH + 6;
         }
         else if (section.type === 'gallery') {
             const galSection = section as GallerySection;
@@ -673,7 +627,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const cols = 2;
             const gap = 6;
             const photoBoxW = (contentWidth - gap) / cols; // 87mm
-            const photoBoxH = 62; // Altura del marco
+            const photoBoxH = 62;
             const rowH = photoBoxH + 16;
 
             for (let i = 0; i < galSection.photos.length; i += cols) {
@@ -687,17 +641,15 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     const x = margin + (c * (photoBoxW + gap));
 
                     try {
-                        const img = await loadImage(photo.photoUrl);
-                        const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, photoBoxW, photoBoxH);
+                        const imgData = await loadImage(photo.photoUrl);
+                        const fit = getAspectFitDimensions(imgData.width, imgData.height, photoBoxW, photoBoxH);
 
-                        // Marco / Fondo de la foto
                         pdf.setFillColor(248, 250, 252);
                         pdf.setDrawColor(226, 232, 240);
                         pdf.setLineWidth(0.3);
                         pdf.roundedRect(x, yPos, photoBoxW, photoBoxH, 1.5, 1.5, 'FD');
 
-                        // Imagen renderizada en proporción real (sin deformar letras ni placas)
-                        pdf.addImage(img, 'JPEG', x + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
+                        pdf.addImage(imgData.dataUrl, 'JPEG', x + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
                         if (photo.photoMeta?.phase) {
                             const phase = photo.photoMeta.phase;
@@ -721,7 +673,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
                             const descLines = pdf.splitTextToSize(photo.description, photoBoxW);
                             pdf.text(descLines.slice(0, 2), x, yPos + photoBoxH + 4);
                         }
-                    } catch { }
+                    } catch (e) {
+                        console.warn("Error dibujando galería en PDF:", e);
+                    }
                 }
 
                 yPos += rowH + 4;
@@ -752,9 +706,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
         const techX = margin + 10;
         if (report.signatures.technicianSignature) {
             try {
-                const img = await loadImage(report.signatures.technicianSignature);
-                const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(img, 'PNG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
+                const imgData = await loadImage(report.signatures.technicianSignature);
+                const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
+                pdf.addImage(imgData.dataUrl, 'PNG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
             } catch { }
         }
         pdf.setDrawColor(160, 174, 192);
@@ -774,9 +728,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
         const clientX = pageWidth - margin - sigBoxW - 10;
         if (report.signatures.clientSignature) {
             try {
-                const img = await loadImage(report.signatures.clientSignature);
-                const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(img, 'PNG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
+                const imgData = await loadImage(report.signatures.clientSignature);
+                const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
+                pdf.addImage(imgData.dataUrl, 'PNG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
             } catch { }
         }
         pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
@@ -850,8 +804,8 @@ export async function generateQuotePDF(quote: Quote) {
 
     if (settings?.logoUrl) {
         try {
-            const img = await loadImage(settings.logoUrl);
-            pdf.addImage(img, 'PNG', margin, 10, 30, 15);
+            const imgData = await loadImage(settings.logoUrl);
+            pdf.addImage(imgData.dataUrl, 'PNG', margin, 10, 30, 15);
         } catch { }
     }
 
@@ -891,8 +845,8 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
 
     if (settings?.logoUrl) {
         try {
-            const img = await loadImage(settings.logoUrl);
-            pdf.addImage(img, 'PNG', margin, 10, 30, 15);
+            const imgData = await loadImage(settings.logoUrl);
+            pdf.addImage(imgData.dataUrl, 'PNG', margin, 10, 30, 15);
         } catch { }
     }
 
@@ -908,11 +862,11 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
             yPos = 20; 
         }
         try {
-            const img = await loadImage(photo.photoUrl || '');
-            const fit = getAspectFitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, contentWidth, 90);
+            const imgData = await loadImage(photo.photoUrl || '');
+            const fit = getAspectFitDimensions(imgData.width, imgData.height, contentWidth, 90);
             pdf.setFillColor(248, 250, 252);
             pdf.roundedRect(margin, yPos, contentWidth, 90, 2, 2, 'F');
-            pdf.addImage(img, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
+            pdf.addImage(imgData.dataUrl, 'JPEG', margin + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH);
         } catch { }
         yPos += 98;
     }
