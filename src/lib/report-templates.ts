@@ -9,7 +9,7 @@ export interface ReportTemplate {
 
 const formatChecklistItems = (checklist: ChecklistItem[]): string[] => {
     if (!checklist || checklist.length === 0) return ["No se realizó checklist."];
-    return checklist.map(item => `${item.checked ? '✅' : '⬜'} ${item.text || (item as any).label || "Item"}`);
+    return checklist.map(item => `${item.checked ? '[OK]' : '[-]'} ${item.text || (item as any).label || "Item"}`);
 };
 
 const groupPhotos = (photos: TicketPhoto[]): { before: TicketPhoto[], during: TicketPhoto[], after: TicketPhoto[] } => {
@@ -209,22 +209,27 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             const sections: TicketReportSection[] = [];
             const areas = ticket.surveyAreas || [];
 
-            // 1. Título y Resumen Ejecutivo
+            // 1. Título y Análisis Técnico del Levantamiento
             sections.push(createTitle('Reporte de Levantamiento Técnico', 'h1'));
-            sections.push(createText(
-                `Levantamiento técnico realizado en ${ticket.locationName}${ticket.specificLocation ? ` (${ticket.specificLocation})` : ''}. ` +
-                `Se evaluaron las condiciones estructurales, requerimientos de carga térmica, factibilidad eléctrica y recorrido de tuberías para climatización.`
-            ));
+            
+            if (ticket.description && ticket.description.trim()) {
+                sections.push(createText(ticket.description.trim()));
+            } else {
+                sections.push(createText(
+                    `Levantamiento técnico realizado en ${ticket.locationName}${ticket.specificLocation ? ` (${ticket.specificLocation})` : ''}. ` +
+                    `Se evaluaron las condiciones estructurales, requerimientos de carga térmica, factibilidad eléctrica y recorrido de tuberías para climatización.`
+                ));
+            }
 
             // 2. Cuadro Resumen de Carga Térmica y Equipos Recomendados
             if (areas.length > 0) {
                 sections.push(createTitle('Dimensionamiento & Carga Térmica por Área'));
-                const summaryItems = areas.map((a, idx) => {
+                const summaryItems = areas.map((a) => {
                     const m2 = a.areaSquareMeters || (a.lengthMeters && a.widthMeters ? (a.lengthMeters * a.widthMeters) : 0);
                     const btu = a.requiredBtu || Math.round(m2 * 650);
                     const equip = a.recommendedEquipment || `Split Inverter ${btu.toLocaleString()} BTU`;
                     const volt = a.voltage || "220V";
-                    return `📍 ${a.name}: ${m2} m² ➔ Carga Térmica: ${btu.toLocaleString()} BTU ➔ Equipo: ${equip} (${volt})`;
+                    return `• ${a.name}: ${m2} m2 | Carga Térmica: ${btu.toLocaleString()} BTU | Equipo: ${equip} (${volt})`;
                 });
                 sections.push({
                     id: crypto.randomUUID(),
@@ -291,7 +296,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                 if (ticket.surveyBudget.laborCost) {
                     budgetItems.push(`• Mano de Obra de Instalación — RD$ ${ticket.surveyBudget.laborCost.toLocaleString()}`);
                 }
-                budgetItems.push(`💰 TOTAL ESTIMADO: RD$ ${ticket.surveyBudget.totalEstimated.toLocaleString()}`);
+                budgetItems.push(`TOTAL ESTIMADO: RD$ ${ticket.surveyBudget.totalEstimated.toLocaleString()}`);
 
                 sections.push({
                     id: crypto.randomUUID(),

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { 
     Plus, 
     Trash2, 
@@ -64,7 +66,7 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     const [newAreaName, setNewAreaName] = useState("");
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
 
-    const updateAreas = (newAreas: SurveyArea[]) => {
+    const updateAreas = async (newAreas: SurveyArea[]) => {
         // También consolidamos las fotos de todas las áreas en ticket.photos para compatibilidad global
         const allPhotos: TicketPhoto[] = [];
         newAreas.forEach(a => {
@@ -73,11 +75,25 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
             }
         });
 
-        onChange({
+        const updatedTicket: Ticket = {
             ...ticket,
             surveyAreas: newAreas,
             photos: allPhotos.length > 0 ? allPhotos : ticket.photos
-        });
+        };
+
+        onChange(updatedTicket);
+
+        // Guardar inmediatamente en Firestore para asegurar persistencia al cambiar de pestaña
+        if (ticket.id) {
+            try {
+                await setDoc(doc(db, "tickets", ticket.id), {
+                    surveyAreas: newAreas,
+                    photos: allPhotos.length > 0 ? allPhotos : (ticket.photos || [])
+                }, { merge: true });
+            } catch (err) {
+                console.warn("Auto-syncing survey areas to Firestore:", err);
+            }
+        }
     };
 
     const handleAddArea = (nameToAdd?: string) => {
@@ -126,6 +142,15 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                 if (!updates.recommendedEquipment) {
                     merged.recommendedEquipment = `Split Inverter ${rec.text} ${merged.voltage || '220V'}`;
                 }
+            }
+
+            // Si el nombre del área cambió, actualizar el nombre en las fotos del área
+            if (updates.name && merged.photos) {
+                merged.photos = merged.photos.map(p => ({
+                    ...p,
+                    area: updates.name,
+                    description: p.description && p.description.startsWith('Evidencia en ') ? `Evidencia en ${updates.name}` : p.description
+                }));
             }
 
             return merged;
@@ -325,18 +350,27 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                         isExpanded ? "bg-slate-900 text-white" : "bg-slate-50 hover:bg-slate-100 text-slate-800"
                                     }`}
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-2xl flex items-center justify-center font-black text-xs ${
+                                    <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
+                                        <div className={`w-8 h-8 rounded-2xl flex-shrink-0 flex items-center justify-center font-black text-xs ${
                                             isExpanded ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-700"
                                         }`}>
                                             {idx + 1}
                                         </div>
-                                        <div>
-                                            <h4 className="font-black text-sm tracking-tight">{area.name}</h4>
-                                            <span className={`text-[11px] font-mono ${isExpanded ? "text-slate-300" : "text-slate-500"}`}>
-                                                {area.areaSquareMeters || 0} m² • {area.requiredBtu?.toLocaleString() || 12000} BTU • {areaPhotos.length} fotos
-                                            </span>
+                                        <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                                            <Input
+                                                value={area.name}
+                                                onChange={(e) => handleAreaChange(area.id, { name: e.target.value })}
+                                                className={`h-8 text-xs font-black rounded-xl max-w-[220px] sm:max-w-xs transition-colors ${
+                                                    isExpanded 
+                                                    ? "bg-slate-800 text-white border-slate-700 focus:bg-slate-900" 
+                                                    : "bg-white text-slate-900 border-slate-300"
+                                                }`}
+                                                placeholder="Nombre del Área / Ambiente"
+                                            />
                                         </div>
+                                        <span className={`text-[11px] font-mono hidden md:inline flex-shrink-0 ${isExpanded ? "text-slate-300" : "text-slate-500"}`}>
+                                            {area.areaSquareMeters || 0} m² • {area.requiredBtu?.toLocaleString() || 12000} BTU • {areaPhotos.length} fotos
+                                        </span>
                                     </div>
 
                                     <div className="flex items-center gap-2">
@@ -370,6 +404,24 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                                 <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]">
                                                     Recomendado: {suggestBtuCapacity(area.areaSquareMeters || 0).text}
                                                 </Badge>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">Nombre del Ambiente / Área</Label>
+                                                    <Input
+                                                        className="h-9 text-xs font-bold bg-slate-50 border-slate-300"
+                                                        placeholder="Ej: Habitación Master, Sala / Comedor..."
+                                                        value={area.name}
+                                                        onChange={(e) => handleAreaChange(area.id, { name: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-[11px] font-bold text-slate-700">Cálculo de Carga Térmica Sugerida</Label>
+                                                    <div className="h-9 px-3 flex items-center bg-indigo-50 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-900">
+                                                        {suggestBtuCapacity(area.areaSquareMeters || 0).text}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

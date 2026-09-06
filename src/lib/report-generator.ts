@@ -358,14 +358,28 @@ export function updatePhotosFromTicket(
     });
 
     // Find new photos logic:
-    // A photo is new if:
-    // 1. It has an ID and that ID is NOT in existingIds
-    // 2. OR (if no ID or ID check passed) its URL is NOT in existingUrls
-    const newPhotos = (ticket.photos || []).filter(photo => {
-        const hasId = (photo as any).id;
-        const knownId = hasId && existingIds.has(hasId);
+    // Aggregate from both ticket.photos and all surveyAreas[].photos
+    const allCandidatePhotos: any[] = [...(ticket.photos || [])];
+    if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
+        ticket.surveyAreas.forEach(area => {
+            if (area.photos && Array.isArray(area.photos)) {
+                area.photos.forEach(p => {
+                    if (p && p.url && !allCandidatePhotos.some(existing => existing.url === p.url)) {
+                        allCandidatePhotos.push({
+                            ...p,
+                            area: p.area || area.name,
+                            description: p.description || `Evidencia en ${area.name}`
+                        });
+                    }
+                });
+            }
+        });
+    }
 
-        // Correct logic:
+    const newPhotos = allCandidatePhotos.filter(photo => {
+        if (!photo || !photo.url) return false;
+        const hasId = photo.id;
+
         // If it has a known ID, it's NOT new.
         if (hasId && existingIds.has(hasId)) return false;
 

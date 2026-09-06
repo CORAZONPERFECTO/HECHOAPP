@@ -160,6 +160,29 @@ function getAspectFitDimensions(
     return { renderW, renderH, offsetX, offsetY };
 }
 
+function cleanPDFText(text: string): string {
+    if (!text) return '';
+    return text
+        .replace(/📍/g, '')
+        .replace(/➔/g, '->')
+        .replace(/✅/g, '[OK]')
+        .replace(/⬜/g, '[-]')
+        .replace(/📷/g, '')
+        .replace(/💰/g, '')
+        .replace(/💡/g, '')
+        .replace(/⭐/g, '*')
+        .replace(/m²/g, 'm2')
+        .replace(/²/g, '2')
+        .replace(/³/g, '3')
+        .replace(/Ø=ÜÍ/g, '')
+        .replace(/[\u{1F300}-\u{1FAFF}]/gu, '')
+        .replace(/[\u{2600}-\u{27BF}]/gu, '')
+        .replace(/[\u{FE00}-\u{FE0F}]/gu, '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/\u00A0/g, ' ')
+        .trim();
+}
+
 /**
  * EXPORTACIÓN: "MODERNO 2026 - FORMATEADOR INTELIGENTE DE INGENIERÍA"
  */
@@ -247,7 +270,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setFontSize(15);
     pdf.setFont(FONTS.header, 'bold');
     pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    const cleanTitle = (report.header.title || "INFORME TÉCNICO DE LEVANTAMIENTO").toUpperCase();
+    const cleanTitle = cleanPDFText(report.header.title || "INFORME TÉCNICO DE LEVANTAMIENTO").toUpperCase();
     const titleLines = pdf.splitTextToSize(cleanTitle, contentWidth);
     pdf.text(titleLines, margin, yPos + 4);
     yPos += (titleLines.length * 5.5) + 4;
@@ -271,9 +294,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setFontSize(9.5);
     pdf.setFont(FONTS.body, 'bold');
     pdf.setTextColor(30, 30, 30);
-    pdf.text(report.header.clientName || "Cliente General", col1X, yPos + 11);
+    pdf.text(cleanPDFText(report.header.clientName || "Cliente General"), col1X, yPos + 11);
     pdf.setFont(FONTS.body, 'normal');
-    pdf.text(report.header.date || new Date().toLocaleDateString('es-DO'), col2X, yPos + 11);
+    pdf.text(cleanPDFText(report.header.date || new Date().toLocaleDateString('es-DO')), col2X, yPos + 11);
 
     pdf.setFontSize(7.5);
     pdf.setFont(FONTS.header, 'bold');
@@ -284,16 +307,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
     pdf.setFontSize(9.5);
     pdf.setFont(FONTS.body, 'bold');
     pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    pdf.text(report.header.ticketNumber ? `TK #${report.header.ticketNumber}` : "N/A", col1X, yPos + 23);
+    pdf.text(cleanPDFText(report.header.ticketNumber ? `TK #${report.header.ticketNumber}` : "N/A"), col1X, yPos + 23);
 
     pdf.setFont(FONTS.body, 'normal');
     pdf.setTextColor(30, 30, 30);
-    pdf.text(report.header.technicianName || "HECHO SRL", col2X, yPos + 23);
+    pdf.text(cleanPDFText(report.header.technicianName || "HECHO SRL"), col2X, yPos + 23);
 
     if (report.header.address) {
         pdf.setFontSize(7.5);
         pdf.setTextColor(120, 120, 120);
-        pdf.text(`📍 Ubicación: ${report.header.address}`, col1X, yPos + 29);
+        pdf.text(`Ubicación: ${cleanPDFText(report.header.address)}`, col1X, yPos + 29);
     }
 
     yPos += metaBoxHeight + 8;
@@ -303,7 +326,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
     for (const section of cleanSections) {
         if (section.type === 'h1' || section.type === 'h2') {
             const titleSection = section as TitleSection;
-            const headingText = titleSection.content || '';
+            const headingText = cleanPDFText(titleSection.content || '');
             if (!headingText.trim()) continue;
 
             await checkAndAddPage(20);
@@ -325,10 +348,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const content = textSection.content || '';
             if (!content.trim()) continue;
 
-            const lines = content.split('\n');
+            const rawLines = content.split('\n');
 
-            for (let lIdx = 0; lIdx < lines.length; lIdx++) {
-                const line = lines[lIdx].trim();
+            for (let lIdx = 0; lIdx < rawLines.length; lIdx++) {
+                const line = cleanPDFText(rawLines[lIdx].trim());
                 if (!line) {
                     yPos += 2;
                     continue;
@@ -358,8 +381,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 // 2. CAJA DE DICTAMEN / EVALUACIÓN GENERAL / ADVERTENCIA
                 const calloutMatch = line.match(/^(Evaluación general|Dictamen técnico|Advertencia|Nota crítica|Conclusión):\s*(.*)$/i);
                 if (calloutMatch) {
-                    const tag = calloutMatch[1];
-                    const val = calloutMatch[2];
+                    const tag = cleanPDFText(calloutMatch[1]);
+                    const val = cleanPDFText(calloutMatch[2]);
 
                     const valLines = pdf.splitTextToSize(val, contentWidth - 16);
                     const boxH = (valLines.length * 4.6) + 12;
@@ -391,8 +414,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 // 3. CAMPOS CON DOS PUNTOS (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
                 const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
                 if (colonMatch) {
-                    const key = colonMatch[1].trim();
-                    const val = colonMatch[2].trim();
+                    const key = cleanPDFText(colonMatch[1].trim());
+                    const val = cleanPDFText(colonMatch[2].trim());
 
                     const keyStr = `${key}: `;
                     pdf.setFont(FONTS.header, 'bold');
@@ -453,13 +476,13 @@ export async function exportToPDFModern(report: TicketReportNew) {
 
             for (const rawItem of listSection.items) {
                 if (!rawItem || !rawItem.trim()) continue;
-                const item = rawItem.trim();
+                const item = cleanPDFText(rawItem.trim());
 
                 const itemColonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
 
                 if (itemColonMatch) {
-                    const key = itemColonMatch[1].trim();
-                    const val = itemColonMatch[2].trim();
+                    const key = cleanPDFText(itemColonMatch[1].trim());
+                    const val = cleanPDFText(itemColonMatch[2].trim());
                     const keyStr = `${key}: `;
 
                     pdf.setFont(FONTS.header, 'bold');
@@ -577,7 +600,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 pdf.setFontSize(8.5);
                 pdf.setTextColor(71, 85, 105);
                 pdf.setFont(FONTS.body, 'italic');
-                const descLines = pdf.splitTextToSize(baSection.description, contentWidth - 12);
+                const descLines = pdf.splitTextToSize(cleanPDFText(baSection.description), contentWidth - 12);
                 pdf.text(descLines, margin + 6, photoY + photoBoxH + 5);
             }
 
@@ -613,7 +636,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setFontSize(8.5);
                     pdf.setFont(FONTS.body, 'italic');
                     pdf.setTextColor(71, 85, 105);
-                    const descLines = pdf.splitTextToSize(`📷 ${photoSec.description}`, contentWidth - 4);
+                    const descLines = pdf.splitTextToSize(cleanPDFText(photoSec.description), contentWidth - 4);
                     pdf.text(descLines, margin + 2, yPos + boxH + 5);
                 }
             } catch (e) {
@@ -672,7 +695,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                             pdf.setFontSize(7.5);
                             pdf.setFont(FONTS.body, 'normal');
                             pdf.setTextColor(71, 85, 105);
-                            const descLines = pdf.splitTextToSize(photo.description, photoBoxW);
+                            const descLines = pdf.splitTextToSize(cleanPDFText(photo.description), photoBoxW);
                             pdf.text(descLines.slice(0, 2), x, yPos + photoBoxH + 4);
                         }
                     } catch (e) {

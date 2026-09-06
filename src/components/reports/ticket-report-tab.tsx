@@ -146,10 +146,25 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
     const handleUpdatePhotos = async () => {
         if (!report) return;
-        const updatedReport = updatePhotosFromTicket(report, ticket);
-        setReport(updatedReport);
-        await handleSave(updatedReport);
-        toast({ title: "Fotos Actualizadas", description: "Se han sincronizado las evidencias fotográficas." });
+        try {
+            let currentTicket = ticket;
+            try {
+                const ticketSnap = await getDoc(doc(db, "tickets", ticket.id));
+                if (ticketSnap.exists()) {
+                    currentTicket = { id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
+                }
+            } catch (err) {
+                console.warn("Could not fetch fresh ticket snapshot:", err);
+            }
+
+            const updatedReport = updatePhotosFromTicket(report, currentTicket);
+            setReport(updatedReport);
+            await handleSave(updatedReport);
+            toast({ title: "Fotos Actualizadas", description: "Se han sincronizado las evidencias fotográficas con éxito." });
+        } catch (error) {
+            console.error("Error updating photos:", error);
+            toast({ title: "Error", description: "No se pudieron actualizar las fotos", variant: "destructive" });
+        }
     };
 
     const handleRegenerate = async () => {
@@ -158,12 +173,22 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
 
         try {
             setSaving(true);
-            const newReport = generateReportFromTicket(ticket, reportPolicies);
+            let currentTicket = ticket;
+            try {
+                const ticketSnap = await getDoc(doc(db, "tickets", ticket.id));
+                if (ticketSnap.exists()) {
+                    currentTicket = { id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
+                }
+            } catch (err) {
+                console.warn("Could not fetch fresh ticket snapshot:", err);
+            }
+
+            const newReport = generateReportFromTicket(currentTicket, reportPolicies);
             await setDoc(doc(db, "ticketReports", ticket.id), newReport);
             setReport(newReport);
             setLastSavedReport(newReport);
 
-            toast({ title: "✅ Informe Generado", description: "Informe actualizado con fotos, diagnóstico y recomendaciones." });
+            toast({ title: "✅ Informe Generado", description: "Informe actualizado con fotos, diagnóstico y recomendaciones sin duplicados." });
         } catch (error) {
             console.error("Error regenerating report:", error);
             toast({ title: "Error", description: "Error al generar el informe", variant: "destructive" });
