@@ -24,6 +24,7 @@ import { TicketReportTab } from "@/components/reports/ticket-report-tab"; // NEW
 import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
 import { TicketSurveyAreas } from "@/components/tickets/ticket-survey-areas";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
+import { TicketQuotesTab } from "@/components/tickets/ticket-quotes-tab";
 import { TicketToInvoiceModal } from "@/components/tickets/ticket-to-invoice-modal";
 import { useTicketAutoSave } from "@/hooks/use-ticket-auto-save";
 import { ErrorSearchModal } from "@/components/resources/error-search-modal";
@@ -594,13 +595,14 @@ export default function TicketDetailPage() {
 
             <main className="max-w-3xl mx-auto p-4 space-y-6 print:max-w-none print:p-0">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="print:hidden">
-                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto">
+                    <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto gap-1">
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
                         <TabsTrigger value="checklist" className="text-xs py-2">Checklist</TabsTrigger>
                         <TabsTrigger value="materials" className="text-xs py-2 font-bold text-blue-700">Materiales</TabsTrigger>
                         <TabsTrigger value="purchases" className="text-xs py-2">Compras</TabsTrigger>
                         <TabsTrigger value="evidence" className="text-xs py-2">Fotos</TabsTrigger>
                         <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
+                        <TabsTrigger value="quote" className="text-xs py-2 font-bold text-emerald-700">Cotización</TabsTrigger>
                         <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
                         {canViewFinalReport && (
                             <TabsTrigger value="final-report" className="text-xs py-2 font-semibold text-blue-700">Informe Final</TabsTrigger>
@@ -1328,6 +1330,11 @@ export default function TicketDetailPage() {
                                 />
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* Tab de Cotizaciones y Presupuestos del Ticket */}
+                    <TabsContent value="quote" className="space-y-4">
+                        <TicketQuotesTab ticket={ticket} currentUserRole={currentUserRole} />
                     </TabsContent>
 
                     {canViewFinalReport && (

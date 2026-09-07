@@ -22,6 +22,7 @@ import { FileDown, Printer, Loader2, Settings } from "lucide-react";
 import { DocumentData, generateDocumentPDF } from "@/lib/document-generator";
 import { useDocumentSettings, DocumentFormat, DocumentType } from "@/stores/document-settings-store";
 import { saveAs } from "file-saver";
+import { DocumentViewerModal } from "./document-viewer-modal";
 
 interface DocumentExportButtonProps {
     data: DocumentData;
@@ -36,11 +37,13 @@ export function DocumentExportButton({ data, type }: DocumentExportButtonProps) 
     const [selectedFormat, setSelectedFormat] = useState<DocumentFormat>(defaultFormat);
     const [showPreview, setShowPreview] = useState(false);
     const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
 
     const handleGenerate = async (action: 'download' | 'preview' | 'print') => {
         setLoading(true);
         try {
             const blob = await generateDocumentPDF(data, selectedFormat);
+            setPdfBlob(blob);
 
             if (action === 'download') {
                 saveAs(blob, `${data.type}-${data.number}.pdf`);
@@ -108,25 +111,16 @@ export function DocumentExportButton({ data, type }: DocumentExportButtonProps) 
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            <Dialog open={showPreview} onOpenChange={setShowPreview}>
-                <DialogContent className="max-w-4xl h-[90vh]">
-                    <DialogHeader>
-                        <DialogTitle>Vista Previa ({selectedFormat})</DialogTitle>
-                        <DialogDescription>
-                            Revisa el documento antes de imprimir.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 w-full h-full bg-gray-100 rounded-md overflow-hidden">
-                        {pdfUrl && (
-                            <iframe
-                                src={pdfUrl}
-                                className="w-full h-full border-none"
-                                title="PDF Preview"
-                            />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <DocumentViewerModal
+                open={showPreview}
+                onOpenChange={setShowPreview}
+                pdfBlob={pdfBlob}
+                pdfUrl={pdfUrl}
+                title={`Vista Previa de ${data.type}`}
+                documentNumber={data.number}
+                clientName={data.client.name}
+                isInternalOnly={data.isInternalOnly}
+            />
         </>
     );
 }

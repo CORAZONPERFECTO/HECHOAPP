@@ -65,6 +65,8 @@ export interface QuotationItem {
     discount_percentage?: number; // UI only
 }
 
+export type QuoteItem = QuotationItem;
+
 // ─── InvoiceLineItem — para facturas y notas de crédito (campos locales) ─────
 // Estos campos NO se envían a ERPNext; son para el cálculo local de facturas.
 export interface InvoiceLineItem {
@@ -149,6 +151,26 @@ export interface Quote {
     sellerId?: string;
     sellerName?: string;
 
+    // ── Misión CENTAURO: Arquitectura Dual & Versionado ───────────────────────
+    documentType?: 'COTIZACION_CLIENTE' | 'PRESUPUESTO_INTERNO' | 'QUOTE' | 'PROFORMA' | 'PURCHASE_ORDER' | 'ORDEN DE COMPRA' | string;
+    quoteCode?: string;         // ej: "COT-2026-0907-001" o "INT-2026-0907-001"
+    version?: number;           // Versión actual (1, 2, 3...)
+    versionHistory?: QuoteVersion[];
+    isInternalOnly?: boolean;   // Si es true, nunca se envía al cliente
+    isProforma?: boolean;
+    isPurchaseOrder?: boolean;
+    linkedInternalBudgetId?: string; // Vínculo de la cotización comercial a su presupuesto de costo
+
+    // Desglose confidencial de costos para presupuestos internos (INT-...)
+    internalBudget?: InternalBudgetBreakdown;
+
+    // Campos shim compatibles con versiones anteriores
+    number?: string;
+    total?: number;
+    subtotal?: number;
+    taxTotal?: number;
+    notes?: string;
+
     // Referencia ERP (backlink)
     erpQuotationId?: string;    // name del Quotation en ERPNext
     erpSyncedAt?: Timestamp;
@@ -169,6 +191,34 @@ export interface Quote {
     createdAt: Timestamp;
     updatedBy?: string;
     updatedAt: Timestamp;
+}
+
+export interface QuoteVersion {
+    version: number;
+    grand_total: number;
+    net_total: number;
+    itemsCount: number;
+    updatedAt: Timestamp | any;
+    updatedBy?: string;
+    updatedByName?: string;
+    changeReason?: string;
+    snapshotItems?: QuotationItem[];
+}
+
+export interface InternalBudgetBreakdown {
+    materialsEstimatedCost?: number;  // Costo materiales / piezas de almacén o compra
+    materialsCost?: number;
+    laborEstimatedCost?: number;      // Costo de horas técnicas de ejecución
+    laborCost?: number;
+    transportCost: number;           // Combustible, traslados o peajes
+    subcontractorsCost?: number;      // Trabajos especializados tercerizados
+    subcontractorCost?: number;
+    contingencyCost: number;          // Reserva de imprevistos
+    otherCosts?: number;              // Herramientas especiales, alquileres
+    otherCost?: number;
+    totalEstimatedCost?: number;      // Suma de todos los costos internos
+    totalInternalCost?: number;
+    targetMarginPercent?: number;     // Margen objetivo (ej. 35%)
 }
 
 export interface Payment {

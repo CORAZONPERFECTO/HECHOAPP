@@ -21,6 +21,7 @@ import { generateDocumentPDF, DocumentData } from "@/lib/document-generator";
 import { CompanySettings, Client } from "@/types/schema";
 import { saveAs } from "file-saver";
 import { useRouter } from "next/navigation";
+import { DocumentViewerModal } from "@/components/documents/document-viewer-modal";
 
 interface QuoteItemDraft {
     id: string;
@@ -70,6 +71,7 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
     const [saving, setSaving] = useState(false);
     const [generatingPdf, setGeneratingPdf] = useState(false);
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+    const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
     const [showPdfDialog, setShowPdfDialog] = useState(false);
 
     const recognitionRef = useRef<any>(null);
@@ -437,6 +439,7 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
             const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_DOMINGO' }).format(new Date());
             const docData = buildDocumentData(`CT-${todayStr}-001`);
             const blob = await generateDocumentPDF(docData, "classic");
+            setPdfBlob(blob);
             const url = URL.createObjectURL(blob);
             setPdfPreviewUrl(url);
             setShowPdfDialog(true);
@@ -883,33 +886,17 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
                 </DialogContent>
             </Dialog>
 
-            {/* Modal de Vista Previa PDF */}
-            <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
-                <DialogContent className="max-w-4xl h-[88vh] p-0 flex flex-col overflow-hidden bg-slate-900">
-                    <DialogHeader className="p-4 bg-slate-800 text-white shrink-0 flex flex-row items-center justify-between">
-                        <DialogTitle className="text-sm font-bold flex items-center gap-2">
-                            <Eye className="h-4 w-4 text-blue-400" />
-                            Vista Previa de Cotización (HECHO SRL)
-                        </DialogTitle>
-                        <Button
-                            size="sm"
-                            onClick={handleDownloadPDF}
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 h-8 mr-6"
-                        >
-                            <FileDown className="h-3.5 w-3.5" /> Descargar
-                        </Button>
-                    </DialogHeader>
-                    <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                        {pdfPreviewUrl && (
-                            <iframe
-                                src={pdfPreviewUrl}
-                                className="w-full h-full border-none"
-                                title="Vista Previa PDF"
-                            />
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Modal de Vista Previa PDF con Visor Interactivo (Zoom, Mobile, WhatsApp, Descarga) */}
+            <DocumentViewerModal
+                open={showPdfDialog}
+                onOpenChange={setShowPdfDialog}
+                pdfBlob={pdfBlob}
+                pdfUrl={pdfPreviewUrl}
+                title="Vista Previa de Cotización"
+                documentNumber={`CT-${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_DOMINGO' }).format(new Date())}-001`}
+                clientName={quoteResult?.clientName || "Cliente"}
+                isInternalOnly={false}
+            />
         </>
     );
 }

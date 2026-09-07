@@ -16,7 +16,7 @@ export interface DocumentItem {
 
 export interface DocumentData {
     id: string;
-    type: 'FACTURA' | 'COTIZACIÓN' | 'ORDEN DE COMPRA' | 'CONDUCE' | 'RECIBO' | 'FACTURA PROFORMA';
+    type: 'FACTURA' | 'COTIZACIÓN' | 'PRESUPUESTO INTERNO' | 'ORDEN DE COMPRA' | 'CONDUCE' | 'RECIBO' | 'FACTURA PROFORMA';
     number: string;
     date: Date;
     dueDate?: Date;
@@ -53,10 +53,13 @@ export interface DocumentData {
     discountTotal: number;
     total: number;
 
-    // Meta
+    // Meta & Seguridad Documental (Misión CENTAURO)
     notes?: string;
     terms?: string;
     status?: string;
+    isInternalOnly?: boolean;
+    watermarkText?: string;
+    version?: number;
 }
 
 /**
@@ -82,10 +85,21 @@ export function mapQuoteToDocument(quote: Quote, company: CompanySettings, overr
     
     let resolvedType: DocumentData['type'] = 'COTIZACIÓN';
     let prefix = 'CT';
+    let isInternalOnly = quote.isInternalOnly || quote.documentType === 'PRESUPUESTO_INTERNO';
+    let watermarkText = isInternalOnly ? 'DOCUMENTO INTERNO — NO ENVIAR AL CLIENTE' : undefined;
+
     if (overrideType) {
         resolvedType = overrideType;
         if (resolvedType === 'ORDEN DE COMPRA') prefix = 'OC';
         else if (resolvedType === 'FACTURA PROFORMA') prefix = 'FP';
+        else if (resolvedType === 'PRESUPUESTO INTERNO') {
+            prefix = 'INT';
+            isInternalOnly = true;
+            watermarkText = 'DOCUMENTO INTERNO — NO ENVIAR AL CLIENTE';
+        }
+    } else if (isInternalOnly || q.documentType === 'PRESUPUESTO_INTERNO') {
+        resolvedType = 'PRESUPUESTO INTERNO';
+        prefix = 'INT';
     } else if (q.documentType === 'PURCHASE_ORDER' || q.documentType === 'ORDEN DE COMPRA' || q.isPurchaseOrder) {
         resolvedType = 'ORDEN DE COMPRA';
         prefix = 'OC';
@@ -95,12 +109,15 @@ export function mapQuoteToDocument(quote: Quote, company: CompanySettings, overr
     }
 
     const dateFormatted = quote.transaction_date || (q.createdAt?.seconds ? new Date(q.createdAt.seconds * 1000).toISOString().split('T')[0] : '2026-09-02');
-    const docNumber = formatDocumentNumber(q.number || quote.name, dateFormatted, quote.id, prefix);
+    const docNumber = quote.quoteCode || formatDocumentNumber(q.number || quote.name, dateFormatted, quote.id, prefix);
 
     const mappedBase = {
         id: quote.id,
         type: resolvedType,
         number: docNumber,
+        isInternalOnly,
+        watermarkText,
+        version: quote.version || 1,
         date: quote.transaction_date
             ? new Date(quote.transaction_date)
             : (q.issueDate instanceof Timestamp ? q.issueDate.toDate() : new Date()),

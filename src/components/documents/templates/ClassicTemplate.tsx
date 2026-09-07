@@ -368,6 +368,43 @@ const styles = StyleSheet.create({
         color: '#9ca3af',
         textAlign: 'center',
     },
+
+    // Watermark overlay for internal documents
+    watermarkContainer: {
+        position: 'absolute',
+        top: 250,
+        left: 20,
+        right: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        transform: 'rotate(-35deg)',
+        opacity: 0.08,
+        zIndex: 10,
+    },
+    watermarkText: {
+        fontSize: 32,
+        fontFamily: 'Helvetica-Bold',
+        color: '#dc2626',
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 2,
+    },
+    internalNoticeBadge: {
+        backgroundColor: '#fef2f2',
+        borderWidth: 1,
+        borderColor: '#fca5a5',
+        borderRadius: 3,
+        paddingVertical: 3,
+        paddingHorizontal: 6,
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    internalNoticeText: {
+        color: '#991b1b',
+        fontSize: 7.5,
+        fontFamily: 'Helvetica-Bold',
+        textAlign: 'center',
+    },
 });
 
 interface Props {
@@ -412,6 +449,9 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
     } else if (data.type === 'FACTURA') {
         docTitle = 'FACTURA DE VENTA';
         displaySubtitle = 'Comprobante Fiscal de Venta';
+    } else if (data.type === 'PRESUPUESTO INTERNO' || data.isInternalOnly) {
+        docTitle = 'PRESUPUESTO INTERNO DE COSTOS';
+        displaySubtitle = 'DOCUMENTO PRIVADO Y CONFIDENCIAL — DESGLOSE DE COSTOS DIRECTOS E INDIRECTOS';
     } else if (data.type === 'COTIZACIÓN') {
         docTitle = 'PRESUPUESTO';
         if (data.items.length === 1) {
@@ -467,6 +507,15 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
 
     return (
         <Page size="LETTER" style={styles.page}>
+            {/* Watermark for internal documents */}
+            {data.isInternalOnly && (
+                <View style={styles.watermarkContainer} fixed>
+                    <Text style={styles.watermarkText}>
+                        {data.watermarkText || 'DOCUMENTO INTERNO — NO ENVIAR AL CLIENTE'}
+                    </Text>
+                </View>
+            )}
+
             {/* Header: Left Company Info | Right HECHO Logo */}
             <View style={styles.headerContainer}>
                 <View style={styles.companyInfo}>
@@ -481,6 +530,14 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
                     <Image src={logoSrc} style={styles.logo} />
                 </View>
             </View>
+
+            {data.isInternalOnly && (
+                <View style={styles.internalNoticeBadge}>
+                    <Text style={styles.internalNoticeText}>
+                        CONFIDENCIAL — USO EXCLUSIVO ADMINISTRACIÓN Y GERENCIA HECHO SRL
+                    </Text>
+                </View>
+            )}
 
             {/* Title & Document Meta with generous vertical spacing */}
             <View style={styles.titleBlock}>
@@ -570,12 +627,14 @@ export const ClassicTemplate: React.FC<Props> = ({ data }) => {
                 ))}
             </View>
 
-            {/* DATOS DE PAGO */}
-            <View style={styles.paymentBanner}>
-                <Text style={styles.paymentText}>
-                    DATOS DE PAGO: HECHO SRL RNC 131-94753-2 | BanReservas: 960-3657-898 | Johanna Guzmán 829-649-2702 | info@hecho.do
-                </Text>
-            </View>
+            {/* DATOS DE PAGO (solo para clientes, no en presupuesto interno) */}
+            {!data.isInternalOnly && (
+                <View style={styles.paymentBanner}>
+                    <Text style={styles.paymentText}>
+                        DATOS DE PAGO: HECHO SRL RNC 131-94753-2 | BanReservas: 960-3657-898 | Johanna Guzmán 829-649-2702 | info@hecho.do
+                    </Text>
+                </View>
+            )}
 
             {/* Signatures & Seal */}
             <View style={styles.signaturesRow}>
