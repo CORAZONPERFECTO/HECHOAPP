@@ -49,14 +49,30 @@ interface VoiceQuoteModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onQuoteSaved?: (quoteId: string, quoteNumber: string) => void;
+    initialDescription?: string;
+    ticketId?: string;
+    ticketNumber?: string;
+    clientName?: string;
+    locationName?: string;
+    autoProcess?: boolean;
 }
 
-export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuoteModalProps) {
+export function VoiceQuoteModal({
+    open,
+    onOpenChange,
+    onQuoteSaved,
+    initialDescription,
+    ticketId,
+    ticketNumber,
+    clientName,
+    locationName,
+    autoProcess = false
+}: VoiceQuoteModalProps) {
     const { toast } = useToast();
     const router = useRouter();
 
     // Voice & Input State
-    const [transcript, setTranscript] = useState("");
+    const [transcript, setTranscript] = useState(initialDescription || "");
     const [isListening, setIsListening] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -83,9 +99,17 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
         "Cambio de contactor 40A y capacitor de marcha 45uF para Plaza Coral, mano de obra 2,500."
     ];
 
-    // Load Company and Clients data
+    // Load Company and Clients data and set initial text
     useEffect(() => {
         if (!open) return;
+
+        if (initialDescription) {
+            let preparedText = initialDescription;
+            if (clientName && !preparedText.toLowerCase().includes(clientName.toLowerCase())) {
+                preparedText = `Cotizar a ${clientName}${locationName ? ` (${locationName})` : ''}: ${preparedText}`;
+            }
+            setTranscript(preparedText);
+        }
 
         const loadData = async () => {
             try {
@@ -105,7 +129,7 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
         };
 
         loadData();
-    }, [open]);
+    }, [open, initialDescription, clientName, locationName]);
 
     // Cleanup Speech Recognition on unmount
     useEffect(() => {
@@ -480,6 +504,8 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
                 customer_name: quoteResult.clientName,
                 clientId: quoteResult.clientId || "",
                 clientRnc: quoteResult.clientRnc || "",
+                ticketId: ticketId || "",
+                ticketNumber: ticketNumber || "",
                 quotation_to: "Customer",
                 transaction_date: todayStr,
                 valid_till: in15daysStr,
@@ -894,7 +920,9 @@ export function VoiceQuoteModal({ open, onOpenChange, onQuoteSaved }: VoiceQuote
                 pdfUrl={pdfPreviewUrl}
                 title="Vista Previa de Cotización"
                 documentNumber={`CT-${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_DOMINGO' }).format(new Date())}-001`}
-                clientName={quoteResult?.clientName || "Cliente"}
+                clientName={quoteResult?.clientName || clientName || "Cliente"}
+                villaName={locationName || ""}
+                documentDate={new Date().toISOString().split("T")[0]}
                 isInternalOnly={false}
             />
         </>

@@ -46,11 +46,14 @@ import {
     Clock,
     Layers,
     History,
-    FileCheck2
+    FileCheck2,
+    Sparkles,
+    Wand2
 } from "lucide-react";
 import { generateDocumentPDF, mapQuoteToDocument } from "@/lib/document-generator";
 import { generateNextNumber } from "@/lib/numbering-service";
 import { DocumentViewerModal } from "@/components/documents/document-viewer-modal";
+import { VoiceQuoteModal } from "@/components/income/quotes/voice-quote-modal";
 import { useToast } from "@/components/ui/use-toast";
 
 interface TicketQuotesTabProps {
@@ -93,9 +96,14 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
     const [viewingBlob, setViewingBlob] = useState<Blob | null>(null);
     const [viewingDocNumber, setViewingDocNumber] = useState("");
     const [viewingClientName, setViewingClientName] = useState("");
+    const [viewingVillaName, setViewingVillaName] = useState("");
+    const [viewingDate, setViewingDate] = useState("");
     const [viewingIsInternal, setViewingIsInternal] = useState(false);
     const [viewingTitle, setViewingTitle] = useState("");
     const [generatingDocId, setGeneratingDocId] = useState<string | null>(null);
+
+    // AI Voice & Natural Language Assistant State
+    const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
     // Roles permission
     const isAdminOrManager =
@@ -222,6 +230,8 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
             setViewingBlob(blob);
             setViewingDocNumber(docData.number);
             setViewingClientName(docData.client.name || ticket.clientName);
+            setViewingVillaName(ticket.specificLocation || ticket.locationName || "");
+            setViewingDate(quoteItem.transaction_date || new Date().toISOString().split("T")[0]);
             setViewingIsInternal(isInternal);
             setViewingTitle(isInternal ? "Presupuesto Interno de Costos" : "Cotización Comercial");
             setViewerOpen(true);
@@ -403,16 +413,30 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* Botón de Cotizar con IA usando la descripción del ticket */}
+                    <Button
+                        size="sm"
+                        onClick={() => setVoiceModalOpen(true)}
+                        className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs gap-1.5 shadow-md"
+                    >
+                        <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+                        Cotizar con IA desde Ticket
+                    </Button>
+
                     <Button
                         size="sm"
                         onClick={() => {
+                            // Pre-fill with ticket description if available
+                            if (ticket.description) {
+                                setItems([{ description: ticket.description, qty: 1, rate: 0 }]);
+                            }
                             setCreateType("COTIZACION_CLIENTE");
                             setCreateDialogOpen(true);
                         }}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-1.5 shadow-sm"
                     >
                         <Plus className="h-4 w-4" />
-                        Nueva Cotización Cliente
+                        Nueva Cotización Manual
                     </Button>
 
                     {isAdminOrManager && (
@@ -517,18 +541,31 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
                             <p className="text-xs text-slate-500 font-medium">
                                 No se han emitido cotizaciones para este ticket.
                             </p>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                    setCreateType("COTIZACION_CLIENTE");
-                                    setCreateDialogOpen(true);
-                                }}
-                                className="mt-3 text-xs"
-                            >
-                                <Plus className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-                                Crear Primera Cotización
-                            </Button>
+                            <div className="mt-3 flex flex-wrap justify-center gap-2">
+                                <Button
+                                    size="sm"
+                                    onClick={() => setVoiceModalOpen(true)}
+                                    className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 hover:from-indigo-700 hover:to-blue-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+                                >
+                                    <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+                                    Cotizar con IA desde Descripción del Ticket
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (ticket.description) {
+                                            setItems([{ description: ticket.description, qty: 1, rate: 0 }]);
+                                        }
+                                        setCreateType("COTIZACION_CLIENTE");
+                                        setCreateDialogOpen(true);
+                                    }}
+                                    className="text-xs"
+                                >
+                                    <Plus className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                                    Crear Manualmente
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 ) : (
@@ -999,7 +1036,20 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
                 title={viewingTitle}
                 documentNumber={viewingDocNumber}
                 clientName={viewingClientName}
+                villaName={viewingVillaName}
+                documentDate={viewingDate}
                 isInternalOnly={viewingIsInternal}
+            />
+
+            {/* AI Voice/Description Quotation Modal */}
+            <VoiceQuoteModal
+                open={voiceModalOpen}
+                onOpenChange={setVoiceModalOpen}
+                initialDescription={ticket.description}
+                ticketId={ticket.id}
+                ticketNumber={ticket.ticketNumber}
+                clientName={ticket.clientName}
+                locationName={ticket.specificLocation || ticket.locationName}
             />
         </div>
     );
