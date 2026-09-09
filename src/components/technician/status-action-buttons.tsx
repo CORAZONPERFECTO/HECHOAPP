@@ -143,6 +143,23 @@ export function StatusActionButtons({ ticket, onStatusChange }: StatusActionButt
                 })();
             }
 
+            // Log event to timeline
+            import("firebase/firestore").then(({ addDoc, collection }) => {
+                let desc = `Cambió el estado operativo a: ${action.label.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ ]/g, '').trim()}`;
+                if (action.nextStatus && action.nextStatus !== ticket.status) {
+                    desc += ` (Estado interno: ${action.nextStatus})`;
+                }
+                
+                addDoc(collection(db, "ticketEvents"), {
+                    ticketId: ticket.id,
+                    userId: "system", // Will be actual user in future if auth context provided
+                    userName: ticket.technicianName || "Técnico",
+                    type: "STATUS_CHANGE",
+                    description: desc,
+                    timestamp: serverTimestamp()
+                }).catch(console.error);
+            });
+
             // Advance step for IN_PROGRESS flow
             if (ticket.status === "IN_PROGRESS" && currentStep < 2) {
                 setCurrentStep(currentStep + 1);

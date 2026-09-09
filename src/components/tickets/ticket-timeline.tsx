@@ -4,7 +4,7 @@ import { useState } from "react";
 import { TicketEvent } from "@/types/schema";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Circle, CheckCircle2, Clock, User, AlertCircle, MessageSquare, Image as ImageIcon, Send, Loader2 } from "lucide-react";
+import { Circle, CheckCircle2, Clock, User, AlertCircle, MessageSquare, Image as ImageIcon, Send, Loader2, FileText, DollarSign, ListChecks } from "lucide-react";
 import Image from "next/image";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -47,12 +47,18 @@ export function TicketTimeline({ events, ticketId, currentUserId, currentUserNam
     const getIcon = (type: string) => {
         switch (type) {
             case 'CREACION': return <Circle className="h-4 w-4 text-blue-500" />;
-            case 'CAMBIO_ESTADO': return <Clock className="h-4 w-4 text-orange-500" />;
+            case 'CAMBIO_ESTADO':
+            case 'STATUS_CHANGE': return <Clock className="h-4 w-4 text-orange-500" />;
             case 'FINALIZACION': return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-            case 'ASIGNACION': return <User className="h-4 w-4 text-purple-500" />;
-            case 'COMMENT': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
+            case 'ASIGNACION': 
+            case 'ASSIGNMENT': return <User className="h-4 w-4 text-purple-500" />;
+            case 'COMMENT': 
+            case 'NOTE': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
             case 'PHOTO_UPLOAD': return <ImageIcon className="h-4 w-4 text-pink-500" />;
             case 'TOOL_REPORT': return <AlertCircle className="h-4 w-4 text-orange-600" />;
+            case 'QUOTE_CREATED': return <FileText className="h-4 w-4 text-emerald-600" />;
+            case 'FINANCIAL_UPDATE': return <DollarSign className="h-4 w-4 text-amber-600" />;
+            case 'CHECKLIST_UPDATE': return <ListChecks className="h-4 w-4 text-blue-600" />;
             default: return <AlertCircle className="h-4 w-4 text-gray-400" />;
         }
     };

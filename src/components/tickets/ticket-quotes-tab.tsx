@@ -286,6 +286,20 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
                 title: `✅ Versión V${nextVersion} Creada`,
                 description: `Nueva cotización generada con código ${newCode}`
             });
+
+            // Log event
+            try {
+                await addDoc(collection(db, "ticketEvents"), {
+                    ticketId: parentQuote.ticketId || "",
+                    userId: auth.currentUser?.uid || "system",
+                    userName: auth.currentUser?.displayName || "Usuario",
+                    type: 'QUOTE_CREATED',
+                    description: `Duplicó y generó la nueva versión ${newCode}`,
+                    timestamp: serverTimestamp()
+                });
+            } catch (err) {
+                console.error("Error logging duplicate event:", err);
+            }
         } catch (err: any) {
             console.error("Error duplicando versión:", err);
             toast({
@@ -379,6 +393,20 @@ export function TicketQuotesTab({ ticket, currentUserRole }: TicketQuotesTabProp
                 title: isInternal ? "✅ Presupuesto Interno Creado" : "✅ Cotización Creada",
                 description: `Documento registrado con número ${seqNumber}`
             });
+
+            // Log event
+            try {
+                await addDoc(collection(db, "ticketEvents"), {
+                    ticketId: ticket.id,
+                    userId: auth.currentUser?.uid || "system",
+                    userName: auth.currentUser?.displayName || "Usuario",
+                    type: isInternal ? 'FINANCIAL_UPDATE' : 'QUOTE_CREATED',
+                    description: `Emitió el documento ${seqNumber} (${isInternal ? 'Presupuesto Interno' : 'Cotización Cliente'}) por un monto de ${currency} ${grandTotal.toLocaleString()}`,
+                    timestamp: serverTimestamp()
+                });
+            } catch (err) {
+                console.error("Error logging quote event:", err);
+            }
 
             setCreateDialogOpen(false);
             // Reset form

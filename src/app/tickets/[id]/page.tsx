@@ -35,7 +35,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2, BookOpen } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2, BookOpen, History } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -604,6 +604,9 @@ export default function TicketDetailPage() {
                         <TabsTrigger value="diagnosis" className="text-xs py-2">Reporte</TabsTrigger>
                         <TabsTrigger value="quote" className="text-xs py-2 font-bold text-emerald-700">Cotización</TabsTrigger>
                         <TabsTrigger value="closure" className="text-xs py-2">Cierre</TabsTrigger>
+                        <TabsTrigger value="audit" className="text-xs py-2 font-semibold text-purple-700 flex items-center gap-1">
+                            <History className="h-3 w-3" /> Historial
+                        </TabsTrigger>
                         {canViewFinalReport && (
                             <TabsTrigger value="final-report" className="text-xs py-2 font-semibold text-blue-700">Informe Final</TabsTrigger>
                         )}
@@ -1335,6 +1338,27 @@ export default function TicketDetailPage() {
                     {/* Tab de Cotizaciones y Presupuestos del Ticket */}
                     <TabsContent value="quote" className="space-y-4">
                         <TicketQuotesTab ticket={ticket} currentUserRole={currentUserRole} />
+                    </TabsContent>
+
+                    <TabsContent value="audit" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-purple-800 flex items-center gap-2">
+                                    <History className="h-5 w-5" /> Historial de Auditoría del Ticket
+                                </CardTitle>
+                                <CardDescription>
+                                    Registro cronológico e inmutable de todos los eventos, cambios de estado y acciones operativas.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <TicketTimeline 
+                                    events={events} 
+                                    ticketId={ticketId} 
+                                    currentUserId={currentUserId} 
+                                    currentUserName={currentUserName} 
+                                />
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     {canViewFinalReport && (
