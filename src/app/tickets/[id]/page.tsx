@@ -593,7 +593,7 @@ export default function TicketDetailPage() {
                 </div>
             )}
 
-            <main className="max-w-3xl mx-auto p-4 space-y-6 print:max-w-none print:p-0">
+            <main className={`${activeTab === 'final-report' ? 'max-w-7xl' : 'max-w-3xl'} mx-auto p-4 space-y-6 print:max-w-none print:p-0 transition-all duration-200`}>
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="print:hidden">
                     <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto gap-1">
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
@@ -1362,7 +1362,7 @@ export default function TicketDetailPage() {
                     </TabsContent>
 
                     {canViewFinalReport && (
-                        <TabsContent value="final-report" className="h-[calc(100vh-200px)]">
+                        <TabsContent value="final-report" className="h-[calc(100vh-160px)] min-h-[700px]">
                             <TicketReportTab ticket={ticket} currentUserRole={currentUserRole} />
                         </TabsContent>
                     )}

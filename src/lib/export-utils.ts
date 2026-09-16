@@ -823,51 +823,136 @@ export async function exportToPDFModern(report: TicketReportNew) {
         pdf.text("CONFORMIDAD Y APROBACIÓN DEL SERVICIO", pageWidth / 2, yPos + 3, { align: 'center' });
         yPos += 10;
 
-        const sigBoxW = 75;
-        const sigBoxH = 26;
+        const hasCompany = !!(report.signatures.includeCompanySignature || report.signatures.includeCompanySeal);
 
-        // Firma Técnico
-        const techX = margin + 10;
-        if (report.signatures.technicianSignature) {
-            try {
-                const imgData = await loadImage(report.signatures.technicianSignature);
-                const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(imgData.dataUrl, 'JPEG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
-            } catch { }
+        if (hasCompany) {
+            // Diseño de 3 Columnas: Técnico | Cliente | Empresa
+            const sigBoxW = 54;
+            const sigBoxH = 26;
+            const gap = (contentWidth - (sigBoxW * 3)) / 2; // Espaciado equitativo
+
+            // 1. Técnico (Col 1)
+            const techX = margin;
+            if (report.signatures.technicianSignature) {
+                try {
+                    const imgData = await loadImage(report.signatures.technicianSignature);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 6, sigBoxH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', techX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                } catch { }
+            }
+            pdf.setDrawColor(160, 174, 192);
+            pdf.line(techX, yPos + sigBoxH + 2, techX + sigBoxW, yPos + sigBoxH + 2);
+            pdf.setFontSize(8);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(report.signatures.technicianName || report.header.technicianName || "Técnico Especialista", techX + (sigBoxW / 2), yPos + sigBoxH + 6.5, { align: 'center' });
+            pdf.setFontSize(7);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text("TÉCNICO RESPONSABLE", techX + (sigBoxW / 2), yPos + sigBoxH + 10.5, { align: 'center' });
+
+            // 2. Cliente (Col 2)
+            const clientX = margin + sigBoxW + gap;
+            if (report.signatures.clientSignature) {
+                try {
+                    const imgData = await loadImage(report.signatures.clientSignature);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 6, sigBoxH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                } catch { }
+            }
+            pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
+            pdf.setFontSize(8);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(report.signatures.clientName || report.header.clientName || "Cliente / Receptor", clientX + (sigBoxW / 2), yPos + sigBoxH + 6.5, { align: 'center' });
+            pdf.setFontSize(7);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text("CLIENTE DE CONFORMIDAD", clientX + (sigBoxW / 2), yPos + sigBoxH + 10.5, { align: 'center' });
+
+            // 3. Empresa (Col 3) - Sello y/o Firma Autorizada
+            const compX = margin + (sigBoxW * 2) + (gap * 2);
+
+            // Sello (de fondo si existe)
+            if (report.signatures.includeCompanySeal && settings?.sealUrl) {
+                try {
+                    const sealData = await loadImage(settings.sealUrl);
+                    const sealFit = getAspectFitDimensions(sealData.width, sealData.height, sigBoxW - 10, sigBoxH);
+                    pdf.addImage(sealData.dataUrl, 'PNG', compX + 5 + sealFit.offsetX, yPos + sealFit.offsetY, sealFit.renderW, sealFit.renderH, undefined, 'FAST');
+                } catch (e) {
+                    console.warn("No se pudo cargar el sello de la empresa en PDF:", e);
+                }
+            }
+
+            // Firma autorizada (al frente si existe)
+            if (report.signatures.includeCompanySignature && settings?.signatureUrl) {
+                try {
+                    const sigData = await loadImage(settings.signatureUrl);
+                    const sigFit = getAspectFitDimensions(sigData.width, sigData.height, sigBoxW - 6, sigBoxH);
+                    pdf.addImage(sigData.dataUrl, 'PNG', compX + 3 + sigFit.offsetX, yPos + sigFit.offsetY, sigFit.renderW, sigFit.renderH, undefined, 'FAST');
+                } catch (e) {
+                    console.warn("No se pudo cargar la firma de la empresa en PDF:", e);
+                }
+            }
+
+            pdf.line(compX, yPos + sigBoxH + 2, compX + sigBoxW, yPos + sigBoxH + 2);
+            pdf.setFontSize(8);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(settings?.name || "HECHO SRL", compX + (sigBoxW / 2), yPos + sigBoxH + 6.5, { align: 'center' });
+            pdf.setFontSize(7);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text("APROBACIÓN OFICIAL", compX + (sigBoxW / 2), yPos + sigBoxH + 10.5, { align: 'center' });
+
+        } else {
+            // Diseño de 2 Columnas Tradicional (Técnico y Cliente)
+            const sigBoxW = 75;
+            const sigBoxH = 26;
+
+            // Firma Técnico
+            const techX = margin + 10;
+            if (report.signatures.technicianSignature) {
+                try {
+                    const imgData = await loadImage(report.signatures.technicianSignature);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                } catch { }
+            }
+            pdf.setDrawColor(160, 174, 192);
+            pdf.line(techX, yPos + sigBoxH + 2, techX + sigBoxW, yPos + sigBoxH + 2);
+
+            pdf.setFontSize(9);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(report.signatures.technicianName || report.header.technicianName || "Técnico Especialista", techX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
+
+            pdf.setFontSize(7.5);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text("TÉCNICO RESPONSABLE", techX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
+
+            // Firma Cliente
+            const clientX = pageWidth - margin - sigBoxW - 10;
+            if (report.signatures.clientSignature) {
+                try {
+                    const imgData = await loadImage(report.signatures.clientSignature);
+                    const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
+                    pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                } catch { }
+            }
+            pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
+
+            pdf.setFontSize(9);
+            pdf.setFont(FONTS.header, 'bold');
+            pdf.setTextColor(30, 41, 59);
+            pdf.text(report.signatures.clientName || report.header.clientName || "Cliente / Receptor", clientX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
+
+            pdf.setFontSize(7.5);
+            pdf.setFont(FONTS.body, 'normal');
+            pdf.setTextColor(100, 116, 139);
+            pdf.text("CLIENTE DE CONFORMIDAD", clientX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
         }
-        pdf.setDrawColor(160, 174, 192);
-        pdf.line(techX, yPos + sigBoxH + 2, techX + sigBoxW, yPos + sigBoxH + 2);
-
-        pdf.setFontSize(9);
-        pdf.setFont(FONTS.header, 'bold');
-        pdf.setTextColor(30, 41, 59);
-        pdf.text(report.signatures.technicianName || report.header.technicianName || "Técnico Especialista", techX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
-
-        pdf.setFontSize(7.5);
-        pdf.setFont(FONTS.body, 'normal');
-        pdf.setTextColor(100, 116, 139);
-        pdf.text("TÉCNICO RESPONSABLE", techX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
-
-        // Firma Cliente
-        const clientX = pageWidth - margin - sigBoxW - 10;
-        if (report.signatures.clientSignature) {
-            try {
-                const imgData = await loadImage(report.signatures.clientSignature);
-                const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
-            } catch { }
-        }
-        pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
-
-        pdf.setFontSize(9);
-        pdf.setFont(FONTS.header, 'bold');
-        pdf.setTextColor(30, 41, 59);
-        pdf.text(report.signatures.clientName || report.header.clientName || "Cliente / Receptor", clientX + (sigBoxW / 2), yPos + sigBoxH + 7, { align: 'center' });
-
-        pdf.setFontSize(7.5);
-        pdf.setFont(FONTS.body, 'normal');
-        pdf.setTextColor(100, 116, 139);
-        pdf.text("CLIENTE DE CONFORMIDAD", clientX + (sigBoxW / 2), yPos + sigBoxH + 11, { align: 'center' });
 
         yPos += sigBlockH;
     }

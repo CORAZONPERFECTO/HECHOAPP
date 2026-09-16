@@ -642,9 +642,10 @@ export function TicketReportEditor({
                                         ))}
                                     </SortableContext>
                                 </DndContext>
+                            </div>
                                 
-                                {/* Signatures Section */}
-                                <Card className="dark:bg-zinc-900 dark:border-zinc-800 pb-8 mt-12 mb-20 shadow-md">
+                            {/* Signatures Section */}
+                            <Card className="dark:bg-zinc-900 dark:border-zinc-800 pb-8 mt-12 mb-20 shadow-md">
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2 text-lg">
                                             <PenTool className="h-5 w-5 text-blue-600" /> Firmas Digitales y Aprobación
@@ -730,10 +731,9 @@ export function TicketReportEditor({
                             </Card>
                             
                             {/* Extra bottom padding to ensure scrollability */}
-                            <div id="report-bottom" className="h-32 w-full flex-shrink-0" />
+                            <div id="report-bottom" className="h-28 w-full flex-shrink-0" />
                         </div>
                     </div>
-                </div>
                 )}
 
                 {/* Live Preview Panel */}

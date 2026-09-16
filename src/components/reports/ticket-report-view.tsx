@@ -407,11 +407,19 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
             <header className="mb-8 pb-6 border-b-2 border-slate-200 dark:border-zinc-800">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-emerald-600/20">
-                            H
-                        </div>
+                        {companySettings?.logoUrl ? (
+                            <div className="h-12 w-auto max-w-[140px] flex items-center justify-center">
+                                <img src={companySettings.logoUrl} alt="Logo" className="max-h-12 max-w-full object-contain" />
+                            </div>
+                        ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-emerald-600/20">
+                                H
+                            </div>
+                        )}
                         <div>
-                            <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white uppercase">HECHO SRL</h2>
+                            <h2 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white uppercase">
+                                {companySettings?.name || "HECHO SRL"}
+                            </h2>
                             <p className="text-xs text-slate-500 font-medium">Ingeniería, Climatización y Servicios Especializados</p>
                         </div>
                     </div>
