@@ -100,4 +100,6 @@ export interface CompanySettings {
     email: string;
     website: string;
     logoUrl: string;
+    signatureUrl?: string; // Firma del gerente/director
+    sealUrl?: string; // Sello de la empresa
 }

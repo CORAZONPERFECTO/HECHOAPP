@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SectionEditor } from "./section-editor";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -651,53 +652,81 @@ export function TicketReportEditor({
                                         <PenTool className="h-5 w-5" /> Firmas Digitales
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid md:grid-cols-2 gap-8">
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <Label className="text-base font-semibold">Técnico</Label>
-                                            {report.signatures?.technicianSignedAt && (
-                                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
-                                            )}
-                                        </div>
-                                        <div className="h-40">
-                                            <SignaturePad
-                                                ref={techSigRef}
-                                                onEnd={() => handleSignatureUpdate('technician')}
-                                                className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                <CardContent className="space-y-8">
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <Label className="text-base font-semibold">Técnico</Label>
+                                                {report.signatures?.technicianSignedAt && (
+                                                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
+                                                )}
+                                            </div>
+                                            <div className="h-40">
+                                                <SignaturePad
+                                                    ref={techSigRef}
+                                                    onEnd={() => handleSignatureUpdate('technician')}
+                                                    className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                                />
+                                            </div>
+                                            <Input
+                                                placeholder="Nombre del Técnico"
+                                                value={report.signatures?.technicianName || report.header.technicianName || ''}
+                                                onChange={(e) => onChange({
+                                                    ...report,
+                                                    signatures: { ...report.signatures, technicianName: e.target.value }
+                                                })}
                                             />
                                         </div>
-                                        <Input
-                                            placeholder="Nombre del Técnico"
-                                            value={report.signatures?.technicianName || report.header.technicianName || ''}
-                                            onChange={(e) => onChange({
-                                                ...report,
-                                                signatures: { ...report.signatures, technicianName: e.target.value }
-                                            })}
-                                        />
+
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <Label className="text-base font-semibold">Cliente</Label>
+                                                {report.signatures?.clientSignedAt && (
+                                                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
+                                                )}
+                                            </div>
+                                            <div className="h-40">
+                                                <SignaturePad
+                                                    ref={clientSigRef}
+                                                    onEnd={() => handleSignatureUpdate('client')}
+                                                    className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                                />
+                                            </div>
+                                            <Input
+                                                placeholder="Nombre del Cliente"
+                                                value={report.signatures?.clientName || report.header.clientName || ''}
+                                                onChange={(e) => onChange({
+                                                    ...report,
+                                                    signatures: { ...report.signatures, clientName: e.target.value }
+                                                })}
+                                            />
+                                        </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <Label className="text-base font-semibold">Cliente</Label>
-                                            {report.signatures?.clientSignedAt && (
-                                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">Firmado</span>
-                                            )}
-                                        </div>
-                                        <div className="h-40">
-                                            <SignaturePad
-                                                ref={clientSigRef}
-                                                onEnd={() => handleSignatureUpdate('client')}
-                                                className="h-full w-full border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors"
+                                    {/* Company Approvals */}
+                                    <div className="flex flex-col sm:flex-row gap-6 pt-6 border-t border-slate-200 dark:border-zinc-800">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox 
+                                                id="include-company-signature" 
+                                                checked={report.signatures?.includeCompanySignature || false}
+                                                onCheckedChange={(checked) => onChange({
+                                                    ...report,
+                                                    signatures: { ...report.signatures, includeCompanySignature: !!checked }
+                                                })}
                                             />
+                                            <Label htmlFor="include-company-signature" className="cursor-pointer">Incluir Firma Autorizada de HECHO SRL</Label>
                                         </div>
-                                        <Input
-                                            placeholder="Nombre del Cliente"
-                                            value={report.signatures?.clientName || report.header.clientName || ''}
-                                            onChange={(e) => onChange({
-                                                ...report,
-                                                signatures: { ...report.signatures, clientName: e.target.value }
-                                            })}
-                                        />
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox 
+                                                id="include-company-seal" 
+                                                checked={report.signatures?.includeCompanySeal || false}
+                                                onCheckedChange={(checked) => onChange({
+                                                    ...report,
+                                                    signatures: { ...report.signatures, includeCompanySeal: !!checked }
+                                                })}
+                                            />
+                                            <Label htmlFor="include-company-seal" className="cursor-pointer">Incluir Sello de HECHO SRL</Label>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

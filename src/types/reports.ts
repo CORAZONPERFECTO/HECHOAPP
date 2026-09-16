@@ -137,6 +137,8 @@ export interface TicketReportSignatures {
     clientSignature?: string; // URL
     clientName?: string;
     clientSignedAt?: Timestamp;
+    includeCompanySignature?: boolean;
+    includeCompanySeal?: boolean;
 }
 
 export interface TicketReportNew {

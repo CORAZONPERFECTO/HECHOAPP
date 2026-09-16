@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { CompanySettings } from "@/types/schema";
 import { InlineEditableText } from "@/components/ui/inline-editable-text";
 import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
 import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
@@ -15,6 +18,7 @@ interface TicketReportViewProps {
     onUpdateHeader?: (updates: Partial<TicketReportNew['header']>) => void;
 }
 
+// ... existing code in SmartFormattedReportContent ...
 function SmartFormattedReportContent({ text }: { text: string }) {
     if (!text) return null;
     const lines = text.split('\n');
@@ -88,6 +92,21 @@ function SmartFormattedReportContent({ text }: { text: string }) {
 export function TicketReportView({ report, isInteractive = false, onUpdateSection, onUpdateHeader }: TicketReportViewProps) {
     const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title?: string } | null>(null);
     const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+    const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+
+    useEffect(() => {
+        const fetchCompany = async () => {
+            try {
+                const docSnap = await getDoc(doc(db, "settings", "company"));
+                if (docSnap.exists()) {
+                    setCompanySettings(docSnap.data() as CompanySettings);
+                }
+            } catch (err) {
+                console.error("Error fetching company settings:", err);
+            }
+        };
+        fetchCompany();
+    }, []);
 
     const isRecommendationsTitle = (text: string) => {
         const lower = text.toLowerCase();
@@ -474,9 +493,9 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                         <h3 className="text-sm font-bold mb-6 text-slate-900 dark:text-zinc-100 uppercase tracking-wider text-center">
                             Conformidad y Aprobación del Servicio
                         </h3>
-                        <div className="grid grid-cols-2 gap-8">
+                        <div className={`grid gap-8 ${report.signatures.includeCompanySignature || report.signatures.includeCompanySeal ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
                             <div className="flex flex-col items-center space-y-3">
-                                <div className="h-28 w-full max-w-[220px] bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-center p-2">
+                                <div className="h-28 w-full max-w-[220px] bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-center p-2 relative">
                                     {report.signatures.technicianSignature ? (
                                         <img src={report.signatures.technicianSignature} alt="Firma Técnico" className="max-h-full max-w-full object-contain" />
                                     ) : (
@@ -506,6 +525,28 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">Cliente de Conformidad</p>
                                 </div>
                             </div>
+
+                            {(report.signatures.includeCompanySignature || report.signatures.includeCompanySeal) && (
+                                <div className="flex flex-col items-center space-y-3">
+                                    <div className="h-28 w-full max-w-[220px] bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-center p-2 relative">
+                                        {report.signatures.includeCompanySignature && companySettings?.signatureUrl && (
+                                            <img src={companySettings.signatureUrl} alt="Firma Empresa" className="max-h-full max-w-full object-contain z-10 relative" />
+                                        )}
+                                        {report.signatures.includeCompanySeal && companySettings?.sealUrl && (
+                                            <img src={companySettings.sealUrl} alt="Sello Empresa" className="absolute opacity-40 max-h-[80%] max-w-[80%] object-contain" />
+                                        )}
+                                        {(!companySettings?.signatureUrl && !companySettings?.sealUrl) && (
+                                            <span className="text-slate-400 text-xs italic">Sello/Firma Empresa</span>
+                                        )}
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="font-bold text-xs text-slate-900 dark:text-zinc-200">
+                                            {companySettings?.name || "HECHO SRL"}
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider">Aprobación Oficial</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

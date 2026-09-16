@@ -70,7 +70,7 @@ export function CompanyProfile() {
         }
     };
 
-    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'signatureUrl' | 'sealUrl') => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -83,7 +83,6 @@ export function CompanyProfile() {
         }
 
         // 2. Validate Type & Decide on Compression
-        // Skip compression for SVG (vectors), GIF (animation), or very small files
         const isVector = file.type.includes('svg');
         const isGif = file.type.includes('gif');
         const shouldCompress = !isVector && !isGif && file.size > 200 * 1024; // > 200KB
@@ -94,7 +93,6 @@ export function CompanyProfile() {
 
             if (shouldCompress) {
                 try {
-                    // Compress with 5s timeout
                     const compressionPromise = compressImage(file, 800, 0.9);
                     const timeoutPromise = new Promise<never>((_, reject) =>
                         setTimeout(() => reject(new Error("Timeout")), 5000)
@@ -108,21 +106,20 @@ export function CompanyProfile() {
             }
 
             // 3. Upload Logic
-            // Clean filename to avoid issues
             const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-            const storageRef = ref(storage, `company/logo_${Date.now()}_${cleanName}`);
+            const prefix = field === 'logoUrl' ? 'logo' : field === 'signatureUrl' ? 'firma' : 'sello';
+            const storageRef = ref(storage, `company/${prefix}_${Date.now()}_${cleanName}`);
 
             const snapshot = await uploadBytes(storageRef, blobToUpload);
             const url = await getDownloadURL(snapshot.ref);
 
-            setSettings(prev => ({ ...prev, logoUrl: url }));
+            setSettings(prev => ({ ...prev, [field]: url }));
 
             // Auto-save after upload
-            await setDoc(doc(db, "settings", "company"), { ...settings, logoUrl: url });
+            await setDoc(doc(db, "settings", "company"), { ...settings, [field]: url });
 
         } catch (error: any) {
-            console.error("Error uploading logo:", error);
-            // Check for common storage errors
+            console.error(`Error uploading ${field}:`, error);
             if (error.code === 'storage/unauthorized') {
                 alert("Permiso denegado: No tienes autorización para subir archivos.");
             } else if (error.code === 'storage/retry-limit-exceeded') {
@@ -134,7 +131,6 @@ export function CompanyProfile() {
             }
         } finally {
             setUploading(false);
-            // Reset input
             e.target.value = "";
         }
     };
@@ -156,45 +152,63 @@ export function CompanyProfile() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Logo Section */}
-                    <div className="flex flex-col items-center space-y-4 p-6 border-2 border-dashed rounded-lg bg-gray-50">
-                        <div className="relative w-48 h-24 bg-white rounded shadow-sm flex items-center justify-center overflow-hidden">
-                            {settings.logoUrl ? (
-                                <Image
-                                    src={settings.logoUrl}
-                                    alt="Logo Empresa"
-                                    fill
-                                    className="object-contain p-2"
-                                    unoptimized={true}
-                                />
-                            ) : (
-                                <span className="text-gray-400 text-sm">Sin Logo</span>
-                            )}
+                    {/* Images Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Logo */}
+                        <div className="flex flex-col items-center space-y-4 p-4 border-2 border-dashed rounded-lg bg-gray-50">
+                            <h3 className="text-sm font-semibold text-gray-700">Logo Empresa</h3>
+                            <div className="relative w-32 h-24 bg-white rounded shadow-sm flex items-center justify-center overflow-hidden">
+                                {settings.logoUrl ? (
+                                    <Image src={settings.logoUrl} alt="Logo" fill className="object-contain p-2" unoptimized={true} />
+                                ) : (
+                                    <span className="text-gray-400 text-xs">Sin Logo</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 w-full justify-center">
+                                <Input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'logoUrl')} disabled={uploading || saving} />
+                                <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-upload')?.click()} disabled={uploading || saving} className="w-full">
+                                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                                    Subir
+                                </Button>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                id="logo-upload"
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleLogoUpload}
-                                disabled={uploading || saving}
-                            />
-                            <Button variant="outline" onClick={() => document.getElementById('logo-upload')?.click()} disabled={uploading || saving}>
-                                {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-                                {uploading ? "Subiendo..." : settings.logoUrl ? "Cambiar Logo" : "Subir Logo"}
-                            </Button>
+
+                        {/* Signature */}
+                        <div className="flex flex-col items-center space-y-4 p-4 border-2 border-dashed rounded-lg bg-gray-50">
+                            <h3 className="text-sm font-semibold text-gray-700">Firma Autorizada</h3>
+                            <div className="relative w-32 h-24 bg-white rounded shadow-sm flex items-center justify-center overflow-hidden">
+                                {settings.signatureUrl ? (
+                                    <Image src={settings.signatureUrl} alt="Firma" fill className="object-contain p-2" unoptimized={true} />
+                                ) : (
+                                    <span className="text-gray-400 text-xs">Sin Firma</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 w-full justify-center">
+                                <Input id="signature-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'signatureUrl')} disabled={uploading || saving} />
+                                <Button variant="outline" size="sm" onClick={() => document.getElementById('signature-upload')?.click()} disabled={uploading || saving} className="w-full">
+                                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                                    Subir
+                                </Button>
+                            </div>
                         </div>
-                        <p className="text-xs text-gray-500">Recomendado: PNG transparente. (Límite: 5MB)</p>
-                        
-                        <div className="w-full max-w-sm mt-4">
-                            <Label className="text-xs text-gray-500 mb-1 block">O pega una URL directa si tu almacenamiento está lleno:</Label>
-                            <Input
-                                value={settings.logoUrl}
-                                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                                placeholder="https://ejemplo.com/mi-logo.png"
-                                className="text-xs"
-                            />
+
+                        {/* Seal */}
+                        <div className="flex flex-col items-center space-y-4 p-4 border-2 border-dashed rounded-lg bg-gray-50">
+                            <h3 className="text-sm font-semibold text-gray-700">Sello Empresa</h3>
+                            <div className="relative w-32 h-24 bg-white rounded shadow-sm flex items-center justify-center overflow-hidden">
+                                {settings.sealUrl ? (
+                                    <Image src={settings.sealUrl} alt="Sello" fill className="object-contain p-2" unoptimized={true} />
+                                ) : (
+                                    <span className="text-gray-400 text-xs">Sin Sello</span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 w-full justify-center">
+                                <Input id="seal-upload" type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'sealUrl')} disabled={uploading || saving} />
+                                <Button variant="outline" size="sm" onClick={() => document.getElementById('seal-upload')?.click()} disabled={uploading || saving} className="w-full">
+                                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                                    Subir
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
