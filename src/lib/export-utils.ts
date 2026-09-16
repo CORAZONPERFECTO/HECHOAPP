@@ -66,15 +66,39 @@ async function loadImage(url: string, preservePng: boolean = false): Promise<Loa
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                if (!isPng) {
-                    // Fondo blanco para fotos JPEG estándar
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, width, height);
-                }
+                // Fondo blanco puro
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
-                const outDataUrl = isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+
+                // Limpieza de cuadrícula de ajedrez falsa de fondo:
+                // Si la imagen trae cuadrícula gris/blanca de transparencia falsa,
+                // blanqueamos los píxeles grises neutros de fondo para que quede blanco puro impecable
+                try {
+                    const imgData = ctx.getImageData(0, 0, width, height);
+                    const d = imgData.data;
+                    let modified = false;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const r = d[i];
+                        const g = d[i + 1];
+                        const b = d[i + 2];
+                        if (r >= 190 && r <= 254 && g >= 190 && g <= 254 && b >= 190 && b <= 254 &&
+                            Math.abs(r - g) <= 15 && Math.abs(g - b) <= 15 && Math.abs(r - b) <= 15) {
+                            d[i] = 255;
+                            d[i + 1] = 255;
+                            d[i + 2] = 255;
+                            d[i + 3] = 255;
+                            modified = true;
+                        }
+                    }
+                    if (modified) {
+                        ctx.putImageData(imgData, 0, 0);
+                    }
+                } catch { }
+
+                const outDataUrl = canvas.toDataURL('image/jpeg', 0.96);
                 return { img, dataUrl: outDataUrl, width, height };
             }
         } catch {
@@ -879,8 +903,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             // 3. Empresa (Col 3) - Sello y/o Firma Autorizada
             const compX = margin + (sigBoxW * 2) + (gap * 2);
 
-            // Determinar URLs de sello y firma de HECHO SRL
-            const sealUrl = settings?.sealUrl;
+            // Determinar URLs de sello y firma de HECHO SRL (fondo blanco limpio sin cuadrícula)
+            const sealUrl = (settings?.sealUrl && !settings.sealUrl.includes('sello_y_firma_hecho.png')) 
+                ? settings.sealUrl 
+                : '/sello-blanco.png';
             const sigUrl = settings?.signatureUrl || sealUrl;
 
             const shouldDrawSeal = !!report.signatures.includeCompanySeal && !!sealUrl;

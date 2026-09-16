@@ -538,7 +538,9 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                 <div className="flex flex-col items-center space-y-3">
                                     <div className="h-28 w-full max-w-[220px] bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-center p-2 relative">
                                         {(() => {
-                                            const sealUrl = companySettings?.sealUrl;
+                                            const sealUrl = (companySettings?.sealUrl && !companySettings.sealUrl.includes('sello_y_firma_hecho.png'))
+                                                ? companySettings.sealUrl
+                                                : '/sello-blanco.png';
                                             const sigUrl = companySettings?.signatureUrl || sealUrl;
                                             const showSeal = report.signatures.includeCompanySeal && sealUrl;
                                             const showSig = report.signatures.includeCompanySignature && sigUrl;
@@ -555,7 +557,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                             const targetImg = showSeal ? sealUrl : (showSig ? sigUrl : null);
                                             if (targetImg) {
                                                 return (
-                                                    <img src={targetImg} alt="Sello y Firma HECHO SRL" className="max-h-full max-w-full object-contain" />
+                                                    <img src={targetImg} alt="Sello y Firma HECHO SRL" className="max-h-full max-w-full object-contain bg-white rounded-lg" />
                                                 );
                                             }
 
