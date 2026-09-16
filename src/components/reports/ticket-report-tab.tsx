@@ -8,7 +8,7 @@ import { generateReportFromTicket, updatePhotosFromTicket, deduplicateReportSect
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, Undo2, Redo2, Sparkles, LayoutTemplate, MessageSquare, Link as LinkIcon, ExternalLink, RefreshCw, Printer } from "lucide-react";
+import { Loader2, Undo2, Redo2, Sparkles, LayoutTemplate, MessageSquare, Link as LinkIcon, ExternalLink, RefreshCw, Printer, PenTool } from "lucide-react";
 import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -410,12 +410,49 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
                             </Button>
                         </Link>
 
-                        <ExportMenu report={report} />
+                        {/* Botón Rápido: Sello Oficial de HECHO SRL */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const nextVal = !report.signatures?.includeCompanySeal;
+                                const updatedReport: TicketReportNew = {
+                                    ...report,
+                                    signatures: {
+                                        ...report.signatures,
+                                        includeCompanySeal: nextVal,
+                                        includeCompanySignature: nextVal
+                                    }
+                                };
+                                setReport(updatedReport);
+                                handleSave(updatedReport);
+                                toast({
+                                    title: nextVal ? "✓ Sello Activado" : "Sello Desactivado",
+                                    description: nextVal ? "El sello oficial de HECHO SRL se incluirá en el PDF exportado." : "El PDF se generará sin el sello de HECHO SRL."
+                                });
+                            }}
+                            className={`h-8 text-xs font-semibold gap-1.5 rounded-xl border transition-all ${
+                                report.signatures?.includeCompanySeal
+                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-700 dark:text-emerald-300 shadow-sm'
+                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                            title="Activar/Desactivar sello oficial de HECHO SRL en el reporte"
+                        >
+                            <PenTool className={`h-3.5 w-3.5 ${report.signatures?.includeCompanySeal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+                            <span>{report.signatures?.includeCompanySeal ? '✓ Con Sello HECHO' : 'Sin Sello'}</span>
+                        </Button>
+
+                        <ExportMenu 
+                            report={report} 
+                            onBeforeExport={async () => {
+                                if (report) await handleSave(report);
+                            }}
+                        />
                     </div>
                 </div>
 
                 {/* Editor Content */}
-                <div className="flex-1 overflow-hidden relative min-h-[600px]">
+                <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col">
                     {(() => {
                         const allAvailablePhotos: import("@/types/schema").TicketPhoto[] = [...(ticket.photos || [])];
                         if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {

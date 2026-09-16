@@ -1362,7 +1362,7 @@ export default function TicketDetailPage() {
                     </TabsContent>
 
                     {canViewFinalReport && (
-                        <TabsContent value="final-report" className="h-[calc(100vh-160px)] min-h-[700px]">
+                        <TabsContent value="final-report" className="h-[calc(100dvh-175px)] min-h-0 overflow-hidden flex flex-col">
                             <TicketReportTab ticket={ticket} currentUserRole={currentUserRole} />
                         </TabsContent>
                     )}

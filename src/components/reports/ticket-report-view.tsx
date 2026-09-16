@@ -537,15 +537,32 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                             {(report.signatures.includeCompanySignature || report.signatures.includeCompanySeal) && (
                                 <div className="flex flex-col items-center space-y-3">
                                     <div className="h-28 w-full max-w-[220px] bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex items-center justify-center p-2 relative">
-                                        {report.signatures.includeCompanySignature && companySettings?.signatureUrl && (
-                                            <img src={companySettings.signatureUrl} alt="Firma Empresa" className="max-h-full max-w-full object-contain z-10 relative" />
-                                        )}
-                                        {report.signatures.includeCompanySeal && companySettings?.sealUrl && (
-                                            <img src={companySettings.sealUrl} alt="Sello Empresa" className="absolute opacity-40 max-h-[80%] max-w-[80%] object-contain" />
-                                        )}
-                                        {(!companySettings?.signatureUrl && !companySettings?.sealUrl) && (
-                                            <span className="text-slate-400 text-xs italic">Sello/Firma Empresa</span>
-                                        )}
+                                        {(() => {
+                                            const sealUrl = companySettings?.sealUrl;
+                                            const sigUrl = companySettings?.signatureUrl || sealUrl;
+                                            const showSeal = report.signatures.includeCompanySeal && sealUrl;
+                                            const showSig = report.signatures.includeCompanySignature && sigUrl;
+
+                                            if (showSeal && showSig && companySettings?.signatureUrl && companySettings.signatureUrl !== sealUrl) {
+                                                return (
+                                                    <>
+                                                        <img src={sealUrl} alt="Sello Empresa" className="absolute opacity-50 max-h-[85%] max-w-[85%] object-contain" />
+                                                        <img src={companySettings.signatureUrl} alt="Firma Empresa" className="max-h-full max-w-full object-contain z-10 relative" />
+                                                    </>
+                                                );
+                                            }
+
+                                            const targetImg = showSeal ? sealUrl : (showSig ? sigUrl : null);
+                                            if (targetImg) {
+                                                return (
+                                                    <img src={targetImg} alt="Sello y Firma HECHO SRL" className="max-h-full max-w-full object-contain" />
+                                                );
+                                            }
+
+                                            return (
+                                                <span className="text-slate-400 text-xs italic">Sello / Firma Empresa</span>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="text-center">
                                         <p className="font-bold text-xs text-slate-900 dark:text-zinc-200">

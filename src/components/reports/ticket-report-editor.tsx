@@ -496,6 +496,15 @@ export function TicketReportEditor({
                                 <span className="text-[8px] font-medium leading-tight text-center">{label}</span>
                             </button>
                         ))}
+
+                        <button
+                            onClick={() => document.getElementById('report-signatures')?.scrollIntoView({ behavior: 'smooth' })}
+                            title="Ir a Firmas y Sello"
+                            className="flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 mt-2 border-t pt-2"
+                        >
+                            <PenTool className="h-4 w-4" />
+                            <span className="text-[8px] font-bold leading-tight text-center">Firmas</span>
+                        </button>
                     </div>
                 )}
 
@@ -645,12 +654,17 @@ export function TicketReportEditor({
                             </div>
                                 
                             {/* Signatures Section */}
-                            <Card className="dark:bg-zinc-900 dark:border-zinc-800 pb-8 mt-12 mb-20 shadow-md">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Card id="report-signatures" className="dark:bg-zinc-900 dark:border-zinc-800 pb-8 mt-12 mb-12 shadow-md scroll-mt-6">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center justify-between text-lg flex-wrap gap-2">
+                                        <div className="flex items-center gap-2">
                                             <PenTool className="h-5 w-5 text-blue-600" /> Firmas Digitales y Aprobación
-                                        </CardTitle>
-                                    </CardHeader>
+                                        </div>
+                                        <span className="text-xs font-normal text-slate-500 bg-slate-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full">
+                                            Técnico • Cliente • Empresa
+                                        </span>
+                                    </CardTitle>
+                                </CardHeader>
                                 <CardContent className="space-y-8">
                                     <div className="grid md:grid-cols-2 gap-8">
                                         <div className="space-y-4">
@@ -702,36 +716,120 @@ export function TicketReportEditor({
                                         </div>
                                     </div>
 
-                                    {/* Company Approvals */}
-                                    <div className="flex flex-col sm:flex-row gap-6 pt-6 border-t border-slate-200 dark:border-zinc-800">
-                                        <div className="flex items-center space-x-2">
-                                            <Checkbox 
-                                                id="include-company-signature" 
-                                                checked={report.signatures?.includeCompanySignature || false}
-                                                onCheckedChange={(checked) => onChange({
-                                                    ...report,
-                                                    signatures: { ...report.signatures, includeCompanySignature: !!checked }
-                                                })}
-                                            />
-                                            <Label htmlFor="include-company-signature" className="cursor-pointer">Incluir Firma Autorizada de HECHO SRL</Label>
+                                    {/* Company Approvals - Cards Prominentes */}
+                                    <div className="pt-6 border-t border-slate-200 dark:border-zinc-800 space-y-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                                                Aprobación Oficial de HECHO SRL (Columna 3 del PDF)
+                                            </h4>
+                                            <p className="text-xs text-slate-500">
+                                                Selecciona qué elementos institucionales se incluirán en el informe exportado:
+                                            </p>
                                         </div>
-                                        <div className="flex items-center space-x-2">
-                                            <Checkbox 
-                                                id="include-company-seal" 
-                                                checked={report.signatures?.includeCompanySeal || false}
-                                                onCheckedChange={(checked) => onChange({
-                                                    ...report,
-                                                    signatures: { ...report.signatures, includeCompanySeal: !!checked }
-                                                })}
-                                            />
-                                            <Label htmlFor="include-company-seal" className="cursor-pointer">Incluir Sello de HECHO SRL</Label>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                                            {/* Sello Oficial Card */}
+                                            <div 
+                                                onClick={() => {
+                                                    const nextVal = !report.signatures?.includeCompanySeal;
+                                                    onChange({
+                                                        ...report,
+                                                        signatures: { ...report.signatures, includeCompanySeal: nextVal }
+                                                    });
+                                                }}
+                                                className={`p-4 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between ${
+                                                    report.signatures?.includeCompanySeal 
+                                                        ? 'bg-emerald-50/90 border-emerald-500 shadow-sm dark:bg-emerald-950/40 dark:border-emerald-600' 
+                                                        : 'bg-white border-slate-200 hover:border-slate-300 dark:bg-zinc-800/60 dark:border-zinc-700'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Checkbox 
+                                                            id="include-company-seal" 
+                                                            checked={report.signatures?.includeCompanySeal || false}
+                                                            onCheckedChange={(checked) => onChange({
+                                                                ...report,
+                                                                signatures: { ...report.signatures, includeCompanySeal: !!checked }
+                                                            })}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 h-5 w-5"
+                                                        />
+                                                        <div>
+                                                            <Label htmlFor="include-company-seal" className="font-bold text-sm cursor-pointer text-slate-900 dark:text-zinc-100">
+                                                                Sello de HECHO SRL
+                                                            </Label>
+                                                            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                                Estampa el sello oficial en el documento
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {report.signatures?.includeCompanySeal ? (
+                                                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0">
+                                                            ✓ ACTIVO EN PDF
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-full shrink-0">
+                                                            Inactivo
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Firma Autorizada Card */}
+                                            <div 
+                                                onClick={() => {
+                                                    const nextVal = !report.signatures?.includeCompanySignature;
+                                                    onChange({
+                                                        ...report,
+                                                        signatures: { ...report.signatures, includeCompanySignature: nextVal }
+                                                    });
+                                                }}
+                                                className={`p-4 rounded-xl border-2 transition-all cursor-pointer select-none flex flex-col justify-between ${
+                                                    report.signatures?.includeCompanySignature 
+                                                        ? 'bg-emerald-50/90 border-emerald-500 shadow-sm dark:bg-emerald-950/40 dark:border-emerald-600' 
+                                                        : 'bg-white border-slate-200 hover:border-slate-300 dark:bg-zinc-800/60 dark:border-zinc-700'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <Checkbox 
+                                                            id="include-company-signature" 
+                                                            checked={report.signatures?.includeCompanySignature || false}
+                                                            onCheckedChange={(checked) => onChange({
+                                                                ...report,
+                                                                signatures: { ...report.signatures, includeCompanySignature: !!checked }
+                                                            })}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 h-5 w-5"
+                                                        />
+                                                        <div>
+                                                            <Label htmlFor="include-company-signature" className="font-bold text-sm cursor-pointer text-slate-900 dark:text-zinc-100">
+                                                                Firma Autorizada
+                                                            </Label>
+                                                            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                                Firma de gerencia / validación técnica
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {report.signatures?.includeCompanySignature ? (
+                                                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0">
+                                                            ✓ ACTIVO EN PDF
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-full shrink-0">
+                                                            Inactivo
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
                             
-                            {/* Extra bottom padding to ensure scrollability */}
-                            <div id="report-bottom" className="h-28 w-full flex-shrink-0" />
+                            {/* Extra bottom padding to ensure complete scrollability */}
+                            <div id="report-bottom" className="h-64 w-full flex-shrink-0" />
                         </div>
                     </div>
                 )}

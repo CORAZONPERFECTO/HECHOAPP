@@ -46,16 +46,17 @@ async function getCompanySettings(): Promise<CompanySettings | null> {
 
 /**
  * Carga y decodifica cualquier formato de imagen (data URL, blob, Firebase Storage, HTTP/HTTPS)
- * garantizando conversión a JPEG nítido de alta resolución y compatibilidad absoluta con jsPDF.
+ * garantizando compatibilidad absoluta con jsPDF y preservación de transparencia PNG cuando corresponde.
  */
-async function loadImage(url: string): Promise<LoadedImageResult> {
+async function loadImage(url: string, preservePng: boolean = false): Promise<LoadedImageResult> {
     if (!url || typeof url !== 'string' || !url.trim()) {
         return createPlaceholderData();
     }
 
     const trimmedUrl = url.trim();
+    const isPng = preservePng || trimmedUrl.toLowerCase().includes('.png') || trimmedUrl.startsWith('data:image/png');
 
-    // Helper: Convertir cualquier HTMLImageElement a LoadedImageResult con formato JPEG uniforme
+    // Helper: Convertir cualquier HTMLImageElement a LoadedImageResult
     const imageToResult = (img: HTMLImageElement): LoadedImageResult => {
         const width = img.naturalWidth || img.width || 800;
         const height = img.naturalHeight || img.height || 600;
@@ -65,14 +66,16 @@ async function loadImage(url: string): Promise<LoadedImageResult> {
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                // Fondo blanco por si la imagen tiene transparencia
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
+                if (!isPng) {
+                    // Fondo blanco para fotos JPEG estándar
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
+                }
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, width, height);
-                const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.95);
-                return { img, dataUrl: jpegDataUrl, width, height };
+                const outDataUrl = isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.95);
+                return { img, dataUrl: outDataUrl, width, height };
             }
         } catch {
             // Si el canvas está contaminado por CORS, usamos la imagen con dataUrl existente
@@ -117,7 +120,7 @@ async function loadImage(url: string): Promise<LoadedImageResult> {
     try {
         const img = await loadHtmlImage(trimmedUrl, true);
         const result = imageToResult(img);
-        if (result.dataUrl.startsWith('data:image/jpeg')) {
+        if (result.dataUrl.startsWith('data:image/')) {
             return result;
         }
     } catch {
@@ -295,11 +298,12 @@ export async function exportToPDFModern(report: TicketReportNew) {
         let logoDrawn = false;
         if (settings?.logoUrl) {
             try {
-                const imgData = await loadImage(settings.logoUrl);
+                const imgData = await loadImage(settings.logoUrl, true);
                 const ratio = imgData.width / imgData.height;
                 const logoH = 14;
                 const logoW = Math.min(34, logoH * ratio);
-                pdf.addImage(imgData.dataUrl, 'JPEG', margin, 7, logoW, logoH, undefined, 'FAST');
+                const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                pdf.addImage(imgData.dataUrl, format, margin, 7, logoW, logoH, undefined, 'FAST');
                 logoDrawn = true;
             } catch {
                 logoDrawn = false;
@@ -835,9 +839,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const techX = margin;
             if (report.signatures.technicianSignature) {
                 try {
-                    const imgData = await loadImage(report.signatures.technicianSignature);
+                    const imgData = await loadImage(report.signatures.technicianSignature, true);
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 6, sigBoxH);
-                    pdf.addImage(imgData.dataUrl, 'JPEG', techX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(imgData.dataUrl, format, techX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
                 } catch { }
             }
             pdf.setDrawColor(160, 174, 192);
@@ -855,9 +860,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const clientX = margin + sigBoxW + gap;
             if (report.signatures.clientSignature) {
                 try {
-                    const imgData = await loadImage(report.signatures.clientSignature);
+                    const imgData = await loadImage(report.signatures.clientSignature, true);
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 6, sigBoxH);
-                    pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(imgData.dataUrl, format, clientX + 3 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
                 } catch { }
             }
             pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
@@ -873,23 +879,33 @@ export async function exportToPDFModern(report: TicketReportNew) {
             // 3. Empresa (Col 3) - Sello y/o Firma Autorizada
             const compX = margin + (sigBoxW * 2) + (gap * 2);
 
-            // Sello (de fondo si existe)
-            if (report.signatures.includeCompanySeal && settings?.sealUrl) {
+            // Determinar URLs de sello y firma de HECHO SRL
+            const sealUrl = settings?.sealUrl;
+            const sigUrl = settings?.signatureUrl || sealUrl;
+
+            const shouldDrawSeal = !!report.signatures.includeCompanySeal && !!sealUrl;
+            const shouldDrawSig = !!report.signatures.includeCompanySignature && !!sigUrl;
+
+            let sealDrawn = false;
+            if (shouldDrawSeal) {
                 try {
-                    const sealData = await loadImage(settings.sealUrl);
-                    const sealFit = getAspectFitDimensions(sealData.width, sealData.height, sigBoxW - 10, sigBoxH);
-                    pdf.addImage(sealData.dataUrl, 'PNG', compX + 5 + sealFit.offsetX, yPos + sealFit.offsetY, sealFit.renderW, sealFit.renderH, undefined, 'FAST');
+                    const sealData = await loadImage(sealUrl!, true);
+                    const sealFit = getAspectFitDimensions(sealData.width, sealData.height, sigBoxW - 6, sigBoxH);
+                    const format = sealData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(sealData.dataUrl, format, compX + 3 + sealFit.offsetX, yPos + sealFit.offsetY, sealFit.renderW, sealFit.renderH, undefined, 'FAST');
+                    sealDrawn = true;
                 } catch (e) {
                     console.warn("No se pudo cargar el sello de la empresa en PDF:", e);
                 }
             }
 
-            // Firma autorizada (al frente si existe)
-            if (report.signatures.includeCompanySignature && settings?.signatureUrl) {
+            // Si se marcó firma autorizada y la firma es independiente o no se dibujó el sello
+            if (shouldDrawSig && (!sealDrawn || (settings?.signatureUrl && settings.signatureUrl !== sealUrl))) {
                 try {
-                    const sigData = await loadImage(settings.signatureUrl);
+                    const sigData = await loadImage(sigUrl!, true);
                     const sigFit = getAspectFitDimensions(sigData.width, sigData.height, sigBoxW - 6, sigBoxH);
-                    pdf.addImage(sigData.dataUrl, 'PNG', compX + 3 + sigFit.offsetX, yPos + sigFit.offsetY, sigFit.renderW, sigFit.renderH, undefined, 'FAST');
+                    const format = sigData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(sigData.dataUrl, format, compX + 3 + sigFit.offsetX, yPos + sigFit.offsetY, sigFit.renderW, sigFit.renderH, undefined, 'FAST');
                 } catch (e) {
                     console.warn("No se pudo cargar la firma de la empresa en PDF:", e);
                 }
@@ -914,9 +930,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const techX = margin + 10;
             if (report.signatures.technicianSignature) {
                 try {
-                    const imgData = await loadImage(report.signatures.technicianSignature);
+                    const imgData = await loadImage(report.signatures.technicianSignature, true);
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                    pdf.addImage(imgData.dataUrl, 'JPEG', techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(imgData.dataUrl, format, techX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
                 } catch { }
             }
             pdf.setDrawColor(160, 174, 192);
@@ -936,9 +953,10 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const clientX = pageWidth - margin - sigBoxW - 10;
             if (report.signatures.clientSignature) {
                 try {
-                    const imgData = await loadImage(report.signatures.clientSignature);
+                    const imgData = await loadImage(report.signatures.clientSignature, true);
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, sigBoxW - 10, sigBoxH);
-                    pdf.addImage(imgData.dataUrl, 'JPEG', clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+                    pdf.addImage(imgData.dataUrl, format, clientX + 5 + fit.offsetX, yPos + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
                 } catch { }
             }
             pdf.line(clientX, yPos + sigBoxH + 2, clientX + sigBoxW, yPos + sigBoxH + 2);
@@ -1013,8 +1031,9 @@ export async function generateQuotePDF(quote: Quote) {
 
     if (settings?.logoUrl) {
         try {
-            const imgData = await loadImage(settings.logoUrl);
-            pdf.addImage(imgData.dataUrl, 'PNG', margin, 10, 30, 15);
+            const imgData = await loadImage(settings.logoUrl, true);
+            const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            pdf.addImage(imgData.dataUrl, format, margin, 10, 30, 15);
         } catch { }
     }
 
@@ -1054,8 +1073,9 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
 
     if (settings?.logoUrl) {
         try {
-            const imgData = await loadImage(settings.logoUrl);
-            pdf.addImage(imgData.dataUrl, 'PNG', margin, 10, 30, 15);
+            const imgData = await loadImage(settings.logoUrl, true);
+            const format = imgData.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            pdf.addImage(imgData.dataUrl, format, margin, 10, 30, 15);
         } catch { }
     }
 

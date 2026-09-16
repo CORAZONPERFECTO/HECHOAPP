@@ -21,9 +21,10 @@ import { useState } from 'react';
 
 interface ExportMenuProps {
     report: TicketReportNew;
+    onBeforeExport?: () => Promise<void>;
 }
 
-export function ExportMenu({ report }: ExportMenuProps) {
+export function ExportMenu({ report, onBeforeExport }: ExportMenuProps) {
     const [exporting, setExporting] = useState(false);
     const [exportType, setExportType] = useState<string>('');
 
@@ -31,6 +32,9 @@ export function ExportMenu({ report }: ExportMenuProps) {
         setExporting(true);
         setExportType(type);
         try {
+            if (onBeforeExport) {
+                await onBeforeExport();
+            }
             await exportFn();
         } catch (error) {
             console.error(`Error exporting as ${type}:`, error);
