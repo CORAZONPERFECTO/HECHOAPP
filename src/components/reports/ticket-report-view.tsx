@@ -550,6 +550,9 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                         </div>
                     </div>
                 )}
+                
+                {/* Extra padding to ensure scrolling is possible past the floating buttons */}
+                <div className="h-32 w-full flex-shrink-0 print:hidden" />
             </div>
 
             {/* Photo Zoom Lightbox Dialog */}
