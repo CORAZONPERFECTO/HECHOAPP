@@ -5,22 +5,47 @@ export type EquipmentType = 'AIRE_ACONDICIONADO' | 'REFRIGERACION' | 'LAVADORA' 
 
 export interface Equipment {
     id: string;
-    nombre: string;
+    code?: string; // ej. "EQ-001847"
+    qrToken?: string;
+    qrCode?: string;
+    nombre?: string;
+    name?: string;
     clientId: string;
     locationId: string;
-    marca: string;
-    modelo: string;
-    numeroSerie: string;
-    capacidadBTU: string;
-    tipoEquipo: EquipmentType;
+    villaId?: string;
+    areaId?: string;
+    areaName?: string;
+    marca?: string;
+    modelo?: string;
+    numeroSerie?: string;
+    capacidadBTU?: string;
+    tipoEquipo?: EquipmentType | string;
+    specs?: {
+        brand?: string;
+        model?: string;
+        serialNumber?: string;
+        btu?: number | string;
+        voltage?: string;
+        refrigerant?: string;
+        type?: string;
+    };
+    status?: 'OPERATIONAL' | 'WARNING' | 'CRITICAL' | 'REPLACED' | 'RETIRED' | 'OFFLINE' | 'MAINTENANCE';
+    replacesEquipmentId?: string;
+    replacedByEquipmentId?: string;
+    retirementReason?: string;
+    platePhotoUrl?: string;
+    boardPhotoUrl?: string;
+    evaporatorPhotoUrl?: string;
+    condenserPhotoUrl?: string;
     anoInstalacion?: string;
     notas?: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
+    createdAt?: Timestamp | any;
+    updatedAt?: Timestamp | any;
 }
 
 export interface Location {
     id: string;
+    code?: string; // ej. "PROP-00042"
     nombre: string;
     direccion?: string;
     descripcion?: string;
@@ -29,11 +54,14 @@ export interface Location {
     locationArea?: string;
     specificLocation?: string;
     locationUrl?: string; // GPS Google Maps / Waze link
+    facadePhotoUrl?: string; // Foto de la fachada / parte delantera de la villa
+    frontPhotoUrl?: string; // Alias
     isRetainer?: boolean; // Villa con Iguala
     contractType?: 'IGUALA' | 'EVENTUAL';
     contractStartDate?: string;
     nextMaintenanceDate?: string;
     maintenanceFrequency?: 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL';
+    areas?: Array<{ id: string; name: string; floor?: number }>;
     equipmentCensus?: TicketSurveyArea[];
     retentionPolicyReviewedAt?: any;
     retentionDecision?: 'PRESERVE_ALL' | 'PURGED_OLD';

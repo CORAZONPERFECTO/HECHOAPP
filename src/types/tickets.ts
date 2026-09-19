@@ -43,6 +43,7 @@ export interface TicketPhoto {
     location?: string;
     area?: string;
     areaId?: string;
+    equipmentId?: string; // Enlace al pasaporte inmutable del equipo
     size?: 'small' | 'medium' | 'large';
     details?: string;
 }
@@ -175,6 +176,7 @@ export interface Ticket {
     clientSignatureName?: string; // Legible name of the person who signed
     allowGalleryUpload?: boolean;
     equipmentId?: string; // ID of the equipment being serviced
+    equipmentIds?: string[]; // IDs de todos los equipos incluidos en el alcance del ticket (ej. mantenimiento de villa)
     interventionId?: string; // ID of the RIT Intervention created
     // SLA Fields
     slaResponseDeadline?: Timestamp; // When first response is due

@@ -61,3 +61,8 @@ scripts/temp-*.json
 temp-*.json
 *.log
 node_modules_old_123/
+
+# pwa service workers
+/public/sw.js*
+/public/workbox-*.js*
+/public/swe-worker-*.js*

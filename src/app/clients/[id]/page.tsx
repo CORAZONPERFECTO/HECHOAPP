@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Client } from "@/types/schema";
@@ -17,7 +17,9 @@ import { ClientStats } from "@/components/clients/client-stats";
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const id = params.id as string;
+    const defaultTab = searchParams?.get("tab") || "locations";
 
     const [client, setClient] = useState<Client | null>(null);
     const [loading, setLoading] = useState(true);
@@ -75,38 +77,43 @@ export default function ClientDetailPage() {
                 <ClientStats clientId={client.id} />
 
                 {/* Main Content Tabs */}
-                <Tabs defaultValue="invoices" className="w-full">
+                {/* Main Content Tabs */}
+                <Tabs defaultValue={defaultTab} className="w-full">
                     <TabsList className="bg-white/50 backdrop-blur border p-1 rounded-xl w-full md:w-auto overflow-x-auto justify-start h-auto">
-                        <TabsTrigger value="invoices" className="gap-2 data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 rounded-lg py-2.5">
-                            <Receipt className="h-4 w-4" /> Facturas
+                        <TabsTrigger value="locations" className="gap-2 data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800 rounded-lg py-2.5 font-semibold">
+                            <MapPin className="h-4 w-4 text-emerald-600" /> Villas & Ubicaciones
                         </TabsTrigger>
                         <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 rounded-lg py-2.5">
                             <Ticket className="h-4 w-4" /> Tickets
+                        </TabsTrigger>
+                        <TabsTrigger value="invoices" className="gap-2 data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 rounded-lg py-2.5">
+                            <Receipt className="h-4 w-4" /> Facturas
                         </TabsTrigger>
                         <TabsTrigger value="payments" className="gap-2 data-[state=active]:bg-green-100 data-[state=active]:text-green-700 rounded-lg py-2.5">
                             <CreditCard className="h-4 w-4" /> Pagos
                         </TabsTrigger>
                         <TabsTrigger value="info" className="gap-2 rounded-lg py-2.5">
-                            <Info className="h-4 w-4" /> Información
-                        </TabsTrigger>
-                        <TabsTrigger value="locations" className="gap-2 rounded-lg py-2.5">
-                            <MapPin className="h-4 w-4" /> Ubicaciones
+                            <Info className="h-4 w-4" /> Información General
                         </TabsTrigger>
                     </TabsList>
 
                     <div className="mt-6">
-                        <TabsContent value="invoices">
-                            <div className="glass-card p-8 text-center text-gray-500 border-dashed border-2 bg-white/50">
-                                <Receipt className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                                <p>Historial de facturas en desarrollo...</p>
-                                <Button variant="link" className="mt-2 text-purple-600">Crear primera factura</Button>
-                            </div>
+                        <TabsContent value="locations">
+                            <LocationList clientId={client.id} clientName={client.nombreComercial} />
                         </TabsContent>
 
                         <TabsContent value="tickets">
                             <div className="glass-card p-8 text-center text-gray-500 border-dashed border-2 bg-white/50">
                                 <Ticket className="h-12 w-12 mx-auto text-gray-300 mb-3" />
                                 <p>Historial de servicio técnico en desarrollo...</p>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="invoices">
+                            <div className="glass-card p-8 text-center text-gray-500 border-dashed border-2 bg-white/50">
+                                <Receipt className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                                <p>Historial de facturas en desarrollo...</p>
+                                <Button variant="link" className="mt-2 text-purple-600">Crear primera factura</Button>
                             </div>
                         </TabsContent>
 
@@ -124,10 +131,6 @@ export default function ClientDetailPage() {
                                 </div>
                                 <ClientForm initialData={client} isEditing={true} />
                             </div>
-                        </TabsContent>
-
-                        <TabsContent value="locations">
-                            <LocationList clientId={client.id} />
                         </TabsContent>
                     </div>
                 </Tabs>

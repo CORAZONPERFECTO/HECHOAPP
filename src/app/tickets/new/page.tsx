@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import { collection, addDoc, getDocs, serverTimestamp, query, where, orderBy } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { Client, User, TicketPriority, Ticket, TicketType, SurveyArea } from "@/types/schema";
+import { Location } from "@/types/assets";
+import { EquipmentPassport } from "@/types/equipment";
+import { getEquipmentByLocation, generatePropertyCode, promoteSurveyAreasToEquipment } from "@/lib/equipment-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowRight, ArrowLeft, ShieldCheck, Zap, Sparkles, MapPin } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, ShieldCheck, Zap, Sparkles, MapPin, Building2, CheckSquare, Square, Wrench } from "lucide-react";
 
 import { ClientSelector } from "@/components/shared/client-selector";
 import { TechnicianSelector } from "@/components/shared/technician-selector";
@@ -44,7 +47,17 @@ export default function NewTicketPage() {
         locationArea: "",
         specificLocation: "",
         locationUrl: "",
+        equipmentIds: [],
     });
+
+    // Estados para jerarquía Cliente -> Villa (locations) -> Equipos (equipment)
+    const [clientLocations, setClientLocations] = useState<Location[]>([]);
+    const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+    const [availableEquipments, setAvailableEquipments] = useState<EquipmentPassport[]>([]);
+    const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
+    const [equipmentScope, setEquipmentScope] = useState<'ALL' | 'CUSTOM'>('ALL');
+    const [saveAsPermanentLocation, setSaveAsPermanentLocation] = useState(false);
+    const [loadingEquipments, setLoadingEquipments] = useState(false);
 
     const handleAIParsed = (aiData: any) => {
         setFormData(prev => ({
@@ -88,31 +101,147 @@ export default function NewTicketPage() {
         return () => unsubscribe();
     }, []);
 
-    const handleClientChange = async (client: Client) => {
+    // Selecciona una Villa y carga sus equipos registrados
+    const selectLocation = async (loc: Location) => {
+        setSelectedLocationId(loc.id);
+        setLoadingEquipments(true);
+
+        const isRetainer = loc.isRetainer !== undefined ? loc.isRetainer : true;
+
         setFormData(prev => ({
             ...prev,
-            clientId: client.id,
-            clientName: client.nombreComercial,
-            locationName: prev.locationName || client.nombreComercial,
+            locationId: loc.id,
+            locationName: loc.nombre,
+            locationArea: loc.locationArea || prev.locationArea || "",
+            specificLocation: loc.specificLocation || loc.nombre,
+            locationUrl: loc.locationUrl || prev.locationUrl || "",
+            isRetainer,
+            contractType: isRetainer ? 'IGUALA' : 'EVENTUAL',
         }));
 
-        // Buscar tickets previos de este cliente para heredar ubicación, GPS y áreas de la villa
         try {
-            const ticketsQuery = query(collection(db, "tickets"), where("clientId", "==", client.id));
+            // Cargar equipos registrados en la colección 'equipment'
+            const eqs = await getEquipmentByLocation(loc.id);
+
+            let allAreas: SurveyArea[] = [];
+            let eqIds: string[] = [];
+
+            if (eqs.length > 0) {
+                setAvailableEquipments(eqs);
+                eqIds = eqs.map(e => e.id);
+                setSelectedEquipmentIds(eqIds);
+                setEquipmentScope('ALL');
+
+                allAreas = eqs.map(e => ({
+                    id: e.id,
+                    name: e.areaName || e.name || "Área",
+                    brand: e.specs.brand,
+                    modelNumber: e.specs.model,
+                    serialNumber: e.specs.serialNumber,
+                    btuCapacity: String(e.specs.btu || ""),
+                    refrigerant: e.specs.refrigerant,
+                    voltage: e.specs.voltage || "220V",
+                    equipmentType: e.specs.type,
+                    platePhotoUrl: e.platePhotoUrl,
+                    boardPhotoUrl: e.boardPhotoUrl,
+                    notes: e.notes || "",
+                    photos: []
+                }));
+            } else if (loc.equipmentCensus && loc.equipmentCensus.length > 0) {
+                allAreas = loc.equipmentCensus.map(a => ({
+                    ...a,
+                    photos: []
+                }));
+                setAvailableEquipments([]);
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                surveyAreas: allAreas,
+                equipmentIds: eqIds
+            }));
+        } catch (err) {
+            console.error("Error loading location equipment:", err);
+        } finally {
+            setLoadingEquipments(false);
+        }
+    };
+
+    // Alternar selección de un equipo específico en modo personalizado
+    const handleToggleEquipment = (eq: EquipmentPassport) => {
+        let updated: string[];
+        if (selectedEquipmentIds.includes(eq.id)) {
+            updated = selectedEquipmentIds.filter(id => id !== eq.id);
+        } else {
+            updated = [...selectedEquipmentIds, eq.id];
+        }
+        setSelectedEquipmentIds(updated);
+
+        const filteredAreas = availableEquipments
+            .filter(e => updated.includes(e.id))
+            .map(e => ({
+                id: e.id,
+                name: e.areaName || e.name || "Área",
+                brand: e.specs.brand,
+                modelNumber: e.specs.model,
+                serialNumber: e.specs.serialNumber,
+                btuCapacity: String(e.specs.btu || ""),
+                refrigerant: e.specs.refrigerant,
+                voltage: e.specs.voltage || "220V",
+                equipmentType: e.specs.type,
+                platePhotoUrl: e.platePhotoUrl,
+                boardPhotoUrl: e.boardPhotoUrl,
+                notes: e.notes || "",
+                photos: []
+            }));
+
+        setFormData(prev => ({
+            ...prev,
+            surveyAreas: filteredAreas,
+            equipmentIds: updated
+        }));
+    };
+
+    const handleSelectAllEquipment = () => {
+        setEquipmentScope('ALL');
+        const eqIds = availableEquipments.map(e => e.id);
+        setSelectedEquipmentIds(eqIds);
+        const allAreas = availableEquipments.map(e => ({
+            id: e.id,
+            name: e.areaName || e.name || "Área",
+            brand: e.specs.brand,
+            modelNumber: e.specs.model,
+            serialNumber: e.specs.serialNumber,
+            btuCapacity: String(e.specs.btu || ""),
+            refrigerant: e.specs.refrigerant,
+            voltage: e.specs.voltage || "220V",
+            equipmentType: e.specs.type,
+            platePhotoUrl: e.platePhotoUrl,
+            boardPhotoUrl: e.boardPhotoUrl,
+            notes: e.notes || "",
+            photos: []
+        }));
+        setFormData(prev => ({
+            ...prev,
+            surveyAreas: allAreas,
+            equipmentIds: eqIds
+        }));
+    };
+
+    // Fallback: Si el cliente no tiene locations registradas, consultar tickets previos
+    const loadFromPreviousTickets = async (clientId: string) => {
+        try {
+            const ticketsQuery = query(collection(db, "tickets"), where("clientId", "==", clientId));
             const snapshot = await getDocs(ticketsQuery);
             
             if (!snapshot.empty) {
-                // Ordenar en memoria para obtener los más recientes
                 const clientTickets = snapshot.docs.map(d => ({ 
                     ...d.data(), 
                     createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : 0 
                 })) as any[];
                 clientTickets.sort((a, b) => b.createdAt - a.createdAt);
                 
-                // 1. Buscar último ticket con detalles de dirección física o GPS
                 const lastTicketWithLocation = clientTickets.find(t => t.locationArea || t.locationStreet || t.specificLocation || t.locationUrl);
-
-                // 2. Buscar último ticket que tenga áreas censadas de la villa
                 const lastTicketWithAreas = clientTickets.find(t => t.surveyAreas && Array.isArray(t.surveyAreas) && t.surveyAreas.length > 0);
 
                 let clonedAreas: SurveyArea[] = [];
@@ -120,24 +249,9 @@ export default function NewTicketPage() {
 
                 if (lastTicketWithAreas && lastTicketWithAreas.surveyAreas) {
                     clonedAreas = lastTicketWithAreas.surveyAreas.map((area: SurveyArea) => ({
-                        id: `area-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                        name: area.name || "",
-                        lengthMeters: area.lengthMeters || 0,
-                        widthMeters: area.widthMeters || 0,
-                        areaSquareMeters: area.areaSquareMeters || 0,
-                        requiredBtu: area.requiredBtu || 0,
-                        recommendedEquipment: area.recommendedEquipment || "",
-                        voltage: area.voltage || "220V",
-                        pipeDistanceMeters: area.pipeDistanceMeters || 0,
-                        drainStatus: area.drainStatus || "",
-                        notes: area.notes || "",
-                        brand: area.brand || "",
-                        modelNumber: area.modelNumber || "",
-                        serialNumber: area.serialNumber || "",
-                        refrigerant: area.refrigerant || "",
-                        platePhotoUrl: area.platePhotoUrl || "",
-                        boardPhotoUrl: area.boardPhotoUrl || "",
-                        photos: [] // Se inicia limpio de fotos para la nueva visita
+                        ...area,
+                        id: area.id || `area-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        photos: []
                     }));
                     isRetainerDetected = true;
                 }
@@ -161,6 +275,37 @@ export default function NewTicketPage() {
         } catch (error) {
             console.error("Error fetching client's last ticket location and areas:", error);
         }
+    };
+
+    const handleClientChange = async (client: Client) => {
+        setFormData(prev => ({
+            ...prev,
+            clientId: client.id,
+            clientName: client.nombreComercial,
+            locationName: prev.locationName || client.nombreComercial,
+        }));
+
+        // 1. Consultar si el cliente ya tiene villas en la colección 'locations'
+        try {
+            const locQuery = query(
+                collection(db, "locations"),
+                where("clientId", "==", client.id)
+            );
+            const locSnap = await getDocs(locQuery);
+            const locs = locSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Location[];
+            setClientLocations(locs);
+
+            if (locs.length > 0) {
+                // Seleccionar automáticamente la primera villa
+                await selectLocation(locs[0]);
+                return;
+            }
+        } catch (locErr) {
+            console.error("Error fetching client locations:", locErr);
+        }
+
+        // 2. Si no tiene locations registradas, consultar tickets previos
+        await loadFromPreviousTickets(client.id);
     };
 
     const [selectedTypeIds, setSelectedTypeIds] = useState<string[]>([]);
@@ -219,8 +364,34 @@ export default function NewTicketPage() {
             const ticketNumber = await generateNextTicketNumber();
             const fullLocation = `${formData.locationArea || ''} - ${formData.specificLocation || ''}`.trim().replace(/^- |- $/g, '');
 
+            let finalLocationId = formData.locationId;
+
+            // Si se marcó guardar como propiedad permanente y no existe aún en locations
+            if (saveAsPermanentLocation && !finalLocationId && formData.clientId) {
+                try {
+                    const newLocRef = await addDoc(collection(db, "locations"), {
+                        code: generatePropertyCode(),
+                        clientId: formData.clientId,
+                        clientName: formData.clientName || "",
+                        nombre: formData.specificLocation || fullLocation || "Propiedad / Villa",
+                        specificLocation: formData.specificLocation || "",
+                        locationArea: formData.locationArea || "",
+                        locationUrl: formData.locationUrl || "",
+                        isRetainer: !!formData.isRetainer,
+                        contractType: formData.isRetainer ? 'IGUALA' : 'EVENTUAL',
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    });
+                    finalLocationId = newLocRef.id;
+                } catch (locCreateErr) {
+                    console.error("Error creating permanent location:", locCreateErr);
+                }
+            }
+
             const ticketData: any = {
                 ...formData,
+                locationId: finalLocationId || formData.locationId || null,
+                equipmentIds: selectedEquipmentIds.length > 0 ? selectedEquipmentIds : (formData.equipmentIds || []),
                 serviceType: formData.serviceType || "MANTENIMIENTO",
                 number: ticketNumber,
                 ticketNumber: ticketNumber,
@@ -242,7 +413,15 @@ export default function NewTicketPage() {
                 }
             });
 
-            await addDoc(collection(db, "tickets"), cleanedData);
+            const docRef = await addDoc(collection(db, "tickets"), cleanedData);
+
+            // Si hay ubicación permanente y áreas censadas, promover a equipos en background
+            if (finalLocationId && cleanedData.surveyAreas && cleanedData.surveyAreas.length > 0) {
+                promoteSurveyAreasToEquipment({ ...cleanedData, id: docRef.id }, finalLocationId).catch(e => {
+                    console.warn("Background promotion of equipment:", e);
+                });
+            }
+
             router.push("/tickets");
         } catch (error) {
             console.error("Error creating ticket:", error);
@@ -274,10 +453,71 @@ export default function NewTicketPage() {
                                 <Label>Cliente</Label>
                                 <ClientSelector
                                     onSelect={handleClientChange}
-                                    value={formData.clientId} // Assuming ClientSelector takes value or defaultSelected
+                                    value={formData.clientId}
                                 />
                                 {formData.clientName && <p className="text-sm text-green-600">Seleccionado: {formData.clientName}</p>}
                             </div>
+
+                            {/* Selector de Propiedad / Villa del Cliente */}
+                            {formData.clientId && (
+                                <div className="space-y-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                            <Building2 className="w-4 h-4 text-blue-600" /> Propiedad / Villa del Cliente
+                                        </Label>
+                                        {clientLocations.length > 0 && (
+                                            <span className="text-[11px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full font-medium">
+                                                {clientLocations.length} {clientLocations.length === 1 ? 'villa registrada' : 'villas registradas'}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {clientLocations.length > 0 ? (
+                                        <div className="space-y-3">
+                                            <Select
+                                                value={selectedLocationId}
+                                                onValueChange={(val) => {
+                                                    if (val === "NEW") {
+                                                        setSelectedLocationId("NEW");
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            locationId: undefined,
+                                                            locationName: "",
+                                                            specificLocation: "",
+                                                            locationUrl: "",
+                                                            surveyAreas: [],
+                                                            equipmentIds: []
+                                                        }));
+                                                        setAvailableEquipments([]);
+                                                        setSelectedEquipmentIds([]);
+                                                    } else {
+                                                        const found = clientLocations.find(l => l.id === val);
+                                                        if (found) selectLocation(found);
+                                                    }
+                                                }}
+                                            >
+                                                <SelectTrigger className="bg-white">
+                                                    <SelectValue placeholder="Seleccionar Villa / Ubicación..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {clientLocations.map(loc => (
+                                                        <SelectItem key={loc.id} value={loc.id}>
+                                                            {loc.nombre} {loc.locationArea ? `• ${loc.locationArea}` : ''} {loc.isRetainer ? '⭐ (Iguala)' : ''}
+                                                        </SelectItem>
+                                                    ))}
+                                                    <SelectItem value="NEW" className="text-blue-600 font-medium">
+                                                        + Registrar Nueva Propiedad / Eventual
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-500">
+                                            Este cliente no tiene villas registradas aún. Puedes ingresar los datos y guardarla permanentemente.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -306,6 +546,21 @@ export default function NewTicketPage() {
                                 </div>
                             </div>
 
+                            {/* Guardar como propiedad permanente si es una nueva villa */}
+                            {(!selectedLocationId || selectedLocationId === "NEW") && formData.clientId && (
+                                <div className="pt-1">
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                                        <input
+                                            type="checkbox"
+                                            checked={saveAsPermanentLocation}
+                                            onChange={e => setSaveAsPermanentLocation(e.target.checked)}
+                                            className="w-4 h-4 rounded text-blue-600 cursor-pointer"
+                                        />
+                                        <span>Guardar esta ubicación como <strong>Villa / Propiedad permanente</strong> de este cliente</span>
+                                    </label>
+                                </div>
+                            )}
+
                             {/* Modalidad de Contrato / Servicio */}
                             <div className="space-y-2 pt-1">
                                 <Label className="text-xs font-bold text-slate-700">Modalidad del Servicio / Contrato</Label>
@@ -323,7 +578,7 @@ export default function NewTicketPage() {
                                             <span className="text-xs font-bold text-slate-800">Villa con Iguala (Contrato)</span>
                                         </div>
                                         <p className="text-[11px] text-slate-500 mt-1 pl-7 leading-relaxed">
-                                            Hereda las áreas y equipos. El técnico subirá fotos por cada aire para la bitácora histórica.
+                                            Hereda los equipos y pasaportes. El técnico sube evidencias por cada aire acondicionado.
                                         </p>
                                     </div>
 
@@ -340,19 +595,98 @@ export default function NewTicketPage() {
                                             <span className="text-xs font-bold text-slate-800">Servicio Eventual (Sin Iguala)</span>
                                         </div>
                                         <p className="text-[11px] text-slate-500 mt-1 pl-7 leading-relaxed">
-                                            Visita puntual estándar. Evidencias generales (Antes/Después) sin inventariar áreas continuas.
+                                            Visita puntual estándar. Evidencias generales sin asociar a inventario de activos.
                                         </p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Alerta de Áreas Heredadas si es Villa con Iguala */}
-                            {formData.isRetainer && formData.surveyAreas && formData.surveyAreas.length > 0 && (
+                            {/* Selector de Alcance de Equipos si hay equipos disponibles */}
+                            {availableEquipments.length > 0 && formData.isRetainer && (
+                                <div className="space-y-3 p-4 bg-blue-50/60 border border-blue-200 rounded-xl">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-bold text-blue-950 flex items-center gap-1.5">
+                                            <Wrench className="w-4 h-4 text-blue-600" /> Alcance de Equipos a Intervenir ({availableEquipments.length} registrados)
+                                        </Label>
+                                        <span className="text-[11px] font-bold text-blue-800 bg-blue-200/70 px-2 py-0.5 rounded-full">
+                                            {selectedEquipmentIds.length} de {availableEquipments.length} incluidos
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleSelectAllEquipment}
+                                            className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                                equipmentScope === 'ALL'
+                                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <CheckSquare className="w-3.5 h-3.5" /> Toda la Villa (General)
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEquipmentScope('CUSTOM')}
+                                            className={`p-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                                                equipmentScope === 'CUSTOM'
+                                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <Square className="w-3.5 h-3.5" /> Equipos Específicos (Avería)
+                                        </button>
+                                    </div>
+
+                                    {/* Si es personalizado, mostrar tarjetas de selección rápida */}
+                                    {equipmentScope === 'CUSTOM' && (
+                                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 pt-1">
+                                            {availableEquipments.map(eq => {
+                                                const isChecked = selectedEquipmentIds.includes(eq.id);
+                                                return (
+                                                    <div
+                                                        key={eq.id}
+                                                        onClick={() => handleToggleEquipment(eq)}
+                                                        className={`p-2.5 rounded-lg border cursor-pointer flex items-center justify-between text-xs transition-all ${
+                                                            isChecked
+                                                                ? 'bg-white border-blue-500 shadow-xs'
+                                                                : 'bg-slate-50/80 border-slate-200 opacity-60 hover:opacity-100'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                onChange={() => {}}
+                                                                className="w-4 h-4 rounded text-blue-600 cursor-pointer"
+                                                            />
+                                                            <div className="truncate">
+                                                                <span className="font-semibold text-slate-800 block truncate">{eq.areaName || eq.name}</span>
+                                                                <span className="text-[11px] text-slate-500">
+                                                                    {eq.specs.brand} {eq.specs.btu ? `• ${eq.specs.btu} BTU` : ''} {eq.code ? `• ${eq.code}` : ''}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {eq.specs.refrigerant && (
+                                                            <span className="text-[10px] font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 flex-shrink-0">
+                                                                {eq.specs.refrigerant}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Alerta de Áreas Heredadas si no hay pasaportes pero hay censo previo */}
+                            {formData.isRetainer && availableEquipments.length === 0 && formData.surveyAreas && formData.surveyAreas.length > 0 && (
                                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 shadow-sm">
                                     <div className="flex items-center gap-2 min-w-0 pr-2">
                                         <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                                         <span className="truncate">
-                                            <strong>{formData.surveyAreas.length} {formData.surveyAreas.length === 1 ? 'área heredada' : 'áreas heredadas'}:</strong> {formData.surveyAreas.map(a => a.name).join(', ')}.
+                                            <strong>{formData.surveyAreas.length} {formData.surveyAreas.length === 1 ? 'área vinculada' : 'áreas vinculadas'}:</strong> {formData.surveyAreas.map(a => a.name).join(', ')}.
                                         </span>
                                     </div>
                                     <span className="text-[10px] font-bold text-emerald-800 bg-emerald-200/70 px-2 py-0.5 rounded-full flex-shrink-0">

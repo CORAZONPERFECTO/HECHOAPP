@@ -51,15 +51,15 @@ export function ClientForm({ initialData, isEditing = false }: ClientFormProps) 
             if (isEditing && initialData?.id) {
                 // Update existing
                 await setDoc(doc(db, "clients", initialData.id), clientData, { merge: true });
+                router.push(`/clients/${initialData.id}`);
             } else {
                 // Create new
-                await addDoc(collection(db, "clients"), {
+                const newDocRef = await addDoc(collection(db, "clients"), {
                     ...clientData,
                     createdAt: serverTimestamp(),
                 });
+                router.push(`/clients/${newDocRef.id}`);
             }
-
-            router.push("/clients");
             router.refresh();
         } catch (err: any) {
             console.error("Error saving client:", err);

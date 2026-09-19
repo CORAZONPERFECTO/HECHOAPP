@@ -9,14 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play, Navigation } from "lucide-react";
-import { Ticket, TicketPhoto, TicketVideo } from "@/types/schema";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play, Navigation, Building2, BookOpen, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { Ticket, TicketPhoto, TicketVideo, Location } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChecklistRenderer } from "@/components/technician/checklist-renderer";
 import { PhotoUploader } from "@/components/technician/photo-uploader";
 import { TicketSurveyAreas } from "@/components/tickets/ticket-survey-areas";
+import { EquipmentServiceChecklist } from "@/components/technician/equipment-service-checklist";
 import { VideoUploader } from "@/components/technician/video-uploader";
 import { TechnicianDocumentsCard } from "@/components/tickets/technician-documents-card";
 import { PermissionRequest } from "@/components/technician/permission-request";
@@ -118,6 +120,8 @@ export default function TechnicianTicketPage() {
     const [endMileage, setEndMileage] = useState<string>("");
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [villaData, setVillaData] = useState<Location | null>(null);
+    const [uploadingFacade, setUploadingFacade] = useState(false);
     const [isInterventionOpen, setIsInterventionOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("info");
     const [newMaterialText, setNewMaterialText] = useState("");
@@ -195,12 +199,52 @@ export default function TechnicianTicketPage() {
                         console.error("Error fetching client phone:", err);
                     }
                 }
+
+                // Fetch villa data if locationId exists
+                const locId = ticketData.locationId || (ticketData as any).villaId;
+                if (locId) {
+                    try {
+                        const locSnap = await getDoc(doc(db, "locations", locId));
+                        if (locSnap.exists()) {
+                            setVillaData({ id: locSnap.id, ...locSnap.data() } as Location);
+                        }
+                    } catch (err) {
+                        console.error("Error fetching villa data for ticket:", err);
+                    }
+                }
             }
         } catch (error) {
             console.error("Error fetching ticket:", error);
             alert("Error: No tienes permiso para ver este ticket.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Subir / Tomar foto delantera de la villa desde el ticket
+    const handleUploadVillaFacade = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        const locId = ticket?.locationId || (ticket as any)?.villaId;
+        if (!file || !locId) return;
+        try {
+            setUploadingFacade(true);
+            const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+            const { storage } = await import("@/lib/firebase");
+            const storageRef = ref(storage, `locations/${locId}/facade_${Date.now()}.jpg`);
+            await uploadBytes(storageRef, file, { contentType: file.type });
+            const downloadUrl = await getDownloadURL(storageRef);
+            await updateDoc(doc(db, "locations", locId), {
+                facadePhotoUrl: downloadUrl,
+                frontPhotoUrl: downloadUrl,
+                updatedAt: serverTimestamp()
+            });
+            setVillaData(prev => prev ? { ...prev, facadePhotoUrl: downloadUrl, frontPhotoUrl: downloadUrl } : null);
+            alert("Foto delantera de la villa guardada exitosamente.");
+        } catch (err) {
+            console.error("Error uploading villa facade:", err);
+            alert("Error al subir foto de la fachada.");
+        } finally {
+            setUploadingFacade(false);
         }
     };
 
@@ -404,6 +448,7 @@ export default function TechnicianTicketPage() {
                         <TabsList className="inline-flex min-w-max bg-white border p-1 rounded-xl gap-0.5 shadow-sm">
                             {([
                                 { value: "info", label: "Info", icon: <Info className="h-4 w-4" /> },
+                                { value: "equipos", label: "Equipos", icon: <Building2 className="h-4 w-4" /> },
                                 { value: "checklist", label: "Checklist", icon: <ListChecks className="h-4 w-4" /> },
                                 { value: "fotos", label: "Fotos", icon: <Camera className="h-4 w-4" /> },
                                 { value: "reporte", label: "Reporte", icon: <FileText className="h-4 w-4" /> },
@@ -524,41 +569,130 @@ export default function TechnicianTicketPage() {
                             </Card>
                         )}
 
-                        {/* Cliente */}
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-base">Información del Cliente</CardTitle>
-                            </CardHeader>
-                            <CardContent className="text-sm space-y-2">
-                                <div className="flex items-center justify-between gap-2 flex-wrap">
-                                    <div className="font-bold text-lg">{ticket.clientName}</div>
+                        {/* Ficha Visual de la Villa / Inmueble con Foto de Fachada, GPS y Acceso */}
+                        <Card className="border-emerald-200 bg-white overflow-hidden shadow-sm">
+                            <CardHeader className="pb-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+                                <div className="flex items-center justify-between gap-2">
+                                    <CardTitle className="text-base flex items-center gap-2 text-white">
+                                        <Building2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                                        <span>{ticket.locationName || villaData?.nombre || "Villa / Inmueble"}</span>
+                                    </CardTitle>
                                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                                         ticket.isRetainer 
-                                            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
-                                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                     }`}>
-                                        {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Visita Eventual'}
+                                        {ticket.isRetainer ? '🛡️ Villa con Iguala' : '⚡ Eventual'}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-2 text-gray-500">
-                                    <MapPin className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                                    <span>{ticket.locationName}</span>
+                                <p className="text-xs text-slate-300 mt-0.5">
+                                    {ticket.clientName} &bull; {ticket.locationArea || villaData?.direccion || "Punta Cana"}
+                                </p>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-3">
+                                {/* Foto de la Fachada / Parte Delantera de la Villa */}
+                                <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                                    {villaData?.facadePhotoUrl || villaData?.frontPhotoUrl ? (
+                                        <div className="relative aspect-video sm:aspect-21/9 w-full">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={villaData.facadePhotoUrl || villaData.frontPhotoUrl}
+                                                alt="Fachada Frontal de la Villa"
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-sm">
+                                                <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                                                Fachada Frontal de Referencia
+                                            </div>
+                                            <label className="absolute bottom-2 right-2 bg-black/70 hover:bg-black/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-1 rounded cursor-pointer transition-colors border border-white/20">
+                                                {uploadingFacade ? "Subiendo..." : "Cambiar Foto"}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    onChange={handleUploadVillaFacade}
+                                                    className="hidden"
+                                                    disabled={uploadingFacade}
+                                                />
+                                            </label>
+                                        </div>
+                                    ) : (
+                                        <div className="py-6 px-4 text-center space-y-2 bg-slate-50">
+                                            <Camera className="w-8 h-8 text-slate-400 mx-auto" />
+                                            <p className="text-xs text-slate-500 font-medium">
+                                                Esta villa aún no tiene foto de su parte delantera. Tómale una foto a la fachada para identificarla en futuras visitas.
+                                            </p>
+                                            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-sm">
+                                                <Camera className="w-3.5 h-3.5" />
+                                                {uploadingFacade ? "Subiendo foto..." : "📸 Tomar Foto Delantera de la Villa"}
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    onChange={handleUploadVillaFacade}
+                                                    className="hidden"
+                                                    disabled={uploadingFacade}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="pt-1">
+
+                                {/* Botones de Acción: GPS y Bitácora */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                                     <a
                                         href={
-                                            ticket.locationUrl && ticket.locationUrl.match(/https?:\/\/[^\s]+/)
-                                                ? ticket.locationUrl.match(/https?:\/\/[^\s]+/)?.[0]
-                                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([ticket.locationName, ticket.locationStreet, ticket.locationHouseNumber, ticket.locationArea].filter(Boolean).join(" ") || ticket.clientName)}`
+                                            (ticket.locationUrl || villaData?.locationUrl)?.match(/https?:\/\/[^\s]+/)?.[0] ||
+                                            `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([ticket.locationName, ticket.locationStreet, ticket.locationHouseNumber, ticket.locationArea].filter(Boolean).join(" ") || ticket.clientName)}`
                                         }
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm w-full justify-center sm:w-auto"
+                                        className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
                                     >
-                                        <Navigation className="h-3.5 w-3.5 shrink-0" />
-                                        <span>{ticket.locationUrl ? "📍 Navegar a la Villa (Google Maps / Waze)" : "📍 Ver Dirección en Google Maps"}</span>
+                                        <Navigation className="h-4 w-4 shrink-0" />
+                                        <span>Navegar GPS (Maps / Waze)</span>
+                                        <ExternalLink className="w-3.5 h-3.5 opacity-70" />
                                     </a>
+
+                                    {(ticket.locationId || (ticket as any).villaId) && (
+                                        <Link
+                                            href={`/villas/${ticket.locationId || (ticket as any).villaId}`}
+                                            target="_blank"
+                                            className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 transition-colors shadow-sm"
+                                        >
+                                            <BookOpen className="h-4 w-4 shrink-0 text-emerald-400" />
+                                            <span>Abrir Bitácora de la Villa</span>
+                                            <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                                        </Link>
+                                    )}
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Tarjeta de Acceso a Equipos de la Villa */}
+                        <Card className="border-blue-300 bg-blue-50/40 shadow-xs">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center justify-between text-blue-950">
+                                    <span className="flex items-center gap-2">
+                                        <Building2 className="h-4 w-4 text-blue-600" />
+                                        Equipos de la Villa / Inmueble
+                                    </span>
+                                    <Badge className="bg-blue-600 text-white font-bold text-xs">
+                                        {ticket.surveyAreas?.length || ticket.equipmentIds?.length || 'Ver'}
+                                    </Badge>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2">
+                                <p className="text-xs text-slate-600">
+                                    Intervén los aires acondicionados con checklist rápido, sube evidencias (Antes, Durante, Después) o escanea el QR físico.
+                                </p>
+                                <Button
+                                    size="sm"
+                                    onClick={() => setActiveTab("equipos")}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9"
+                                >
+                                    Abrir Checklist de Equipos
+                                </Button>
                             </CardContent>
                         </Card>
 
@@ -656,6 +790,14 @@ export default function TechnicianTicketPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* Equipos Tab */}
+                    <TabsContent value="equipos" className="space-y-4">
+                        <EquipmentServiceChecklist
+                            ticket={ticket}
+                            onTicketUpdated={(updated) => setTicket(updated)}
+                        />
                     </TabsContent>
 
                     {/* Checklist Tab */}

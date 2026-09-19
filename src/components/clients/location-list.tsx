@@ -5,7 +5,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp,
 import { db } from "@/lib/firebase";
 import { Location, Ticket } from "@/types/schema";
 import { Button } from "@/components/ui/button";
-import { Plus, MapPin, ChevronRight, Home, Shield, Sparkles, ExternalLink, Share2, BookOpen } from "lucide-react";
+import { Plus, MapPin, ChevronRight, Home, Shield, Sparkles, ExternalLink, Share2, BookOpen, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
     Dialog,
@@ -18,18 +18,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { generatePropertyCode } from "@/lib/equipment-service";
 
 interface LocationListProps {
     clientId: string;
+    clientName?: string;
 }
 
-export function LocationList({ clientId }: LocationListProps) {
+export function LocationList({ clientId, clientName }: LocationListProps) {
     const [locations, setLocations] = useState<Location[]>([]);
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [newLocationName, setNewLocationName] = useState("");
     const [newLocationAddress, setNewLocationAddress] = useState("");
     const [newLocationUrl, setNewLocationUrl] = useState("");
+    const [newLocationFacadeUrl, setNewLocationFacadeUrl] = useState("");
     const [newIsRetainer, setNewIsRetainer] = useState(true);
     const [creating, setCreating] = useState(false);
     const [discoveredVillas, setDiscoveredVillas] = useState<string[]>([]);
@@ -97,9 +100,13 @@ export function LocationList({ clientId }: LocationListProps) {
         try {
             await addDoc(collection(db, "locations"), {
                 clientId,
+                clientName: clientName || "",
+                code: generatePropertyCode(),
                 nombre: newLocationName.trim(),
                 direccion: newLocationAddress.trim() || "",
                 locationUrl: newLocationUrl.trim() || "",
+                facadePhotoUrl: newLocationFacadeUrl.trim() || undefined,
+                frontPhotoUrl: newLocationFacadeUrl.trim() || undefined,
                 isRetainer: newIsRetainer,
                 contractType: newIsRetainer ? "IGUALA" : "EVENTUAL",
                 createdAt: serverTimestamp(),
@@ -108,6 +115,7 @@ export function LocationList({ clientId }: LocationListProps) {
             setNewLocationName("");
             setNewLocationAddress("");
             setNewLocationUrl("");
+            setNewLocationFacadeUrl("");
             setIsDialogOpen(false);
         } catch (error) {
             console.error("Error creating location:", error);
@@ -122,6 +130,8 @@ export function LocationList({ clientId }: LocationListProps) {
         try {
             await addDoc(collection(db, "locations"), {
                 clientId,
+                clientName: clientName || "",
+                code: generatePropertyCode(),
                 nombre: villaName,
                 isRetainer: true,
                 contractType: "IGUALA",
@@ -198,6 +208,20 @@ export function LocationList({ clientId }: LocationListProps) {
                                     value={newLocationUrl}
                                     onChange={(e) => setNewLocationUrl(e.target.value)}
                                     placeholder="https://maps.app.goo.gl/... o https://waze.com/ul/..."
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="facade" className="flex items-center gap-1">
+                                    <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                                    Foto de la Fachada / Delantera (Opcional)
+                                </Label>
+                                <Input
+                                    id="facade"
+                                    type="url"
+                                    value={newLocationFacadeUrl}
+                                    onChange={(e) => setNewLocationFacadeUrl(e.target.value)}
+                                    placeholder="https://... (o se puede subir desde la Bitácora)"
                                 />
                             </div>
 
@@ -279,9 +303,18 @@ export function LocationList({ clientId }: LocationListProps) {
                                     onClick={() => router.push(`/clients/locations/${location.id}`)}
                                     className="flex items-start gap-3 cursor-pointer flex-1"
                                 >
-                                    <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl mt-0.5">
-                                        <Home className="h-5 w-5" />
-                                    </div>
+                                    {location.facadePhotoUrl || location.frontPhotoUrl ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                        <img
+                                            src={location.facadePhotoUrl || location.frontPhotoUrl}
+                                            alt={location.nombre}
+                                            className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0 mt-0.5 group-hover:scale-105 transition-transform"
+                                        />
+                                    ) : (
+                                        <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl mt-0.5 shrink-0">
+                                            <Home className="h-5 w-5" />
+                                        </div>
+                                    )}
                                     <div className="space-y-1">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <h4 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
