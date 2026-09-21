@@ -432,7 +432,7 @@ export default function NewTicketPage() {
     };
 
     return (
-        <div className="container max-w-2xl py-10">
+        <div className="container max-w-2xl pt-6 pb-28 md:py-10 px-4">
             <h1 className="text-2xl font-bold mb-6">Nuevo Ticket de Servicio</h1>
             
             <AITicketAssistant onTicketParsed={handleAIParsed} />

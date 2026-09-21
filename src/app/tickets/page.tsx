@@ -254,7 +254,7 @@ export default function TicketsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="min-h-screen bg-background p-4 pb-24 md:p-8">
             <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

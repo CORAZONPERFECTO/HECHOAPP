@@ -1,70 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Smartphone } from "lucide-react";
+import React from "react";
+import { Download, Smartphone, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePWAInstall } from "@/context/pwa-context";
+import { cn } from "@/lib/utils";
 
-interface BeforeInstallPromptEvent extends Event {
-    prompt: () => Promise<void>;
-    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+interface InstallAppButtonProps {
+    variant?: "default" | "outline" | "secondary" | "ghost";
+    size?: "default" | "sm" | "lg" | "icon";
+    className?: string;
+    showWhenInstalled?: boolean;
 }
 
-export function InstallAppButton() {
-    const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-    const [isInstalled, setIsInstalled] = useState(true); // default true to avoid hydration mismatch blinking
-    const [isIOS, setIsIOS] = useState(false);
+export function InstallAppButton({
+    variant = "default",
+    size = "default",
+    className,
+    showWhenInstalled = false,
+}: InstallAppButtonProps) {
+    const { isInstalled, promptInstall, isIOS } = usePWAInstall();
 
-    useEffect(() => {
-        if (typeof window === "undefined") return;
+    if (isInstalled && !showWhenInstalled) {
+        return null;
+    }
 
-        // Check if already installed
-        if (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone) {
-            setIsInstalled(true);
-            return;
-        } else {
-            setIsInstalled(false);
-        }
-
-        const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        setIsIOS(ios);
-
-        const handler = (e: Event) => {
-            e.preventDefault();
-            setDeferredPrompt(e as BeforeInstallPromptEvent);
-        };
-
-        window.addEventListener("beforeinstallprompt", handler);
-        return () => window.removeEventListener("beforeinstallprompt", handler);
-    }, []);
-
-    if (isInstalled) return null;
-
-    if (isIOS) {
+    if (isInstalled && showWhenInstalled) {
         return (
-            <Button variant="outline" className="gap-2 bg-blue-50 text-blue-700 border-blue-200" onClick={() => alert("En iPhone/iPad: Toca el botón 'Compartir' y luego selecciona 'Agregar a inicio' para instalar la App.")}>
-                <Smartphone className="h-4 w-4" />
-                Instalar App
+            <Button
+                variant="ghost"
+                size={size}
+                disabled
+                className={cn("gap-2 text-emerald-600 dark:text-emerald-400 opacity-80", className)}
+            >
+                <Check className="h-4 w-4" />
+                <span>App Instalada</span>
             </Button>
         );
     }
 
-    if (!deferredPrompt) return null;
-
     return (
-        <Button 
-            variant="default" 
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
-            onClick={async () => {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === "accepted") {
-                    setIsInstalled(true);
-                }
-                setDeferredPrompt(null);
-            }}
+        <Button
+            variant={variant}
+            size={size}
+            onClick={() => promptInstall()}
+            className={cn(
+                "gap-2 font-medium transition-all active:scale-95 shadow-sm",
+                variant === "default" && "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20",
+                variant === "outline" && "border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40",
+                className
+            )}
         >
-            <Download className="h-4 w-4" />
-            Instalar App
+            {isIOS ? <Smartphone className="h-4 w-4 text-current" /> : <Download className="h-4 w-4 text-current" />}
+            <span>Instalar App</span>
         </Button>
     );
 }

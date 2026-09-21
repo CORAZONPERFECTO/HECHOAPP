@@ -10,7 +10,7 @@ import {
     FileText, Truck, Receipt, Users, Settings,
     BarChart3, ChevronLeft, ChevronRight, ChevronDown, LogOut, Sparkles, Mic, Ticket, MessageSquare,
     PackageSearch, ArrowLeftRight, BrainCircuit, Menu, X, MapPin, Building2, Wrench, Landmark, Wallet, BookOpen,
-    DollarSign, Award, ShieldCheck
+    DollarSign, Award, ShieldCheck, Download, Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { usePWAInstall } from "@/context/pwa-context";
 
 interface NavItem {
     label: string;
@@ -199,14 +200,16 @@ export function Sidebar() {
         .filter(cat => (cat.href || (cat.items && cat.items.length > 0)));
 
     const isTechnician = userRole === "TECNICO" || userRole === "CONTRATISTA";
+    const { canInstall, promptInstall, isIOS } = usePWAInstall();
 
     return (
         <>
             {/* Mobile Toggle Button (Visible only on small screens) */}
             {!isTechnician && (
                 <button
-                    className="md:hidden fixed top-4 right-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border text-blue-600 focus:outline-none"
+                    className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg border text-blue-600 focus:outline-none"
                     onClick={() => setMobileOpen(!mobileOpen)}
+                    aria-label="Abrir menú de navegación"
                 >
                     {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                 </button>
@@ -455,6 +458,18 @@ export function Sidebar() {
                                 <span>Configuración</span>
                             </Link>
                         </DropdownMenuItem>
+                        {canInstall && (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={() => promptInstall()}
+                                    className="cursor-pointer text-blue-600 dark:text-blue-400 font-medium"
+                                >
+                                    {isIOS ? <Smartphone className="mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+                                    <span>Instalar App Móvil</span>
+                                </DropdownMenuItem>
+                            </>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                             className="text-red-600 focus:text-red-600 cursor-pointer"

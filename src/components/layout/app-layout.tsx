@@ -47,7 +47,7 @@ export function AppLayout({ children, className }: AppLayoutProps) {
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className={cn("flex-1 relative z-10 px-4 py-6 md:px-8 md:py-8 overflow-y-auto h-screen scroll-smooth scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800", className)}>
+            <main className={cn("flex-1 relative z-10 px-4 pt-6 pb-24 md:px-8 md:py-8 overflow-y-auto h-screen scroll-smooth scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800", className)}>
                 <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 slide-in-from-bottom-4">
                     {allowedRoles ? (
                         <RoleGuard allowedRoles={allowedRoles}>

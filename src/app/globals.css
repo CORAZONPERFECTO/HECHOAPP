@@ -71,12 +71,58 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    overscroll-behavior-y: none;
+  }
+  /* Prevent iOS Safari 300ms tap delay and touch ergonomics */
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+  /* Prevent iOS automatic zoom when focusing inputs with font-size < 16px */
+  @media screen and (max-width: 768px) {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
 
 @layer utilities {
+  /* Safe area utilities for modern phones (iPhone Notch & Dynamic Island) */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .min-h-screen-safe {
+    min-height: calc(100vh - env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Hide scrollbars while preserving native scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Glassmorphism Utilities */
   .glass {
     @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg;
