@@ -126,6 +126,44 @@ INSTRUCCIONES:
             1. Sé realista con los precios.
             2. Devuelve SOLO JSON válido.
             `;
+        } else if (task === 'extract-gauge-readings') {
+            const refrigerantExpected = typeof context === 'object' && context?.refrigerant ? context.refrigerant : (typeof context === 'string' ? context : "R410A");
+            const btuExpected = typeof context === 'object' && context?.btu ? context.btu : "18000";
+
+            systemInstruction += `Tu tarea es actuar como un especialista senior en instrumentación y diagnóstico de climatización (HVAC).
+            Analiza cuidadosamente la FOTOGRAFÍA proporcionada, la cual puede contener:
+            - Un manómetro analógico o digital de refrigeración (reloj azul de baja presión o reloj rojo de alta).
+            - Una pinza amperimétrica (amperímetro digital) midiendo consumo eléctrico.
+            - Un termómetro digital (o de contacto) midiendo temperatura de retorno o inyección.
+            
+            DATOS TÉCNICOS DEL EQUIPO:
+            - Refrigerante de la unidad: ${refrigerantExpected}
+            - Capacidad: ${btuExpected} BTU
+
+            INSTRUCCIONES DE LECTURA:
+            1. Si hay un manómetro:
+               - Lee la aguja o display digital en la escala PSI de succión/baja (típicamente entre 50 y 160 PSI para R410A, o 45 y 80 PSI para R22).
+               - Extrae el valor numérico en el campo "psiLow". Si no se observa, pon null.
+            2. Si hay una pinza amperimétrica / multímetro:
+               - Lee los amperios en la pantalla digital (ej. 4.2, 5.8).
+               - Extrae el valor numérico en el campo "amp". Si no se observa, pon null.
+            3. Si hay termómetros o lecturas de temperatura:
+               - Calcula o extrae el salto térmico en °C en "tempDelta". Si no se observa, pon null.
+            4. Realiza una breve evaluación diagnóstica en "diagnosis":
+               - Evalúa si la presión está en rango normal para ${refrigerantExpected}, o si sugiere falta de gas/fuga (baja presión) o sobrecarga/suciedad (alta presión).
+            5. Indica el nivel de certeza en "confidence": "HIGH", "MEDIUM" o "LOW".
+
+            ESTRUCTURA JSON OBLIGATORIA (devuelve ÚNICAMENTE este JSON sin markdown adicional):
+            {
+              "psiLow": "120",
+              "amp": "4.8",
+              "tempDelta": null,
+              "diagnosis": "Presión de succión en 120 PSI, dentro del rango óptimo para ${refrigerantExpected}.",
+              "status": "NORMAL",
+              "confidence": "HIGH"
+            }
+            El campo "status" debe ser uno de: "NORMAL", "LOW_PRESSURE", "HIGH_PRESSURE", "UNCERTAIN".
+            `;
         } else {
             systemInstruction += "Responde de manera útil, concisa y profesional.";
         }
@@ -250,7 +288,7 @@ INSTRUCCIONES:
         }
 
         // --- JSON Parsing Logic ---
-        if (['generate-report', 'parse-invoice', 'generate-quote', 'parse-ticket'].includes(task)) {
+        if (['generate-report', 'parse-invoice', 'generate-quote', 'parse-ticket', 'extract-gauge-readings'].includes(task)) {
             try {
                 // Robust JSON extraction
                 const jsonMatch = text.match(/\{[\s\S]*\}/);

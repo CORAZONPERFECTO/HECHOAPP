@@ -66,6 +66,12 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const currentTargetRef = useRef<{ eqId: string; stage: 'BEFORE' | 'DURING' | 'AFTER' } | null>(null);
 
+    // Estado para escaneo de manómetros / pinzas amperimétricas con IA
+    const [scanningGaugeEqId, setScanningGaugeEqId] = useState<string | null>(null);
+    const [gaugeDiagnosis, setGaugeDiagnosis] = useState<Record<string, { note: string; status: string; confidence?: string }>>({});
+    const gaugeInputRef = useRef<HTMLInputElement | null>(null);
+    const currentGaugeTargetRef = useRef<string | null>(null);
+
     // Cargar equipos de la ubicación o desde surveyAreas del ticket
     useEffect(() => {
         const fetchEquipments = async () => {
@@ -241,6 +247,112 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
         }
     };
 
+    // Disparar escaneo de manómetro / pinza con cámara e IA
+    const triggerGaugeScan = (eqId: string) => {
+        currentGaugeTargetRef.current = eqId;
+        if (gaugeInputRef.current) {
+            gaugeInputRef.current.value = "";
+            gaugeInputRef.current.click();
+        }
+    };
+
+    const handleGaugeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        const eqId = currentGaugeTargetRef.current;
+        if (!file || !eqId) return;
+
+        setScanningGaugeEqId(eqId);
+        try {
+            const eq = equipments.find(item => item.id === eqId);
+
+            // 1. Convertir imagen a base64 para Gemini Multimodal
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+            });
+            reader.readAsDataURL(file);
+            const base64String = await base64Promise;
+
+            // 2. Enviar a /api/gemini para extracción de lecturas
+            const apiRes = await fetch("/api/gemini", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    task: "extract-gauge-readings",
+                    image: base64String,
+                    context: {
+                        refrigerant: eq?.specs?.refrigerant || "R410A",
+                        btu: eq?.specs?.btu || 18000,
+                        brand: eq?.specs?.brand || "Genérica"
+                    }
+                })
+            });
+
+            const data = await apiRes.json();
+            if (data.output) {
+                const { psiLow, amp, tempDelta, diagnosis, status, confidence } = data.output;
+
+                setItemsState(prev => {
+                    const current = prev[eqId] || { completed: false, tasks: { filters: false, evaporatorCoil: false, drainage: false, condenserCoil: false } };
+                    return {
+                        ...prev,
+                        [eqId]: {
+                            ...current,
+                            psiLow: (psiLow !== null && psiLow !== undefined && psiLow !== "") ? String(psiLow) : current.psiLow,
+                            amp: (amp !== null && amp !== undefined && amp !== "") ? String(amp) : current.amp,
+                            tempDelta: (tempDelta !== null && tempDelta !== undefined && tempDelta !== "") ? String(tempDelta) : current.tempDelta
+                        }
+                    };
+                });
+
+                if (diagnosis) {
+                    setGaugeDiagnosis(prev => ({
+                        ...prev,
+                        [eqId]: { note: diagnosis, status: status || "NORMAL", confidence }
+                    }));
+                }
+            }
+
+            // 3. Guardar la foto del manómetro en Storage como evidencia técnica de la orden
+            const filename = `tickets/${ticket.id}/equipments/${eqId}_GAUGE_${Date.now()}.jpg`;
+            const storageRef = ref(storage, filename);
+            await uploadBytes(storageRef, file, { contentType: file.type });
+            const downloadUrl = await getDownloadURL(storageRef);
+
+            const newPhoto: TicketPhoto = {
+                url: downloadUrl,
+                type: "DURING",
+                areaId: eqId,
+                equipmentId: eqId,
+                area: eq?.areaName || eq?.name,
+                description: `Lectura de Manómetros / Instrumentos - ${eq?.code}`,
+                timestamp: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 }
+            };
+
+            const updatedPhotos = [...(ticket.photos || []), newPhoto];
+            if (ticket.id) {
+                await updateDoc(doc(db, "tickets", ticket.id), {
+                    photos: updatedPhotos,
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            onTicketUpdated({
+                ...ticket,
+                photos: updatedPhotos
+            });
+
+        } catch (err) {
+            console.error("Error scanning gauge with AI:", err);
+            alert("No se pudo procesar la imagen del manómetro. Puedes ingresar los valores manualmente.");
+        } finally {
+            setScanningGaugeEqId(null);
+            currentGaugeTargetRef.current = null;
+            if (gaugeInputRef.current) gaugeInputRef.current.value = "";
+        }
+    };
+
     const handleSaveEquipmentIntervention = async (eqId: string) => {
         setSavingEqId(eqId);
         try {
@@ -341,6 +453,16 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
                 capture="environment"
                 className="hidden"
                 onChange={handleFileChange}
+            />
+
+            {/* Input invisible para escanear manómetros con IA */}
+            <input
+                type="file"
+                ref={gaugeInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleGaugeFileChange}
             />
 
             {/* Barra Superior de Progreso & Botón de Escáner QR */}
@@ -544,10 +666,34 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
                                     </div>
 
                                     {/* 2. Mediciones Técnicas de Manómetros / Pinza */}
-                                    <div className="space-y-1.5 pt-1">
-                                        <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                                            <Gauge className="w-3.5 h-3.5 text-blue-600" /> Parámetros de Operación (Opcional)
-                                        </Label>
+                                    <div className="space-y-2 pt-1">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                                <Gauge className="w-3.5 h-3.5 text-blue-600" /> Parámetros de Operación
+                                            </Label>
+
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => triggerGaugeScan(eq.id)}
+                                                disabled={scanningGaugeEqId === eq.id}
+                                                className="h-7 px-2.5 text-[11px] font-semibold gap-1.5 border-blue-200 text-blue-700 bg-blue-50/70 hover:bg-blue-100 transition-all active:scale-95 shadow-2xs"
+                                            >
+                                                {scanningGaugeEqId === eq.id ? (
+                                                    <>
+                                                        <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                                                        <span>Leyendo Manómetro...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Sparkles className="w-3 h-3 text-blue-600" />
+                                                        <span>Escanear con IA</span>
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+
                                         <div className="grid grid-cols-3 gap-2">
                                             <div>
                                                 <span className="text-[10px] text-slate-500 block">PSI Baja</span>
@@ -586,6 +732,23 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
                                                 />
                                             </div>
                                         </div>
+
+                                        {/* Banner de Diagnóstico IA si se escaneó */}
+                                        {gaugeDiagnosis[eq.id] && (
+                                            <div className={`p-2.5 rounded-lg border text-[11px] flex items-start gap-2 animate-in fade-in duration-200 ${
+                                                gaugeDiagnosis[eq.id].status === 'NORMAL'
+                                                    ? 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                                                    : gaugeDiagnosis[eq.id].status === 'LOW_PRESSURE'
+                                                    ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+                                                    : 'bg-blue-50/90 border-blue-200 text-blue-900'
+                                            }`}>
+                                                <Sparkles className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+                                                <div className="space-y-0.5">
+                                                    <span className="font-bold">Diagnóstico IA ({eq.specs.refrigerant || "R410A"}): </span>
+                                                    <span>{gaugeDiagnosis[eq.id].note}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* 3. Acciones Finales: Guardar y Enlace a Pasaporte */}
