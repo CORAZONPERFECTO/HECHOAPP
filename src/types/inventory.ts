@@ -76,6 +76,10 @@ export interface InventoryMovement {
     // Audit
     createdByUserId: string;
     createdByType?: 'ADMIN' | 'TECHNICIAN' | 'SYSTEM';
+    technicianId?: string;
+    technicianName?: string;
+    productName?: string;
+    productSku?: string;
     createdAt: Date | Timestamp;
 }
 

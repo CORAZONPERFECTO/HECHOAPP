@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, Timestamp } from "firebase/firestore"; // Added updateDoc, onSnapshot, Timestamp
 import { db, auth } from "@/lib/firebase"; // Added auth
 import { Ticket, TicketReport, ReportSection, TicketReportSection, TicketReportNew } from "@/types/schema";
-import { generateReportFromTicket, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
+import { generateReportFromTicket, generateAndSaveTicketReport, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
 import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { ExportMenu } from "@/components/reports/export-menu";
@@ -20,12 +20,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // 
 export default function TicketReportPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const ticketId = params.id as string;
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [ticket, setTicket] = useState<Ticket | null>(null);
-    const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+    const [activeTab, setActiveTab] = useState<"edit" | "preview">(() => {
+        return searchParams?.get('preview') === 'true' ? 'preview' : 'edit';
+    });
 
     // Locking State
     const [isLocked, setIsLocked] = useState(false);

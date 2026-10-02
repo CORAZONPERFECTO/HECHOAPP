@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { VoiceInput } from "@/components/ui/voice-input";
-import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play, Navigation, Building2, BookOpen, ExternalLink } from "lucide-react";
+import { MapPin, Save, CheckCircle, Loader2, FileText, ShoppingCart, PenTool, Info, ListChecks, Camera, XCircle, Sparkles, Wrench, Cpu, History, PackageCheck, Pause, Play, Navigation, Building2, BookOpen, ExternalLink, FileDown, Share2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { Ticket, TicketPhoto, TicketVideo, Location } from "@/types/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,8 @@ import { InterventionForm } from "@/components/hvac/intervention-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketPurchases } from "@/components/tickets/ticket-purchases";
 import { TicketMaterialsConsumption } from "@/components/tickets/ticket-materials-consumption";
+import { QuickVehicleConsumption } from "@/components/tickets/quick-vehicle-consumption";
+import { generateAndSaveTicketReport } from "@/lib/report-generator";
 import { TicketToolsReport } from "@/components/tickets/ticket-tools-report";
 import { SignaturePad } from "@/components/tickets/signature-pad";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -133,6 +135,8 @@ export default function TechnicianTicketPage() {
     const [userRole, setUserRole] = useState<string>("");
     const [allowVideoUpload, setAllowVideoUpload] = useState<boolean>(false);
     const [technicianName, setTechnicianName] = useState<string>("");
+    const [reportSuccessOpen, setReportSuccessOpen] = useState<boolean>(false);
+    const [generatingReport, setGeneratingReport] = useState<boolean>(false);
 
     useEffect(() => {
         if (user) {
@@ -1190,6 +1194,66 @@ export default function TechnicianTicketPage() {
 
                     {/* Cierre Tab */}
                     <TabsContent value="cierre" className="space-y-6">
+                        {ticket.status === 'COMPLETED' ? (
+                            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl shadow-xs space-y-3">
+                                <div className="flex items-center gap-2.5 text-emerald-900 font-extrabold text-base">
+                                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                                    <span>Servicio Finalizado e Informe Técnico PDF Generado</span>
+                                </div>
+                                <p className="text-xs text-emerald-800 leading-relaxed">
+                                    Este ticket ya ha sido cerrado oficialmente. El informe técnico oficial está compilado con la ficha de la villa, censo de equipos, mediciones de gas y materiales descontados.
+                                </p>
+                                <div className="flex flex-wrap gap-2.5 pt-1">
+                                    <Button
+                                        onClick={() => window.open(`/tickets/${ticket.id}/report?preview=true`, '_blank')}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 h-10 shadow-xs"
+                                    >
+                                        <FileDown className="w-4 h-4" />
+                                        Ver / Descargar Informe PDF
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            const text = `Hola, le comparto el Informe Técnico Oficial de HECHO SRL para el servicio #${ticket.ticketNumber || ticket.id.slice(0, 8)}:\n${window.location.origin}/tickets/${ticket.id}/report?preview=true`;
+                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                        }}
+                                        className="border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-semibold text-xs gap-1.5 h-10"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                        Compartir por WhatsApp
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={async () => {
+                                            setGeneratingReport(true);
+                                            try {
+                                                await generateAndSaveTicketReport(ticket.id!, ticket);
+                                                alert("✓ Informe técnico regenerado y actualizado con éxito.");
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert("Error al regenerar informe técnico.");
+                                            } finally {
+                                                setGeneratingReport(false);
+                                            }
+                                        }}
+                                        disabled={generatingReport}
+                                        className="text-emerald-700 hover:text-emerald-900 text-xs ml-auto"
+                                    >
+                                        {generatingReport ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                                        Regenerar PDF
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <QuickVehicleConsumption
+                                ticketId={ticket.id!}
+                                ticketNumber={ticket.ticketNumber}
+                                userId={user.uid}
+                                userName={user.displayName || user.email || "Técnico"}
+                            />
+                        )}
+
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-base">Datos de Cierre y Conformidad</CardTitle>
@@ -1229,7 +1293,7 @@ export default function TechnicianTicketPage() {
                         </Card>
 
                         <Button
-                            className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
+                            className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 shadow-md font-bold"
                             onClick={async () => {
                                 if (!ticket.clientSignatureName || ticket.clientSignatureName.trim() === "") {
                                     alert("⚠️ El Nombre Legible de quien recibe es obligatorio para poder cerrar el servicio.");
@@ -1253,6 +1317,7 @@ export default function TechnicianTicketPage() {
                                     // Direct closure without intervention form
                                     try {
                                         setSaving(true);
+                                        setGeneratingReport(true);
                                         // Complete Ticket
                                         const updatedVisits = getUpdatedVisitsForClosure(ticket, endMileageNum, 'COMPLETED');
                                         await updateDoc(doc(db, "tickets", ticket.id!), {
@@ -1286,26 +1351,101 @@ export default function TechnicianTicketPage() {
                                             }).catch(err => console.error("Error logging mileage to history:", err));
                                         });
 
+                                        // Generar informe técnico automático
+                                        try {
+                                            const updatedTicketData = {
+                                                ...ticket,
+                                                status: 'COMPLETED' as const,
+                                                closedAt: Timestamp.now(),
+                                                endMileage: endMileageNum
+                                            };
+                                            await generateAndSaveTicketReport(ticket.id!, updatedTicketData);
+                                        } catch (reportErr) {
+                                            console.error("Error auto-generating report:", reportErr);
+                                        }
+
                                         fetchTicket();
-                                        alert("Servicio finalizado.");
+                                        setReportSuccessOpen(true);
                                     } catch (err) {
                                         console.error("Error finalizing:", err);
                                         alert("Error al finalizar el servicio.");
                                     } finally {
                                         setSaving(false);
+                                        setGeneratingReport(false);
                                     }
                                     return;
                                 }
                                 setIsInterventionOpen(true);
                             }}
-                            disabled={saving || ticket.status === 'COMPLETED'}
+                            disabled={saving || generatingReport || ticket.status === 'COMPLETED'}
                         >
-                            <CheckCircle className="mr-2 h-5 w-5" />
-                            {ticket.equipmentId ? "Finalizar y Crear RIT" : "Finalizar Servicio"}
+                            {saving || generatingReport ? (
+                                <>
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                    Generando Informe PDF...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle className="mr-2 h-5 w-5" />
+                                    {ticket.equipmentId ? "Finalizar y Crear RIT" : "Finalizar Servicio y Generar PDF"}
+                                </>
+                            )}
                         </Button>
                     </TabsContent>
                 </Tabs>
             </main>
+
+            {/* Modal de Éxito de Informe Técnico Generado */}
+            <Dialog open={reportSuccessOpen} onOpenChange={setReportSuccessOpen}>
+                <DialogContent className="sm:max-w-md text-center p-6 space-y-4">
+                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                        <CheckCircle2 className="w-9 h-9" />
+                    </div>
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black text-slate-900 text-center tracking-tight">
+                            ¡Servicio Finalizado con Éxito!
+                        </DialogTitle>
+                    </DialogHeader>
+                    <p className="text-xs text-slate-600 leading-relaxed max-w-sm mx-auto">
+                        El informe técnico oficial en PDF ha sido generado y compilado con la ficha de la villa, censo de equipos, lecturas de manómetros, materiales descontados de la camioneta y firmas de conformidad.
+                    </p>
+
+                    <div className="space-y-2.5 pt-2">
+                        <Button
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 text-sm gap-2 shadow-xs"
+                            onClick={() => {
+                                window.open(`/tickets/${ticket?.id}/report?preview=true`, '_blank');
+                            }}
+                        >
+                            <FileDown className="w-4 h-4" />
+                            Ver / Descargar Informe PDF
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            className="w-full border-emerald-300 text-emerald-800 hover:bg-emerald-50 font-semibold h-11 text-sm gap-2"
+                            onClick={() => {
+                                const text = `Hola, le comparto el Informe Técnico Oficial de HECHO SRL del servicio #${ticket?.ticketNumber || ticket?.id?.slice(0, 8)}:\n${window.location.origin}/tickets/${ticket?.id}/report?preview=true`;
+                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                            }}
+                        >
+                            <Share2 className="w-4 h-4" />
+                            Compartir por WhatsApp
+                        </Button>
+
+                        <Button
+                            variant="ghost"
+                            className="w-full text-slate-500 hover:text-slate-800 text-xs"
+                            onClick={() => {
+                                setReportSuccessOpen(false);
+                                router.push('/technician');
+                            }}
+                        >
+                            Volver a la lista de tickets
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isInterventionOpen} onOpenChange={setIsInterventionOpen}>
                 <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
@@ -1373,8 +1513,21 @@ export default function TechnicianTicketPage() {
                                     }).catch(err => console.error("Error logging mileage to history:", err));
                                 });
 
+                                // Generar informe técnico automático
+                                try {
+                                    const updatedTicketData = {
+                                        ...ticket,
+                                        status: 'COMPLETED' as const,
+                                        closedAt: Timestamp.now(),
+                                        endMileage: endMileageNum
+                                    };
+                                    await generateAndSaveTicketReport(ticket.id!, updatedTicketData);
+                                } catch (reportErr) {
+                                    console.error("Error auto-generating report in RIT:", reportErr);
+                                }
+
                                 fetchTicket();
-                                alert("Servicio finalizado y guardado en RIT.");
+                                setReportSuccessOpen(true);
                             }}
                             onCancel={() => setIsInterventionOpen(false)}
                         />

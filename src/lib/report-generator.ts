@@ -1,6 +1,32 @@
-import { Ticket, TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, GallerySection, PhotoSection, BeforeAfterSection } from "@/types/schema";
+import { 
+    Ticket, 
+    TicketReportNew, 
+    TicketReportSection, 
+    TitleSection, 
+    TextSection, 
+    ListSection, 
+    GallerySection, 
+    PhotoSection, 
+    BeforeAfterSection 
+} from "@/types/schema";
 import { REPORT_TEMPLATES } from "./report-templates";
-import { Timestamp } from "firebase/firestore";
+import { 
+    Timestamp, 
+    doc, 
+    getDoc, 
+    setDoc, 
+    updateDoc, 
+    collection, 
+    query, 
+    where, 
+    getDocs, 
+    serverTimestamp 
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { cleanUndefined } from "@/lib/utils";
+import { PropertyLocation, EquipmentPassport, EquipmentIntervention } from "@/types/equipment";
+import { InventoryMovement } from "@/types/inventory";
+import { getEquipmentByLocation } from "@/lib/equipment-service";
 
 /**
  * Helper to create ID
@@ -39,12 +65,21 @@ export function buildTicketFullAddress(ticket: Ticket): string {
     return parts.filter(Boolean).join(', ') || ticket.locationArea || '';
 }
 
+export interface AdditionalReportData {
+    location?: PropertyLocation | any | null;
+    equipments?: EquipmentPassport[];
+    interventions?: EquipmentIntervention[];
+    movements?: InventoryMovement[];
+    companySettings?: any;
+}
+
 /**
  * Generates a complete report from a ticket with executive structure
  */
 export function generateReportFromTicket(
     ticket: Ticket,
-    customPolicies?: { warrantyPolicies?: string; defaultRecommendations?: string }
+    customPolicies?: { warrantyPolicies?: string; defaultRecommendations?: string },
+    additionalData?: AdditionalReportData
 ): TicketReportNew {
     const fullAddress = buildTicketFullAddress(ticket);
 
@@ -79,6 +114,14 @@ export function generateReportFromTicket(
                 title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
             },
             sections: templateSections,
+            signatures: {
+                technicianSignature: (ticket as any).technicianSignature || undefined,
+                technicianName: ticket.technicianName || 'Técnico Especialista',
+                clientSignature: ticket.clientSignature || undefined,
+                clientName: ticket.clientSignatureName || ticket.clientName || 'Cliente / Receptor',
+                includeCompanySeal: true,
+                includeCompanySignature: true
+            },
             lastGeneratedFromTicketAt: new Date().toISOString()
         };
     }
@@ -101,55 +144,147 @@ export function generateReportFromTicket(
         `Tipo de Servicio: ${ticket.serviceType ? ticket.serviceType.replace(/_/g, ' ') : 'Mantenimiento General'}`
     ];
 
+    if (ticket.startMileage || ticket.endMileage) {
+        generalDataItems.push(`Kilometraje Registrado: ${ticket.startMileage ? `${ticket.startMileage} km inicial` : ''}${ticket.endMileage ? ` / ${ticket.endMileage} km final` : ''}`);
+    }
+
     sections.push({
         id: uuid(),
         type: 'list',
         items: generalDataItems
     } as ListSection);
 
-    // --- 1. DESCRIPCIÓN INICIAL / REQUERIMIENTO DEL CLIENTE (UNA SOLA VEZ) ---
-    if (ticket.description && ticket.description.trim()) {
+    // --- 1. FICHA DE LA VILLA / PROPIEDAD (SI APLICA) ---
+    const loc = additionalData?.location;
+    if (loc || ticket.locationId || ticket.locationUrl) {
+        const propCode = loc?.code || (ticket.locationId ? `PROP-${ticket.locationId.slice(0, 5).toUpperCase()}` : null);
+        const propName = loc?.nombre || ticket.locationName || 'Villa / Propiedad';
+        const propArea = loc?.locationArea || ticket.locationArea || '';
+        const propUrl = loc?.locationUrl || ticket.locationUrl || '';
+        const facadePhoto = loc?.facadePhotoUrl || loc?.frontPhotoUrl;
+
         sections.push({
             id: uuid(),
             type: 'h2',
-            content: 'Descripción del Requerimiento Inicial'
+            content: 'Ficha de la Propiedad / Villa'
         } as TitleSection);
+
+        const villaDetails = [
+            `Propiedad: ${propName}`,
+            propCode ? `Código de Registro: ${propCode}` : null,
+            propArea ? `Sector / Complejo: ${propArea}` : null,
+            propUrl ? `Ubicación GPS / Mapa: ${propUrl}` : null,
+            ticket.isRetainer ? `Modalidad de Servicio: Contrato Villa Care Pass (Iguala Periódica)` : null
+        ].filter(Boolean) as string[];
 
         sections.push({
             id: uuid(),
-            type: 'text',
-            content: ticket.description
-        } as TextSection);
+            type: 'list',
+            items: villaDetails
+        } as ListSection);
+
+        if (facadePhoto) {
+            sections.push({
+                id: uuid(),
+                type: 'photo',
+                photoUrl: facadePhoto,
+                description: `Fachada Principal - ${propName}${propCode ? ` (${propCode})` : ''}`,
+                size: 'medium'
+            } as PhotoSection);
+        }
     }
 
-    // --- 2. DIAGNÓSTICO & HALLAZGOS (NO DUPLICA DESCRIPCIÓN) ---
-    sections.push({
-        id: uuid(),
-        type: 'h2',
-        content: 'Diagnóstico y Hallazgos Técnicos'
-    } as TitleSection);
+    // --- 2. CENSO E INVENTARIO DE EQUIPOS INTERVENIDOS ---
+    const eqs = additionalData?.equipments || (ticket.surveyAreas && ticket.surveyAreas.length > 0 ? ticket.surveyAreas.map((area, idx) => ({
+        id: area.id || `eq-${idx}`,
+        code: `EQ-${(area.id || String(idx + 1)).slice(0, 5).toUpperCase()}`,
+        areaName: area.name,
+        specs: {
+            brand: area.brand || 'Genérica',
+            model: area.modelNumber || area.model || '',
+            btu: area.btuCapacity || 18000,
+            refrigerant: area.refrigerant || 'R410A'
+        },
+        status: 'OPERATIONAL'
+    } as any)) : []);
 
-    sections.push({
-        id: uuid(),
-        type: 'text',
-        content: ticket.diagnosis || 'Se realizó inspección técnica de las condiciones del equipo e instalaciones.'
-    } as TextSection);
+    if (eqs && eqs.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Censo e Inventario de Equipos (Alcance del Servicio)'
+        } as TitleSection);
 
-    // --- 3. TRABAJO REALIZADO & SOLUCIÓN (NO DUPLICA DESCRIPCIÓN) ---
-    sections.push({
-        id: uuid(),
-        type: 'h2',
-        content: 'Trabajo Realizado y Solución Técnica'
-    } as TitleSection);
+        const eqLines = eqs.map((eq, i) => {
+            const code = eq.code || `EQ-${String(i + 1).padStart(4, '0')}`;
+            const area = eq.areaName || eq.name || 'Área General';
+            const brand = eq.specs?.brand || (eq as any).marca || 'AC';
+            const model = eq.specs?.model || (eq as any).modelo || '';
+            const btu = eq.specs?.btu || (eq as any).capacidadBTU || '18,000';
+            const gas = eq.specs?.refrigerant || (eq as any).refrigerante || 'R410A';
+            const statusLabel = eq.status === 'OPERATIONAL' ? 'Operativo' : (eq.status || 'Revisado');
+            return `[${code}] ${area}: ${brand} ${model ? `${model} ` : ''}- ${btu} BTU (${gas}) | Estado: ${statusLabel}`;
+        });
 
-    sections.push({
-        id: uuid(),
-        type: 'text',
-        content: ticket.solution || 'Mantenimiento y trabajos técnicos ejecutados conforme a los estándares de calidad de HECHO SRL.'
-    } as TextSection);
+        sections.push({
+            id: uuid(),
+            type: 'list',
+            items: eqLines
+        } as ListSection);
+    }
 
-    // --- 2.5 MATERIALES Y REPUESTOS (SI APLICA) ---
-    if (ticket.materialsChecklist && ticket.materialsChecklist.length > 0) {
+    // --- 3. MEDICIONES OPERATIVAS Y DIAGNÓSTICO DE REFRIGERANTE CON IA ---
+    const interventions = additionalData?.interventions || [];
+    if (interventions.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Mediciones Operativas y Diagnóstico de Carga de Refrigerante'
+        } as TitleSection);
+
+        interventions.forEach(int => {
+            const hasMeas = int.measurements && (int.measurements.psiLow !== undefined || int.measurements.amp !== undefined || int.measurements.tempDelta !== undefined);
+            if (hasMeas || int.diagnosis) {
+                const headerText = `${int.equipmentCode ? `[${int.equipmentCode}] ` : ''}${int.areaName || 'Unidad de Climatización'}:`;
+                const measDetails: string[] = [];
+                if (int.measurements?.psiLow !== undefined) measDetails.push(`• Presión de baja (succión): ${int.measurements.psiLow} PSI`);
+                if (int.measurements?.amp !== undefined) measDetails.push(`• Amperaje de consumo: ${int.measurements.amp} A`);
+                if (int.measurements?.tempDelta !== undefined) measDetails.push(`• Salto térmico (ΔT): ${int.measurements.tempDelta} °C`);
+                if (int.diagnosis) measDetails.push(`• Diagnóstico Técnico: ${int.diagnosis}`);
+
+                sections.push({
+                    id: uuid(),
+                    type: 'text',
+                    content: `${headerText}\n${measDetails.join('\n')}`
+                } as TextSection);
+            }
+        });
+    }
+
+    // --- 4. MATERIALES Y REFRIGERANTE CONSUMIDO (CONTROL DE STOCK) ---
+    const movements = additionalData?.movements || [];
+    const outgoingMovements = movements.filter(m => m.type === 'SALIDA');
+
+    if (outgoingMovements.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Materiales, Repuestos y Refrigerante Consumidos'
+        } as TitleSection);
+
+        const movLines = outgoingMovements.map(m => {
+            const name = m.productName || m.reason || 'Material';
+            const qty = m.quantity;
+            const unit = (m as any).unit || (name.toLowerCase().includes('r410') || name.toLowerCase().includes('r22') ? 'Lbs' : 'Ud(s)');
+            return `• ${qty} ${unit} - ${name} (Descontado de Unidad Móvil / Camioneta)`;
+        });
+
+        sections.push({
+            id: uuid(),
+            type: 'list',
+            items: movLines
+        } as ListSection);
+    } else if (ticket.materialsChecklist && ticket.materialsChecklist.length > 0) {
         sections.push({
             id: uuid(),
             type: 'h2',
@@ -164,7 +299,48 @@ export function generateReportFromTicket(
         } as ListSection);
     }
 
-    // --- 3. RECOMENDACIONES TÉCNICAS AL CLIENTE (DESTACADO) ---
+    // --- 5. DESCRIPCIÓN INICIAL / REQUERIMIENTO DEL CLIENTE ---
+    if (ticket.description && ticket.description.trim()) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Descripción del Requerimiento Inicial'
+        } as TitleSection);
+
+        sections.push({
+            id: uuid(),
+            type: 'text',
+            content: ticket.description
+        } as TextSection);
+    }
+
+    // --- 6. DIAGNÓSTICO & HALLAZGOS TÉCNICOS ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Diagnóstico y Hallazgos Técnicos'
+    } as TitleSection);
+
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: ticket.diagnosis || 'Se realizó inspección técnica completa de las condiciones operativas de los equipos e instalaciones.'
+    } as TextSection);
+
+    // --- 7. TRABAJO REALIZADO & SOLUCIÓN ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Trabajo Realizado y Solución Técnica'
+    } as TitleSection);
+
+    sections.push({
+        id: uuid(),
+        type: 'text',
+        content: ticket.solution || 'Mantenimiento preventivo, limpieza y trabajos técnicos ejecutados conforme a los protocolos institucionales de HECHO SRL.'
+    } as TextSection);
+
+    // --- 8. RECOMENDACIONES TÉCNICAS AL CLIENTE ---
     sections.push({
         id: uuid(),
         type: 'h2',
@@ -180,7 +356,7 @@ export function generateReportFromTicket(
         content: recommendationsText
     } as TextSection);
 
-    // --- 4. EVIDENCIA FOTOGRÁFICA (TODAS LAS FOTOS) ---
+    // --- 9. EVIDENCIA FOTOGRÁFICA EN 3 FASES ---
     const allPhotosForReport: any[] = [...(ticket.photos || [])];
     if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
         ticket.surveyAreas.forEach(area => {
@@ -216,7 +392,7 @@ export function generateReportFromTicket(
         sections.push({
             id: uuid(),
             type: 'h2',
-            content: 'Evidencia Fotográfica de los Trabajos'
+            content: 'Evidencia Fotográfica de los Trabajos (Antes / Durante / Después)'
         } as TitleSection);
 
         sections.push({
@@ -224,7 +400,12 @@ export function generateReportFromTicket(
             type: 'gallery',
             photos: allPhotosForReport.map(photo => ({
                 photoUrl: photo.url,
-                description: photo.description || photo.details || (photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 'Durante la Ejecución'),
+                description: photo.description || photo.details || (
+                    photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : 
+                    photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 
+                    photo.type === 'SURVEY' ? 'Placa / Relevamiento Técnico' :
+                    'Durante la Ejecución'
+                ),
                 photoMeta: {
                     originalId: (photo as { id?: string }).id || uuid(),
                     area: photo.area,
@@ -234,7 +415,7 @@ export function generateReportFromTicket(
         } as GallerySection);
     }
 
-    // --- 5. POLÍTICAS DE GARANTÍA Y TÉRMINOS ---
+    // --- 10. POLÍTICAS DE GARANTÍA Y TÉRMINOS ---
     sections.push({
         id: uuid(),
         type: 'h2',
@@ -263,6 +444,14 @@ export function generateReportFromTicket(
             title: `Informe Técnico #${ticket.ticketNumber || ticket.id.slice(0, 6)}`
         },
         sections: cleanedSections,
+        signatures: {
+            technicianSignature: (ticket as any).technicianSignature || undefined,
+            technicianName: ticket.technicianName || 'Técnico Especialista',
+            clientSignature: ticket.clientSignature || undefined,
+            clientName: ticket.clientSignatureName || ticket.clientName || 'Cliente / Receptor',
+            includeCompanySeal: true,
+            includeCompanySignature: true
+        },
         lastGeneratedFromTicketAt: new Date().toISOString()
     };
 }
@@ -299,16 +488,15 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
             const lastSection = cleanedSections[cleanedSections.length - 1];
             if (lastSection && (lastSection.type === 'h1' || lastSection.type === 'h2')) {
                 if ((lastSection as TitleSection).content?.trim().toLowerCase() === titleText.toLowerCase()) {
-                    continue; // Saltar título repetido inmediatamente
+                    continue;
                 }
             }
 
-            // Mirar hacia adelante: si el contenido de texto que sigue es un duplicado que va a ser eliminado, no dejar un título huérfano
+            // Mirar hacia adelante: si el contenido de texto que sigue es un duplicado que va a ser eliminado
             const nextSection = sections[i + 1];
             if (nextSection && nextSection.type === 'text') {
                 const nextContent = ((nextSection as TextSection).content || '').trim();
                 const normalizedNext = normalizeText(nextContent);
-                // Si el texto que le sigue ya fue visto anteriormente en otra sección, descartamos este título y texto duplicado
                 if (normalizedNext.length > 30 && seenTextContent.has(normalizedNext)) {
                     continue;
                 }
@@ -324,9 +512,7 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
 
             const normalized = normalizeText(rawContent);
 
-            // Si el bloque de texto es sustancial (> 30 caracteres) y ya fue visto
             if (normalized.length > 30 && seenTextContent.has(normalized)) {
-                // Si la sección anterior fue un título huérfano para este texto duplicado, remover el título
                 const lastSection = cleanedSections[cleanedSections.length - 1];
                 if (lastSection && (lastSection.type === 'h1' || lastSection.type === 'h2')) {
                     const lastTitle = (lastSection as TitleSection).content?.toLowerCase() || '';
@@ -334,14 +520,13 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
                         cleanedSections.pop();
                     }
                 }
-                continue; // Descartar texto duplicado
+                continue;
             }
 
             if (normalized.length > 30) {
                 seenTextContent.add(normalized);
             }
 
-            // Si el texto empieza con "Ejecución de servicio técnico: " y el texto en sí es un reporte completo, limpiamos el prefijo
             if (rawContent.startsWith("Ejecución de servicio técnico: ")) {
                 const cleanedText = rawContent.replace(/^Ejecución de servicio técnico:\s*/i, '');
                 cleanedSections.push({
@@ -358,7 +543,6 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
         }
     }
 
-    // Pasada final: eliminar títulos huérfanos al final del reporte
     while (cleanedSections.length > 0 && (cleanedSections[cleanedSections.length - 1].type === 'h1' || cleanedSections[cleanedSections.length - 1].type === 'h2')) {
         cleanedSections.pop();
     }
@@ -368,13 +552,11 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
 
 /**
  * Updates photos in report without losing existing content
- * Rewritten to be a "Catch-all" append using GallerySection
  */
 export function updatePhotosFromTicket(
     report: TicketReportNew,
     ticket: Ticket
 ): TicketReportNew {
-    // Get existing photo identifiers (IDs and URLs)
     const existingIds = new Set<string>();
     const existingUrls = new Set<string>();
 
@@ -393,7 +575,6 @@ export function updatePhotosFromTicket(
                 });
             }
         }
-        // Also check before/after blocks
         if (section.type === 'beforeAfter') {
             const ba = section as BeforeAfterSection;
             if (ba.beforePhotoUrl) existingUrls.add(ba.beforePhotoUrl);
@@ -401,8 +582,6 @@ export function updatePhotosFromTicket(
         }
     });
 
-    // Find new photos logic:
-    // Aggregate from both ticket.photos and all surveyAreas[].photos
     const allCandidatePhotos: any[] = [...(ticket.photos || [])];
     if (ticket.surveyAreas && Array.isArray(ticket.surveyAreas)) {
         ticket.surveyAreas.forEach(area => {
@@ -439,13 +618,8 @@ export function updatePhotosFromTicket(
     const newPhotos = allCandidatePhotos.filter(photo => {
         if (!photo || !photo.url) return false;
         const hasId = photo.id;
-
-        // If it has a known ID, it's NOT new.
         if (hasId && existingIds.has(hasId)) return false;
-
-        // If it has a known URL, it's NOT new.
         if (photo.url && existingUrls.has(photo.url)) return false;
-
         return true;
     });
 
@@ -455,7 +629,6 @@ export function updatePhotosFromTicket(
 
     const updatedSections = [...report.sections];
 
-    // Create a new GallerySection for new photos
     const newGallerySection: GallerySection = {
         id: uuid(),
         type: 'gallery',
@@ -470,7 +643,6 @@ export function updatePhotosFromTicket(
         }))
     };
 
-    // Find insertion point (before Final Observations)
     let insertIndex = -1;
     const finalObsIndex = updatedSections.findIndex(s => s.type === 'h2' && (s as TitleSection).content === 'Observaciones Finales');
 
@@ -486,4 +658,99 @@ export function updatePhotosFromTicket(
         ...report,
         sections: updatedSections
     };
+}
+
+/**
+ * Genera, compila y persiste automáticamente el Informe Técnico PDF en Firestore
+ * recopilando la villa, censo de equipos, lecturas de refrigerante e insumos consumidos.
+ */
+export async function generateAndSaveTicketReport(
+    ticketId: string,
+    customTicket?: Ticket
+): Promise<TicketReportNew> {
+    try {
+        let ticketData = customTicket;
+        if (!ticketData) {
+            const ticketSnap = await getDoc(doc(db, "tickets", ticketId));
+            if (!ticketSnap.exists()) {
+                throw new Error(`Ticket #${ticketId} no encontrado para generar reporte.`);
+            }
+            ticketData = { id: ticketSnap.id, ...ticketSnap.data() } as Ticket;
+        }
+
+        // 1. Cargar Villa / Propiedad si existe
+        let locationData: PropertyLocation | null = null;
+        if (ticketData.locationId) {
+            try {
+                const locSnap = await getDoc(doc(db, "locations", ticketData.locationId));
+                if (locSnap.exists()) {
+                    locationData = { id: locSnap.id, ...locSnap.data() } as PropertyLocation;
+                }
+            } catch (err) {
+                console.warn("Could not load location data for report:", err);
+            }
+        }
+
+        // 2. Cargar censo de equipos
+        let equipments: EquipmentPassport[] = [];
+        if (ticketData.locationId) {
+            try {
+                equipments = await getEquipmentByLocation(ticketData.locationId);
+            } catch (err) {
+                console.warn("Could not load equipments for report:", err);
+            }
+        }
+
+        // 3. Cargar intervenciones técnicas con lecturas de manómetros y amperaje
+        let interventions: EquipmentIntervention[] = [];
+        try {
+            const intQuery = query(collection(db, "interventions"), where("ticketId", "==", ticketId));
+            const intSnap = await getDocs(intQuery);
+            interventions = intSnap.docs.map(d => ({ id: d.id, ...d.data() } as EquipmentIntervention));
+        } catch (err) {
+            console.warn("Could not load interventions for report:", err);
+        }
+
+        // 4. Cargar consumos de materiales y refrigerante del ticket
+        let movements: InventoryMovement[] = [];
+        try {
+            const movQuery = query(collection(db, "inventory_movements"), where("ticketId", "==", ticketId));
+            const movSnap = await getDocs(movQuery);
+            movements = movSnap.docs.map(d => ({ id: d.id, ...d.data() } as InventoryMovement));
+        } catch (err) {
+            console.warn("Could not load inventory movements for report:", err);
+        }
+
+        // 5. Cargar políticas predeterminadas
+        let policies: { warrantyPolicies?: string; defaultRecommendations?: string } | undefined;
+        try {
+            const polSnap = await getDoc(doc(db, "settings", "reports"));
+            if (polSnap.exists()) {
+                policies = polSnap.data() as any;
+            }
+        } catch {}
+
+        // 6. Generar informe técnico enriquecido
+        const report = generateReportFromTicket(ticketData, policies, {
+            location: locationData,
+            equipments,
+            interventions,
+            movements
+        });
+
+        // 7. Sanitizar y guardar en Firestore (ticketReports)
+        const sanitizedReport = cleanUndefined(report);
+        await setDoc(doc(db, "ticketReports", ticketId), sanitizedReport, { merge: true });
+
+        // 8. Actualizar flag en el ticket
+        await updateDoc(doc(db, "tickets", ticketId), {
+            reportStatus: 'GENERATED',
+            reportGeneratedAt: serverTimestamp()
+        }).catch(err => console.warn("Could not update ticket reportStatus:", err));
+
+        return report;
+    } catch (error) {
+        console.error("Error in generateAndSaveTicketReport:", error);
+        throw error;
+    }
 }
