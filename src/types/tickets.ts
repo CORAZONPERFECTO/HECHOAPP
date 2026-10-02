@@ -211,6 +211,13 @@ export interface Ticket {
     profitMargin?: number; // Calculated: ((revenue - totalCost) / revenue) * 100
     billingStatus?: 'PENDING' | 'BILLED' | 'PAID'; // Tracking billing state
     executionOrder?: number; // Manual override for technician's daily execution order
+
+    // Standby / Pause Mode
+    isStandby?: boolean;
+    standbyReason?: string;
+    standbyAt?: Timestamp | any;
+    standbyBy?: string;
+
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
@@ -261,3 +268,25 @@ export interface TicketToken {
     expiresAt?: Timestamp;
     createdBy: string; // User ID of admin who generated it
 }
+
+export interface TicketCrewToken {
+    id: string;
+    token: string;
+    ticketId: string;
+    ticketNumber?: string;
+    clientName?: string;
+    locationName?: string;
+    maxOpens: number; // Default 2 (Principal + Ayudante)
+    openCount: number;
+    registeredDeviceIds: string[];
+    status: 'ACTIVE' | 'CLOSED' | 'REVOKED';
+    isStandby?: boolean;
+    standbyReason?: string;
+    standbyAt?: Timestamp | any;
+    createdAt: Timestamp | any;
+    updatedAt: Timestamp | any;
+    expiresAt?: Timestamp | any;
+    createdBy?: string;
+    createdByName?: string;
+}
+

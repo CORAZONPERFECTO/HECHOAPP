@@ -35,6 +35,7 @@ import { EquipmentHistoryModal } from "@/components/technician/equipment-history
 import { MaterialRequestForm } from "@/components/technician/material-request-form";
 import { ApprovalRequestForm } from "@/components/tickets/approval-request-form";
 import { ProfitabilityCard } from "@/components/tickets/profitability-card";
+import { AdminCrewLinkCard } from "@/components/tickets/admin-crew-link-card";
 import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, Share2, Trash2, FileText, Calendar as CalendarIcon, Clock, Plus, ListChecks, Zap, Edit2, BookOpen, History } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { LocationInput } from "@/components/ui/location-input";
@@ -594,6 +595,14 @@ export default function TicketDetailPage() {
             )}
 
             <main className={`${activeTab === 'final-report' ? 'max-w-7xl' : 'max-w-3xl'} mx-auto p-4 space-y-6 print:max-w-none print:p-0 transition-all duration-200`}>
+                {/* Enlace Colaborativo de Cuadrilla (2 cupos por defecto, ampliable por Admin, Standby y Cierre estricto) */}
+                <AdminCrewLinkCard 
+                    ticket={ticket} 
+                    currentUserRole={currentUserRole} 
+                    currentUserName={currentUserName} 
+                    currentUserId={currentUserId} 
+                />
+
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="print:hidden">
                     <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto p-1 bg-white border rounded-xl mb-4 overflow-x-auto gap-1">
                         <TabsTrigger value="info" className="text-xs py-2">Info</TabsTrigger>
