@@ -82,29 +82,34 @@ INSTRUCCIONES:
             6. DEBES devolver SOLO EL JSON VÁLIDO.
             `;
         } else if (task === 'structure-report-by-area') {
-            systemInstruction += `Tu tarea es leer las notas sueltas, hallazgos y fotos de un servicio técnico y estructurarlas en un formato profesional, organizado POR ÁREAS.
+            systemInstruction += `Tu tarea es leer las notas sueltas, hallazgos y fotos de un servicio técnico y estructurarlas en un formato profesional, organizado POR ÁREAS y en un orden estricto para su exportación.
             
-            ESTRUCTURA JSON REQUERIDA EXACTA:
+            ESTRUCTURA JSON REQUERIDA EXACTA (MANTÉN ESTE ORDEN):
             {
               "sections": [
-                 { "type": "h2", "content": "Resumen Ejecutivo por Áreas" },
-                 // Para cada área encontrada (ej. Habitación Principal, Sala de Máquinas):
-                 { "type": "h3", "content": "Área: [Nombre del Área]" },
+                 { "type": "h1", "content": "Resumen Ejecutivo y Avance de Obra" },
+                 { "type": "text", "content": "Resumen general del servicio. Progreso estimado de la obra/mantenimiento: [X]% completado." },
+                 
+                 // Para cada área encontrada (ej. Habitación 5, Sala de Máquinas):
+                 { "type": "h2", "content": "Área: [Nombre del Área]" },
                  { "type": "text", "content": "Resumen técnico de los hallazgos en esta área..." },
-                 // Si hay fotos asociadas al área:
-                 { "type": "photo", "photoUrl": "[url_si_existe]", "description": "Descripción de la evidencia" },
-                 // Y finalmente, las recomendaciones del área (usa text + photo vacía para cada una):
-                 { "type": "h3", "content": "Recomendaciones" },
+                 // Si hay fotos asociadas al área, EL PREFIJO DEL ÁREA ES OBLIGATORIO en la descripción:
+                 { "type": "photo", "photoUrl": "[url_si_existe]", "description": "[Nombre del Área] - Descripción de la evidencia" },
+                 
+                 // Al final de todas las áreas, las recomendaciones:
+                 { "type": "h1", "content": "Recomendaciones Finales" },
+                 // Para cada recomendación, crea text + photo vacía:
                  { "type": "text", "content": "Recomendación 1..." },
                  { "type": "photo", "photoUrl": "", "description": "Evidencia Recomendación 1" }
               ]
             }
 
             REGLAS:
-            1. Agrupa lógicamente toda la información por áreas físicas (ej. Habitación Principal, Azotea).
-            2. Mejora la redacción técnica.
-            3. Para cada recomendación, crea un bloque de "text" seguido de un bloque "photo" con "photoUrl": "" (vacío) para que el técnico pueda subir la foto de la recomendación en la app.
-            4. Devuelve SOLO EL JSON VÁLIDO.`;
+            1. ORDEN ESTRICTO: Resumen/Avance -> Áreas -> Recomendaciones. Todo debe estar en orden para el PDF.
+            2. AVANCE DE OBRA: Debes analizar el texto y deducir un porcentaje (%) lógico de avance de la obra o tarea.
+            3. PREFIJO DE FOTOS: Cada descripción de foto DENTRO de un área debe empezar con el nombre del área, seguido de un guion (Ej: "Habitación 5 - Tubería corregida").
+            4. RECOMENDACIONES: Usa bloque de texto seguido de foto vacía ("photoUrl": "") para que el técnico suba la foto en la app.
+            5. Devuelve SOLO EL JSON VÁLIDO.`;
         } else if (task === 'parse-invoice') {
             systemInstruction += `Tu tarea es extraer datos estructurados de una factura (voz o texto). Devuelve JSON válido con clientName e items.`;
         } else if (task === 'parse-ticket') {
