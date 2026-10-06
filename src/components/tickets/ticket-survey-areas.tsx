@@ -75,6 +75,7 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
     const [uploadingAreaId, setUploadingAreaId] = useState<string | null>(null);
     const [uploadProgress, setUploadProgress] = useState<string>("");
     const [uploadingSpecial, setUploadingSpecial] = useState<{ areaId: string; type: 'plate' | 'board' } | null>(null);
+    const [generatingAI, setGeneratingAI] = useState<string | null>(null);
 
     // Sync from prop when not actively uploading photos
     useEffect(() => {
@@ -121,6 +122,67 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
             } catch (err) {
                 console.warn("Auto-syncing survey areas to Firestore:", err);
             }
+        }
+    };
+
+        const handleGenerateAreaSummaryWithAI = async (areaId: string) => {
+        const area = areasRef.current.find(a => a.id === areaId);
+        if (!area) return;
+        
+        const imageUrls = area.photos.map(p => p.url).filter(Boolean);
+        if (imageUrls.length === 0 && !area.notes) {
+            alert('Agrega fotos o algunas notas antes de generar el resumen.');
+            return;
+        }
+        
+        setGeneratingAI(areaId);
+        
+        try {
+            const { auth } = await import('@/lib/firebase');
+            const token = await auth.currentUser?.getIdToken();
+            
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    task: 'summarize-area',
+                    imageUrls,
+                    context: area.notes || ''
+                })
+            });
+            
+            if (!response.ok) throw new Error('Error al generar resumen');
+            const data = await response.json();
+            
+            if (data.output) {
+                const { notes, photoDescriptions } = data.output;
+                
+                const currentAreas = areasRef.current;
+                const updated = currentAreas.map(a => {
+                    if (a.id === areaId) {
+                        const newPhotos = [...a.photos];
+                        if (photoDescriptions && Array.isArray(photoDescriptions)) {
+                            newPhotos.forEach((p, idx) => {
+                                if (photoDescriptions[idx]) {
+                                    p.description = photoDescriptions[idx];
+                                }
+                            });
+                        }
+                        return { ...a, notes: notes || a.notes, photos: newPhotos };
+                    }
+                    return a;
+                });
+                
+                updateAreas(updated);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Ocurrió un error al generar el resumen con IA.');
+        } finally {
+            setGeneratingAI(null);
         }
     };
 

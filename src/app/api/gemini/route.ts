@@ -9,9 +9,9 @@ export async function POST(req: NextRequest) {
         const authz = await requireAuth(req);
         if (!authz.ok) return authz.response;
 
-        const { prompt, context, task, image, imageUrl } = await req.json();
+        const { prompt, context, task, image, imageUrl, imageUrls } = await req.json();
 
-        if (!prompt && !context && !image && !imageUrl) {
+        if (!prompt && !context && !image && !imageUrl && (!imageUrls || imageUrls.length === 0)) {
             return NextResponse.json({ error: "Missing prompt, image, or content to process" }, { status: 400 });
         }
 
@@ -21,7 +21,18 @@ export async function POST(req: NextRequest) {
         // Vertex AI API (Gemini) takes parts
         let systemInstruction = "Eres un asistente de IA experto en redacción técnica para técnicos de refrigeración y mantenimiento. ";
 
-        if (task === 'refine') {
+        if (task === 'summarize-area') {
+            systemInstruction += `Tu tarea es analizar las notas previas y/o múltiples fotos de un área específica y generar un resumen técnico detallado.
+Debes devolver un JSON con esta estructura exacta:
+{
+  "notes": "Un resumen abundante, detallado y profesional documentando las observaciones, el estado encontrado, las recomendaciones, y cualquier otro detalle técnico relevante a nivel general de esta área.",
+  "photoDescriptions": [
+    "Descripción técnica detallada y específica para la foto 1",
+    "Descripción técnica detallada y específica para la foto 2"
+  ]
+}
+Nota: El array de photoDescriptions debe tener exactamente la misma longitud y orden que las fotos enviadas. Devuelve SOLO JSON válido.`;
+        } else if (task === 'refine') {
             systemInstruction += "Tu tarea es tomar el texto proporcionado y reescribirlo de manera profesional. Corrige ortografía y gramática. Devuelve SOLO el texto corregido.";
         } else if (task === 'refine-technician-note') {
             systemInstruction += `Tu tarea es organizar y profesionalizar una nota de servicio técnico dictada por voz por un técnico de campo en República Dominicana.
@@ -324,7 +335,7 @@ INSTRUCCIONES:
         }
 
         // --- JSON Parsing Logic ---
-        if (['generate-report', 'parse-invoice', 'generate-quote', 'parse-ticket', 'extract-gauge-readings'].includes(task)) {
+        if (['generate-report', 'parse-invoice', 'generate-quote', 'parse-ticket', 'extract-gauge-readings', 'summarize-area'].includes(task)) {
             try {
                 // Robust JSON extraction
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
