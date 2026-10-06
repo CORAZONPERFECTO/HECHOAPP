@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Trash2, Copy, Sparkles, Loader2, Plus, X, Image as ImageIcon } from "lucide-react";
+import { GripVertical, Trash2, Copy, Sparkles, Loader2, Plus, X, Image as ImageIcon, PenTool } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { BeforeAfterBlock } from "./blocks/before-after-block";
 import { BeforeAfterSelector } from "./before-after-selector";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ImageAnnotator } from "@/components/ui/image-annotator";
 
 interface SectionEditorProps {
     section: TicketReportSection;
@@ -44,6 +45,7 @@ export function SectionEditor({
 }: SectionEditorProps) {
     const [isRefining, setIsRefining] = useState(false);
     const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+    const [isAnnotatorOpen, setIsAnnotatorOpen] = useState(false);
 
     const handleRefine = async (currentContent: string, type: 'text' | 'title' | 'photoDescription', imageUrl?: string) => {
         // Allow empty content if we have an image (generation vs refinement)
@@ -228,8 +230,29 @@ export function SectionEditor({
                                     <option value="medium">Mediana (1/2 página)</option>
                                     <option value="large">Grande (Pagina completa)</option>
                                 </select>
+                                
+                                {photoSection.photoUrl && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setIsAnnotatorOpen(true)}
+                                        className="h-9 whitespace-nowrap text-xs gap-1"
+                                    >
+                                        <PenTool className="h-3 w-3" />
+                                        Marcar Foto
+                                    </Button>
+                                )}
                             </div>
                         </div>
+
+                        {photoSection.photoUrl && (
+                            <ImageAnnotator
+                                open={isAnnotatorOpen}
+                                onOpenChange={setIsAnnotatorOpen}
+                                imageUrl={photoSection.photoUrl}
+                                onSave={(annotatedUrl) => onChange({ ...section, photoUrl: annotatedUrl } as PhotoSection)}
+                            />
+                        )}
                     </div>
                 );
 
