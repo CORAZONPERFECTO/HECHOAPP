@@ -3,7 +3,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Circle, Square, ArrowUpRight, PenTool, Undo, Save, X } from "lucide-react";
+import { Circle, Square, ArrowUpRight, PenTool, Undo, Save, X, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ImageAnnotatorProps {
@@ -36,6 +36,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
   const [actions, setActions] = useState<DrawAction[]>([]);
   const [currentAction, setCurrentAction] = useState<DrawAction | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [rotation, setRotation] = useState<number>(0);
 
   // Cargar imagen
   useEffect(() => {
@@ -73,7 +74,17 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
 
     // Limpiar y dibujar imagen base
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(imageObj, 0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
+    
+    const isRotated = rotation === 90 || rotation === 270;
+    const imgWidth = isRotated ? canvas.height : canvas.width;
+    const imgHeight = isRotated ? canvas.width : canvas.height;
+    
+    ctx.drawImage(imageObj, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
 
     // Dibujar todas las acciones
     const draw = (action: DrawAction) => {
@@ -116,8 +127,12 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
         const container = containerRef.current;
         const canvas = canvasRef.current;
         
+        const isRotated = rotation === 90 || rotation === 270;
+        const imgW = isRotated ? imageObj.height : imageObj.width;
+        const imgH = isRotated ? imageObj.width : imageObj.height;
+
         // Escalar el canvas al contenedor manteniendo el aspect ratio
-        const ratio = imageObj.width / imageObj.height;
+        const ratio = imgW / imgH;
         const maxWidth = container.clientWidth;
         const maxHeight = container.clientHeight;
         
@@ -134,7 +149,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
         
         redrawCanvas();
     }
-  }, [imageObj, redrawCanvas, open]);
+  }, [imageObj, redrawCanvas, open, rotation]);
 
   // Manejo de eventos (Touch y Mouse)
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -264,10 +279,16 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
                 ))}
             </div>
             
-            <Button variant="ghost" size="sm" onClick={handleUndo} disabled={actions.length === 0} className="text-zinc-400 hover:text-white">
-                <Undo className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Deshacer</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setRotation((r) => (r + 90) % 360)} className="text-zinc-400 hover:text-white">
+                  <RotateCw className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Rotar</span>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleUndo} disabled={actions.length === 0} className="text-zinc-400 hover:text-white">
+                  <Undo className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Deshacer</span>
+              </Button>
+            </div>
         </div>
 
         {/* Canvas Area */}
