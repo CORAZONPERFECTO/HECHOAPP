@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { 
@@ -275,7 +276,7 @@ export function EquipmentServiceChecklist({ ticket, onTicketUpdated }: Equipment
             const base64String = await base64Promise;
 
             // 2. Enviar a /api/gemini para extracción de lecturas
-            const apiRes = await fetch("/api/gemini", {
+            const apiRes = await authFetch("/api/gemini", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

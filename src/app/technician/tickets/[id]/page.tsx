@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
@@ -1059,7 +1060,7 @@ export default function TechnicianTicketPage() {
                                             solution: ticket.solution || "Sin solución",
                                             task: "Mejora la ortografía, gramática y haz que suene como un reporte técnico profesional de mantenimiento. Separa claramente el Diagnóstico y la Solución en dos bloques de texto. No uses markdown de asteriscos."
                                         };
-                                        const response = await fetch('/api/gemini', {
+                                        const response = await authFetch('/api/gemini', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({

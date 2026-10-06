@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,7 +89,7 @@ export function AITicketAssistant({ onTicketParsed }: AITicketAssistantProps) {
 
         setIsProcessing(true);
         try {
-            const response = await fetch("/api/gemini", {
+            const response = await authFetch("/api/gemini", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

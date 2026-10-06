@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/api-client";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -58,7 +59,7 @@ export async function downloadVisitAlbumZip({
             // Intentar fallback si falla CORS
             try {
                 const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(item.url)}`;
-                const proxyRes = await fetch(proxyUrl);
+                const proxyRes = await authFetch(proxyUrl);
                 if (proxyRes.ok) {
                     const blob = await proxyRes.blob();
                     folder.file(fileName, blob);

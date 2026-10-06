@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { requireAuth } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -74,6 +75,9 @@ function fallbackRuleBasedParser(transcript: string, currencyPreference: string 
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req);
+        if (!authz.ok) return authz.response;
+
         const { transcript, image, currencyPreference } = await req.json();
 
         if (!transcript && !image) {

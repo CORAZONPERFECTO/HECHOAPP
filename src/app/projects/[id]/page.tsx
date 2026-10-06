@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, collection, query, where, onSnapshot, deleteDoc, writeBatch, updateDoc, getDoc, runTransaction, getDocs, serverTimestamp, addDoc } from "firebase/firestore";
@@ -1059,7 +1060,7 @@ export default function AdminProjectDetailPage() {
                 for (const docFile of project.documents) {
                     try {
                         const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(docFile.fileUrl)}`;
-                        const res = await fetch(proxyUrl);
+                        const res = await authFetch(proxyUrl);
                         if (!res.ok) throw new Error("Fetch failed");
                         const blob = await res.blob();
                         
@@ -1084,7 +1085,7 @@ export default function AdminProjectDetailPage() {
                         if (taller.status === "COMPLETED" && taller.evidencePhotoUrl) {
                             try {
                                 const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(taller.evidencePhotoUrl)}`;
-                                const res = await fetch(proxyUrl);
+                                const res = await authFetch(proxyUrl);
                                 if (!res.ok) throw new Error("Fetch failed");
                                 const blob = await res.blob();
 

@@ -24,6 +24,7 @@ import {
     RefreshCw
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getVillaShareUrl } from "@/lib/villa-share";
 
 export function RecurringMaintenanceTracker() {
     const router = useRouter();
@@ -172,16 +173,22 @@ export function RecurringMaintenanceTracker() {
     }, [processedVillas]);
 
     // Enviar recordatorio de mantenimiento por WhatsApp al propietario
-    const handleSendReminderWhatsApp = (villa: any) => {
-        const clientName = villa.clientName || "Estimado cliente";
-        const dateText = villa.nextMaintenanceDate ? `el ${villa.nextMaintenanceDate}` : "en los próximos días";
-        const msg = `*Recordatorio de Mantenimiento Preventivo* ❄️\n` +
-            `Hola ${clientName}, le saludamos de *HECHO SRL*.\n` +
-            `Le recordamos que el mantenimiento de climatización para su villa *${villa.nombre}* está programado para ${dateText}.\n\n` +
-            `¿Desea confirmar el acceso para nuestro equipo técnico?\n` +
-            `Consulte su Bitácora Digital aquí: ${window.location.origin}/villas/${villa.id}`;
+    const handleSendReminderWhatsApp = async (villa: any) => {
+        try {
+            const shareUrl = await getVillaShareUrl(villa.id);
+            const clientName = villa.clientName || "Estimado cliente";
+            const dateText = villa.nextMaintenanceDate ? `el ${villa.nextMaintenanceDate}` : "en los próximos días";
+            const msg = `*Recordatorio de Mantenimiento Preventivo* ❄️\n` +
+                `Hola ${clientName}, le saludamos de *HECHO SRL*.\n` +
+                `Le recordamos que el mantenimiento de climatización para su villa *${villa.nombre}* está programado para ${dateText}.\n\n` +
+                `¿Desea confirmar el acceso para nuestro equipo técnico?\n` +
+                `Consulte su Bitácora Digital aquí: ${shareUrl}`;
 
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+        } catch (e) {
+            console.error(e);
+            alert("Error al generar el enlace de la villa.");
+        }
     };
 
     if (loading) {

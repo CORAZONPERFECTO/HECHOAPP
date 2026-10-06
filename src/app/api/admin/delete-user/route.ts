@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
+import { requireAuth, MANAGER_ROLES } from "@/lib/server-auth";
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -25,10 +26,25 @@ if (!admin.apps.length) {
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req, MANAGER_ROLES);
+        if (!authz.ok) return authz.response;
+
         const { uid } = await req.json();
 
         if (!uid) {
             return NextResponse.json({ error: "UID requerido." }, { status: 400 });
+        }
+
+        if (uid === authz.ctx.uid) {
+            return NextResponse.json({ error: "No puedes eliminar tu propia cuenta." }, { status: 400 });
+        }
+
+        if (authz.ctx.role !== "ADMIN") {
+            const target = await admin.firestore().collection("users").doc(uid).get();
+            const targetRole = String(target.data()?.rol || target.data()?.role || "");
+            if (targetRole === "ADMIN") {
+                return NextResponse.json({ error: "Solo un ADMIN puede eliminar a otro ADMIN." }, { status: 403 });
+            }
         }
 
         // 1. Borrar de Firebase Auth (si existe)

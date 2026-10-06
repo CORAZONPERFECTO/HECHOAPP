@@ -1,8 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/server-auth';
 
 export async function POST(req: Request) {
     try {
+        const authz = await requireAuth(req);
+        if (!authz.ok) return authz.response;
+
         const { prompt, systemInstruction } = await req.json();
 
         if (!prompt) {

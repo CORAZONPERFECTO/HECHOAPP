@@ -1,4 +1,5 @@
 
+import { authFetch } from "@/lib/api-client";
 import { Client, InvoiceLineItem } from "@/types/schema";
 
 interface ParsedInvoiceData {
@@ -20,7 +21,7 @@ export async function parseInvoiceCommand(text: string, availableClients: Client
 
     // AI-BASED PARSING
     try {
-        const response = await fetch('/api/gemini', {
+        const response = await authFetch('/api/gemini', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

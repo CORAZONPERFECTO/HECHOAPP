@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req);
+        if (!authz.ok) return authz.response;
+
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
 

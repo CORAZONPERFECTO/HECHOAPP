@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
+import { requireAuth, MANAGER_ROLES } from "@/lib/server-auth";
 
 // Initialize Firebase Admin SDK (singleton pattern)
 if (!admin.apps.length) {
@@ -25,6 +26,9 @@ if (!admin.apps.length) {
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req, MANAGER_ROLES);
+        if (!authz.ok) return authz.response;
+
         const { uid, newPassword, newEmail, displayName } = await req.json();
 
         if (!uid) {
@@ -32,6 +36,15 @@ export async function POST(req: NextRequest) {
                 { error: "UID es requerido." },
                 { status: 400 }
             );
+        }
+
+        // Solo un ADMIN puede modificar la cuenta de otro ADMIN (evita escalada por un gerente).
+        if (authz.ctx.role !== "ADMIN" && uid !== authz.ctx.uid) {
+            const target = await admin.firestore().collection("users").doc(uid).get();
+            const targetRole = String(target.data()?.rol || target.data()?.role || "");
+            if (targetRole === "ADMIN") {
+                return NextResponse.json({ error: "Solo un ADMIN puede modificar a otro ADMIN." }, { status: 403 });
+            }
         }
 
         const updatePayload: any = {};

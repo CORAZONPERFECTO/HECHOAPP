@@ -1,6 +1,7 @@
 
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from "firebase/firestore";
@@ -126,7 +127,7 @@ export default function QuoteDetailPage() {
         if (!quote) return;
         setSyncingAlegra(true);
         try {
-            const res = await fetch("/api/alegra/sync", {
+            const res = await authFetch("/api/alegra/sync", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

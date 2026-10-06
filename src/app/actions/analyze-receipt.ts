@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAuthToken } from "@/lib/server-auth";
+
 /**
  * Server Action: Analyze Receipt Image via Gemini API (direct, no Vertex AI)
  * Replaces the broken Vertex AI implementation.
@@ -38,6 +40,10 @@ export async function analyzeReceiptAction(formData: FormData): Promise<{
     error?: string;
 }> {
     try {
+        // Las server actions son endpoints públicos: se exige un ID token de Firebase válido.
+        const authz = await requireAuthToken(formData.get("idToken") as string | null);
+        if (!authz.ok) return { success: false, error: "No autorizado." };
+
         const file = formData.get("file") as File | null;
         if (!file) {
             return { success: false, error: "No se proporcionó ningún archivo" };

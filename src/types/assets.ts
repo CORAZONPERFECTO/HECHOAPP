@@ -46,6 +46,7 @@ export interface Equipment {
 export interface Location {
     id: string;
     code?: string; // ej. "PROP-00042"
+    publicCode?: string; // ID público aleatorio e impredecible para el enlace del propietario (/villas/[publicCode])
     nombre: string;
     direccion?: string;
     descripcion?: string;

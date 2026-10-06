@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { generatePropertyCode } from "@/lib/equipment-service";
+import { getVillaShareUrl } from "@/lib/villa-share";
 
 interface LocationListProps {
     clientId: string;
@@ -358,10 +359,15 @@ export function LocationList({ clientId, clientName }: LocationListProps) {
                                     </Button>
 
                                     <Button
-                                        onClick={() => {
-                                            const shareUrl = `${window.location.origin}/villas/${location.id}`;
-                                            const msg = `*Bitácora Digital de la Villa*\nVilla: *${location.nombre}*\nAcceso web: ${shareUrl}`;
-                                            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+                                        onClick={async () => {
+                                            try {
+                                                const shareUrl = await getVillaShareUrl(location.id);
+                                                const msg = `*Bitácora Digital de la Villa*\nVilla: *${location.nombre}*\nAcceso web: ${shareUrl}`;
+                                                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert("No se pudo generar el enlace de la villa.");
+                                            }
                                         }}
                                         size="sm"
                                         variant="outline"

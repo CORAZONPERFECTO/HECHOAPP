@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
 import { collection, query, getDocs, orderBy, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -250,7 +251,7 @@ Entrega un análisis ejecutivo en 4 secciones concretas:
 3. Recomendación de Precios / Tarifa Mínima por Ticket.
 4. Plan de Acción Inmediato para maximizar el margen neto.`;
 
-            const res = await fetch("/api/gemini", {
+            const res = await authFetch("/api/gemini", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ prompt })

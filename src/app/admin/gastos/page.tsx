@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
 import { collection, query, getDocs, orderBy, getDoc, doc, addDoc, Timestamp } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -202,7 +203,7 @@ export default function GastosPage() {
     const handleSyncAlegra = async () => {
         setIsAlegraSyncing(true);
         try {
-            const res = await fetch("/api/alegra/sync", {
+            const res = await authFetch("/api/alegra/sync", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "sync_purchases" })

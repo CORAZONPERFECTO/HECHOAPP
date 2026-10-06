@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/api-client";
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel, AlignmentType, Table } from 'docx';
 import { saveAs } from 'file-saver';
@@ -172,7 +173,7 @@ async function loadImage(url: string, preservePng: boolean = false): Promise<Loa
     // 5. INTENTO A TRAVÉS DE PROXY SERVER-SIDE (GET)
     try {
         const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(trimmedUrl)}`;
-        const res = await fetch(proxyUrl);
+        const res = await authFetch(proxyUrl);
         if (res.ok) {
             const blob = await res.blob();
             const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -190,7 +191,7 @@ async function loadImage(url: string, preservePng: boolean = false): Promise<Loa
 
     // 6. INTENTO A TRAVÉS DE PROXY SERVER-SIDE (POST)
     try {
-        const res = await fetch('/api/proxy-image', {
+        const res = await authFetch('/api/proxy-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: trimmedUrl })

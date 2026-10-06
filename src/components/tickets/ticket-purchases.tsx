@@ -129,6 +129,8 @@ export function TicketPurchases({ ticketId, ticketNumber, currentUserRole, userI
 
             const reqData = new FormData();
             reqData.append("file", compressedFile, file.name);
+            const { auth: firebaseAuth } = await import("@/lib/firebase");
+            reqData.append("idToken", (await firebaseAuth.currentUser?.getIdToken()) || "");
 
             const result = await analyzeReceiptAction(reqData);
 

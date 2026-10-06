@@ -3,11 +3,15 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { getAlegraConfig, createAlegraInvoiceFromQuote, createAlegraEstimateFromQuote } from "@/lib/alegra-service";
 import { Quote } from "@/types/finance";
+import { requireAuth, MANAGER_ROLES } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req, MANAGER_ROLES);
+        if (!authz.ok) return authz.response;
+
         const { quoteId, action = "invoice", customEmail, customToken } = await req.json();
 
         if (!quoteId) {

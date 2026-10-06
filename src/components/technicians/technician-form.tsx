@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { serverTimestamp, doc, setDoc, deleteDoc, collection, getDocs } from "firebase/firestore";
@@ -138,7 +139,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
             } else if (uid && (formData.email !== initialData?.email || formData.nombre !== initialData?.nombre)) {
                 // Sync updated email or name to Firebase Auth via admin endpoint
                 try {
-                    await fetch("/api/admin/set-password", {
+                    await authFetch("/api/admin/set-password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -188,7 +189,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         setLoading(true);
         try {
             const idToken = await auth.currentUser?.getIdToken();
-            const res = await fetch("/api/admin/delete-user", {
+            const res = await authFetch("/api/admin/delete-user", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
@@ -226,7 +227,7 @@ export function TechnicianForm({ initialData, isEditing = false }: TechnicianFor
         setPasswordSuccess(false);
         try {
             const idToken = await auth.currentUser?.getIdToken();
-            const res = await fetch("/api/admin/set-password", {
+            const res = await authFetch("/api/admin/set-password", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",

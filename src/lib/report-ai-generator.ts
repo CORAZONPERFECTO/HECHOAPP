@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/api-client";
 import { Ticket, TicketReportNew, TicketReportSection } from "@/types/schema";
 
 interface GenerateReportParams {
@@ -36,7 +37,7 @@ export async function generateReportWithAI(params: GenerateReportParams): Promis
         }
 
         // Call Gemini API with all context
-        const response = await fetch("/api/gemini", {
+        const response = await authFetch("/api/gemini", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -127,7 +128,7 @@ async function analyzePhoto(photoUrl: string, photoType: string): Promise<string
     // In a real implementation, this would send the image to Gemini Vision for analysis
     // For now, we'll return a placeholder
     try {
-        const response = await fetch("/api/gemini", {
+        const response = await authFetch("/api/gemini", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

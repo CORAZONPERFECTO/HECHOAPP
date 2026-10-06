@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getGeminiModel } from "@/lib/vertex-client";
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { searchInventoryTool } from "@/lib/ai-tools";
+import { requireAuth, isAllowedImageUrl } from "@/lib/server-auth";
 
 export async function POST(req: NextRequest) {
     try {
+        const authz = await requireAuth(req);
+        if (!authz.ok) return authz.response;
+
         const { prompt, context, task, image, imageUrl } = await req.json();
 
         if (!prompt && !context && !image && !imageUrl) {
@@ -77,6 +81,30 @@ INSTRUCCIONES:
             5. Si hay "materialsUsed" en el contexto, INCLUYE obligatoriamente una sección de tipo "list" con el título "Materiales y Herramientas".
             6. DEBES devolver SOLO EL JSON VÁLIDO.
             `;
+        } else if (task === 'structure-report-by-area') {
+            systemInstruction += `Tu tarea es leer las notas sueltas, hallazgos y fotos de un servicio técnico y estructurarlas en un formato profesional, organizado POR ÁREAS.
+            
+            ESTRUCTURA JSON REQUERIDA EXACTA:
+            {
+              "sections": [
+                 { "type": "h2", "content": "Resumen Ejecutivo por Áreas" },
+                 // Para cada área encontrada (ej. Habitación Principal, Sala de Máquinas):
+                 { "type": "h3", "content": "Área: [Nombre del Área]" },
+                 { "type": "text", "content": "Resumen técnico de los hallazgos en esta área..." },
+                 // Si hay fotos asociadas al área:
+                 { "type": "photo", "photoUrl": "[url_si_existe]", "description": "Descripción de la evidencia" },
+                 // Y finalmente, las recomendaciones del área (usa text + photo vacía para cada una):
+                 { "type": "h3", "content": "Recomendaciones" },
+                 { "type": "text", "content": "Recomendación 1..." },
+                 { "type": "photo", "photoUrl": "", "description": "Evidencia Recomendación 1" }
+              ]
+            }
+
+            REGLAS:
+            1. Agrupa lógicamente toda la información por áreas físicas (ej. Habitación Principal, Azotea).
+            2. Mejora la redacción técnica.
+            3. Para cada recomendación, crea un bloque de "text" seguido de un bloque "photo" con "photoUrl": "" (vacío) para que el técnico pueda subir la foto de la recomendación en la app.
+            4. Devuelve SOLO EL JSON VÁLIDO.`;
         } else if (task === 'parse-invoice') {
             systemInstruction += `Tu tarea es extraer datos estructurados de una factura (voz o texto). Devuelve JSON válido con clientName e items.`;
         } else if (task === 'parse-ticket') {
@@ -182,8 +210,11 @@ INSTRUCCIONES:
 
         let imageBase64 = image;
 
-        // If imageUrl provided, fetch it
+        // If imageUrl provided, fetch it (solo desde hosts permitidos para evitar SSRF)
         if (imageUrl) {
+            if (!isAllowedImageUrl(imageUrl)) {
+                return NextResponse.json({ error: "URL de imagen no permitida." }, { status: 400 });
+            }
             try {
                 const imgRes = await fetch(imageUrl);
                 const arrayBuffer = await imgRes.arrayBuffer();

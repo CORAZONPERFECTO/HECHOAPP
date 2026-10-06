@@ -12,8 +12,9 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool } from "lucide-react";
+import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool, Sparkles } from "lucide-react";
 import { TicketReportView } from "./ticket-report-view";
+import { authFetch } from "@/lib/api-client";
 import { BeforeAfterSelector } from "./before-after-selector";
 import { SignaturePad, SignaturePadRef } from "@/components/ui/signature-pad";
 import { useRef } from "react";
@@ -147,6 +148,58 @@ export function TicketReportEditor({
     // Refs for signatures
     const techSigRef = useRef<SignaturePadRef>(null);
     const clientSigRef = useRef<SignaturePadRef>(null);
+
+    const [isStructuring, setIsStructuring] = useState(false);
+
+    const handleStructureWithAI = async () => {
+        setIsStructuring(true);
+        try {
+            const contextText = report.sections.map(s => {
+                if (s.type === 'h2' || s.type === 'h1') return (s as any).content;
+                if (s.type === 'text') return (s as TextSection).content;
+                if (s.type === 'list') return (s as ListSection).items.join('\n');
+                if (s.type === 'photo') return `Foto: ${(s as PhotoSection).description || ''} (${(s as PhotoSection).photoUrl})`;
+                return '';
+            }).filter(Boolean).join('\n\n');
+
+            if (!contextText.trim()) {
+                alert("No hay contenido suficiente para estructurar.");
+                return;
+            }
+
+            const response = await authFetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: "Estructura el siguiente contenido por áreas:\n\n" + contextText,
+                    task: 'structure-report-by-area'
+                })
+            });
+
+            const data = await response.json();
+            if (data.output) {
+                let parsed;
+                try {
+                    parsed = JSON.parse(data.output);
+                } catch(e) {
+                    const cleaned = data.output.replace(/```json/g, '').replace(/```/g, '').trim();
+                    parsed = JSON.parse(cleaned);
+                }
+                
+                if (parsed && parsed.sections) {
+                    if (confirm("La IA ha estructurado el reporte. ¿Deseas reemplazar el contenido actual con esta versión estructurada?")) {
+                         const newSections = parsed.sections.map((s: any) => ({ ...s, id: crypto.randomUUID() }));
+                         onChange({ ...report, sections: newSections });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error structuring report:", error);
+            alert("Hubo un error al estructurar el reporte con IA.");
+        } finally {
+            setIsStructuring(false);
+        }
+    };
 
     const handleSignatureUpdate = (type: 'technician' | 'client') => {
         const ref = type === 'technician' ? techSigRef : clientSigRef;
@@ -441,6 +494,16 @@ export function TicketReportEditor({
                                 }
                                 return null;
                             })()}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleStructureWithAI}
+                            disabled={isStructuring || saving || readOnly}
+                            className="gap-2 text-purple-600 hover:text-purple-700 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                        >
+                            {isStructuring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                            <span className="hidden lg:inline">Estructurar con IA</span>
                         </Button>
                         <Button
                             variant="outline"

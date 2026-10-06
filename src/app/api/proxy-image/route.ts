@@ -1,20 +1,28 @@
-
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, isAllowedImageUrl } from '@/lib/server-auth';
 
-async function handleProxy(url: string | null | undefined) {
+// Tope de tamaño para que el proxy no sirva de relay de archivos grandes.
+const MAX_PROXY_BYTES = 15 * 1024 * 1024;
+
+async function handleProxy(req: NextRequest, url: string | null | undefined) {
+    const authz = await requireAuth(req);
+    if (!authz.ok) return authz.response;
+
     if (!url || typeof url !== 'string' || !url.trim()) {
         return new NextResponse('Missing or invalid URL', { status: 400 });
     }
 
     const trimmedUrl = url.trim();
 
-    // If it's a data URL, we don't need proxying, but return bad request rather than failing fetch
-    if (trimmedUrl.startsWith('data:')) {
-        return new NextResponse('Data URLs do not require proxying', { status: 400 });
+    // Solo hosts de almacenamiento propios: evita SSRF hacia servicios internos / metadatos.
+    if (!isAllowedImageUrl(trimmedUrl)) {
+        return new NextResponse('URL not allowed', { status: 400 });
     }
 
     try {
+        // redirect: 'error' impide saltar a un host no permitido vía redirección.
         const response = await fetch(trimmedUrl, {
+            redirect: 'error',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'image/*,*/*'
@@ -25,13 +33,20 @@ async function handleProxy(url: string | null | undefined) {
             throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
         }
 
+        const contentType = response.headers.get('Content-Type') || 'image/jpeg';
+        if (!contentType.startsWith('image/')) {
+            return new NextResponse('Only images are allowed', { status: 415 });
+        }
+
         const blob = await response.blob();
+        if (blob.size > MAX_PROXY_BYTES) {
+            return new NextResponse('Image too large', { status: 413 });
+        }
+
         const headers = new Headers();
-        headers.set('Content-Type', response.headers.get('Content-Type') || 'image/jpeg');
-        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-        headers.set('Access-Control-Allow-Origin', '*');
-        headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        headers.set('Access-Control-Allow-Headers', 'Content-Type');
+        headers.set('Content-Type', contentType);
+        // private: contenido autenticado, no debe cachearse en CDNs compartidos.
+        headers.set('Cache-Control', 'private, max-age=3600');
 
         return new NextResponse(blob, { headers });
     } catch (error) {
@@ -42,24 +57,14 @@ async function handleProxy(url: string | null | undefined) {
 
 export async function GET(request: NextRequest) {
     const url = request.nextUrl.searchParams.get('url');
-    return handleProxy(url);
+    return handleProxy(request, url);
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        return handleProxy(body?.url);
+        return handleProxy(request, body?.url);
     } catch {
         return new NextResponse('Invalid JSON body', { status: 400 });
     }
-}
-
-export async function OPTIONS() {
-    return new NextResponse(null, {
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        }
-    });
 }

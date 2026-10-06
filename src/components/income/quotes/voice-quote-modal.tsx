@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import React, { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,7 @@ export function VoiceQuoteModal({
 
         setProcessing(true);
         try {
-            const res = await fetch("/api/quotes/voice-parser", {
+            const res = await authFetch("/api/quotes/voice-parser", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

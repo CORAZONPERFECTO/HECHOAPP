@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useEffect, useState, useMemo } from "react";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -33,10 +34,12 @@ import {
     Download,
     Printer,
     Layers,
-    Activity
+    Activity,
+    Loader2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getVillaShareUrl } from "@/lib/villa-share";
 import { downloadVisitAlbumZip, generateVillaQrUrl } from "@/lib/villa-export-utils";
 import { EquipmentPassport } from "@/types/equipment";
 import { getEquipmentByLocation, createEquipmentPassport, migrateLocationCensusToEquipment } from "@/lib/equipment-service";
@@ -101,7 +104,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
         }).catch(console.error);
 
         // Intentar carga inicial rápida y universal por API (funciona para el propietario público sin sesión)
-        fetch(`/api/villas/${locationId}`)
+        authFetch(`/api/villas/${locationId}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
                 if (!isMounted || !data?.location) return;
@@ -254,33 +257,39 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
     }, [selectedAreaFilter, tickets]);
 
     // Compartir por WhatsApp
-    const handleShareWhatsApp = () => {
-        const shareUrl = typeof window !== "undefined"
-            ? `${window.location.origin}/villas/${locationId}`
-            : "";
-        const message = `*Bitácora Digital de la Villa (Villa Care Pass)* 🛡️\n` +
-            `Villa: *${location?.nombre || "Villa"}*\n` +
-            `Equipos censados: ${currentEquipmentCensus.length} unidades\n` +
-            `Acceda a la ficha técnica e historial de mantenimientos aquí:\n${shareUrl}`;
+    const handleShareWhatsApp = async () => {
+        try {
+            const shareUrl = await getVillaShareUrl(locationId);
+            const message = `*Bitácora Digital de la Villa (Villa Care Pass)* 🛡️\n` +
+                `Villa: *${location?.nombre || "Villa"}*\n` +
+                `Equipos censados: ${currentEquipmentCensus.length} unidades\n` +
+                `Acceda a la ficha técnica e historial de mantenimientos aquí:\n${shareUrl}`;
 
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(shareUrl);
-            setCopiedLink(true);
-            setTimeout(() => setCopiedLink(false), 3000);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(shareUrl);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 3000);
+            }
+
+            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, "_blank");
+        } catch (e) {
+            console.error(e);
+            alert("No se pudo generar el enlace público.");
         }
-
-        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, "_blank");
     };
 
-    const handleCopyLink = () => {
-        const shareUrl = typeof window !== "undefined"
-            ? `${window.location.origin}/villas/${locationId}`
-            : "";
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(shareUrl);
-            setCopiedLink(true);
-            setTimeout(() => setCopiedLink(false), 3000);
+    const handleCopyLink = async () => {
+        try {
+            const shareUrl = await getVillaShareUrl(locationId);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(shareUrl);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 3000);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("No se pudo generar el enlace público.");
         }
     };
 
@@ -1460,11 +1469,15 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
 
                             {/* Imagen del Código QR */}
                             <div className="w-48 h-48 mx-auto bg-white p-3 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-center">
-                                <img
-                                    src={generateVillaQrUrl(locationId)}
-                                    alt="QR Villa Care Pass"
-                                    className="w-full h-full object-contain"
-                                />
+                                {location?.publicCode ? (
+                                    <img
+                                        src={generateVillaQrUrl(location.publicCode)}
+                                        alt="QR Villa Care Pass"
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                                )}
                             </div>
 
                             <p className="text-[11px] text-slate-600 max-w-xs mx-auto leading-relaxed">
@@ -1472,7 +1485,7 @@ export function VillaBitacora({ locationId, isAdmin = true }: VillaBitacoraProps
                             </p>
 
                             <div className="pt-2 border-t border-slate-200 flex justify-between text-[10px] text-slate-400 font-mono">
-                                <span>ID: {locationId.slice(0, 10)}</span>
+                                <span>ID: {location?.publicCode || "..."}</span>
                                 <span>NEXUS / HECHO SRL</span>
                             </div>
                         </div>

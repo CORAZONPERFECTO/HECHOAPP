@@ -1,13 +1,18 @@
 "use server";
 
 import { AIAdvisoryAuditResult, AdvisoryMetrics } from "@/types/advisory";
+import { requireAuthToken, MANAGER_ROLES } from "@/lib/server-auth";
 
-export async function runAIAdvisoryAuditAction(metrics: AdvisoryMetrics): Promise<{
+export async function runAIAdvisoryAuditAction(metrics: AdvisoryMetrics, idToken: string): Promise<{
     success: boolean;
     data?: AIAdvisoryAuditResult;
     error?: string;
 }> {
     try {
+        // Las server actions son endpoints públicos: se exige un ID token de Firebase válido.
+        const authz = await requireAuthToken(idToken, MANAGER_ROLES);
+        if (!authz.ok) return { success: false, error: "No autorizado." };
+
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
             return { success: false, error: "GEMINI_API_KEY no configurada en el servidor" };

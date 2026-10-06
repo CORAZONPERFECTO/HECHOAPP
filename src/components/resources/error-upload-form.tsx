@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,7 @@ export function ErrorUploadForm({ onCancel, onProcessingComplete }: ErrorUploadF
         });
 
         try {
-            const response = await fetch("/api/resources/process-error-photo", {
+            const response = await authFetch("/api/resources/process-error-photo", {
                 method: "POST",
                 body: formData,
             });

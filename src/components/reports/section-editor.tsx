@@ -1,8 +1,9 @@
 "use client";
 
+import { authFetch } from "@/lib/api-client";
 import { TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { GripVertical, Trash2, Copy, Sparkles, Loader2, Plus, X, Image as ImageIcon } from "lucide-react";
@@ -50,7 +51,7 @@ export function SectionEditor({
 
         setIsRefining(true);
         try {
-            const response = await fetch('/api/gemini', {
+            const response = await authFetch('/api/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -114,7 +115,7 @@ export function SectionEditor({
                                 {isRefining ? "Mejorando..." : "Pulir Texto"}
                             </Button>
                         </div>
-                        <Textarea
+                        <VoiceTextarea
                             value={(section as TextSection).content}
                             onChange={(e) => onChange({ ...section, content: e.target.value } as TextSection)}
                             className="min-h-[120px]"
@@ -129,7 +130,7 @@ export function SectionEditor({
                         <Label className="text-sm font-medium mb-2 block">
                             Lista (un item por línea)
                         </Label>
-                        <Textarea
+                        <VoiceTextarea
                             value={(section as ListSection).items.join('\n')}
                             onChange={(e) => {
                                 const items = e.target.value.split('\n');
@@ -209,7 +210,7 @@ export function SectionEditor({
                                     IA
                                 </Button>
                             </div>
-                            <Textarea
+                            <VoiceTextarea
                                 value={photoSection.description || ''}
                                 onChange={(e) => onChange({ ...section, description: e.target.value } as PhotoSection)}
                                 placeholder="Descripción de la imagen..."

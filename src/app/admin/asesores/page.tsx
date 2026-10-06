@@ -41,7 +41,9 @@ export default function AsesoresPage() {
         if (!metrics) return;
         setAuditing(true);
         try {
-            const res = await runAIAdvisoryAuditAction(metrics);
+            const { auth: firebaseAuth } = await import("@/lib/firebase");
+            const idToken = (await firebaseAuth.currentUser?.getIdToken()) || "";
+            const res = await runAIAdvisoryAuditAction(metrics, idToken);
             if (res.success && res.data) {
                 setAuditResult(res.data);
                 setActiveTab("overview");
