@@ -180,10 +180,12 @@ export function TicketReportEditor({
             if (data.output) {
                 let parsed;
                 try {
-                    parsed = JSON.parse(data.output);
+                    const match = data.output.match(/\{[\s\S]*\}/);
+                    const jsonStr = match ? match[0] : data.output;
+                    parsed = JSON.parse(jsonStr);
                 } catch(e) {
-                    const cleaned = data.output.replace(/```json/g, '').replace(/```/g, '').trim();
-                    parsed = JSON.parse(cleaned);
+                    console.error("JSON parsing error:", e, data.output);
+                    throw new Error("Failed to parse JSON");
                 }
                 
                 if (parsed && parsed.sections) {
@@ -191,6 +193,8 @@ export function TicketReportEditor({
                          const newSections = parsed.sections.map((s: any) => ({ ...s, id: crypto.randomUUID() }));
                          onChange({ ...report, sections: newSections });
                     }
+                } else {
+                    throw new Error("No sections in parsed JSON");
                 }
             }
         } catch (error) {

@@ -46,6 +46,7 @@ export function SectionEditor({
     const [isRefining, setIsRefining] = useState(false);
     const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
     const [isAnnotatorOpen, setIsAnnotatorOpen] = useState(false);
+    const [annotatingGalleryIndex, setAnnotatingGalleryIndex] = useState<number | null>(null);
 
     const handleRefine = async (currentContent: string, type: 'text' | 'title' | 'photoDescription', imageUrl?: string) => {
         // Allow empty content if we have an image (generation vs refinement)
@@ -280,22 +281,36 @@ export function SectionEditor({
                                         fill
                                         className="object-cover"
                                     />
-                                    {/* Delete Button (Overlay) - Only if not readOnly if we wanted to enforce it, but here we enforce via drag handles so clicks work */}
+                                    {/* Actions Overlay */}
                                     {!readOnly && (
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                const newPhotos = [...gallerySection.photos];
-                                                newPhotos.splice(i, 1);
-                                                onChange({ ...section, photos: newPhotos } as GallerySection);
-                                            }}
-                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm z-10 cursor-pointer"
-                                            title="Quitar foto"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    const newPhotos = [...gallerySection.photos];
+                                                    newPhotos.splice(i, 1);
+                                                    onChange({ ...section, photos: newPhotos } as GallerySection);
+                                                }}
+                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-sm z-10 cursor-pointer"
+                                                title="Quitar foto"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setAnnotatingGalleryIndex(i);
+                                                }}
+                                                className="absolute bottom-1 right-1 bg-blue-500 text-white rounded-full p-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-blue-600 shadow-sm z-10 cursor-pointer"
+                                                title="Marcar foto"
+                                            >
+                                                <PenTool className="h-3 w-3" />
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             ))}
@@ -355,8 +370,23 @@ export function SectionEditor({
                             )}
                         </div>
                         <p className="text-xs text-gray-500">
-                            Puedes reordenar o eliminar fotos individualmente.
+                            Puedes reordenar, marcar (✏️) o eliminar fotos individualmente.
                         </p>
+
+                        {annotatingGalleryIndex !== null && gallerySection.photos[annotatingGalleryIndex]?.photoUrl && (
+                            <ImageAnnotator
+                                open={annotatingGalleryIndex !== null}
+                                onOpenChange={(open) => {
+                                    if (!open) setAnnotatingGalleryIndex(null);
+                                }}
+                                imageUrl={gallerySection.photos[annotatingGalleryIndex].photoUrl}
+                                onSave={(annotatedUrl) => {
+                                    const newPhotos = [...gallerySection.photos];
+                                    newPhotos[annotatingGalleryIndex].photoUrl = annotatedUrl;
+                                    onChange({ ...section, photos: newPhotos } as GallerySection);
+                                }}
+                            />
+                        )}
                     </div>
                 );
 
