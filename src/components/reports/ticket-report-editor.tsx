@@ -353,6 +353,20 @@ export function TicketReportEditor({
         }, 100);
     };
 
+    const addObservation = () => {
+        const textSection = { id: crypto.randomUUID(), type: 'text', content: 'Observación: ' } as TextSection;
+        const photoSection = { id: crypto.randomUUID(), type: 'photo', photoUrl: '', description: 'Evidencia de la observación' } as PhotoSection;
+        
+        onChange({ ...report, sections: [...report.sections, textSection, photoSection] });
+        setActiveBlockId(textSection.id);
+        
+        // Auto scroll to bottom
+        setTimeout(() => {
+            const element = document.getElementById('report-bottom');
+            element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    };
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
@@ -575,9 +589,18 @@ export function TicketReportEditor({
                         ))}
 
                         <button
+                            onClick={addObservation}
+                            title="Añadir Observación (Texto + Foto)"
+                            className="flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 mt-1 border-t pt-2"
+                        >
+                            <Eye className="h-4 w-4" />
+                            <span className="text-[8px] font-bold leading-tight text-center">Obs</span>
+                        </button>
+
+                        <button
                             onClick={addRecommendation}
                             title="Añadir Recomendación (Texto + Foto)"
-                            className="flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center hover:bg-purple-50 dark:hover:bg-purple-900/30 text-purple-600 dark:text-purple-400 mt-1 border-t pt-2"
+                            className="flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center hover:bg-purple-50 dark:hover:bg-purple-900/30 text-purple-600 dark:text-purple-400 mt-1"
                         >
                             <Sparkles className="h-4 w-4" />
                             <span className="text-[8px] font-bold leading-tight text-center">Rec</span>

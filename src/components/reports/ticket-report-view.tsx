@@ -8,7 +8,7 @@ import { InlineEditableText } from "@/components/ui/inline-editable-text";
 import { BeforeAfterBlock } from "@/components/reports/blocks/before-after-block";
 import { TicketReportNew, TicketReportSection, TitleSection, TextSection, ListSection, PhotoSection, GallerySection } from "@/types/schema";
 import { deduplicateReportSections } from "@/lib/report-generator";
-import { Lightbulb, ShieldCheck, Wrench, FileText, CheckCircle2, User, Calendar, MapPin, ZoomIn, X, Edit3 } from "lucide-react";
+import { Lightbulb, ShieldCheck, Wrench, FileText, CheckCircle2, User, Calendar, MapPin, ZoomIn, X, Edit3, Eye } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface TicketReportViewProps {
@@ -128,6 +128,11 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
         return lower.includes('trabajo') || lower.includes('soluci') || lower.includes('ejecuci');
     };
 
+    const isObservationTitle = (text: string) => {
+        const lower = text.toLowerCase();
+        return lower.includes('observaci') || lower.includes('nota') || lower.includes('comentario');
+    };
+
     const renderSection = (section: TicketReportSection, index: number, allSections: TicketReportSection[]) => {
         const handleSave = (val: string) => {
             if (onUpdateSection) {
@@ -149,6 +154,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                 const isWar = isWarrantyTitle(titleText);
                 const isDiag = isDiagnosisTitle(titleText);
                 const isSol = isSolutionTitle(titleText);
+                const isObs = isObservationTitle(titleText);
 
                 return (
                     <div key={section.id} className="mt-8 mb-3 first:mt-2">
@@ -157,7 +163,8 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                             {isWar && <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />}
                             {isDiag && <FileText className="w-5 h-5 text-blue-600 shrink-0" />}
                             {isSol && <Wrench className="w-5 h-5 text-indigo-600 shrink-0" />}
-                            {!isRec && !isWar && !isDiag && !isSol && <div className="w-2 h-5 bg-emerald-600 rounded-full shrink-0" />}
+                            {isObs && <Eye className="w-5 h-5 text-purple-500 shrink-0" />}
+                            {!isRec && !isWar && !isDiag && !isSol && !isObs && <div className="w-2 h-5 bg-emerald-600 rounded-full shrink-0" />}
                             
                             <InlineEditableText
                                 value={titleText}
@@ -175,6 +182,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                 const textSection = section as TextSection;
                 const isRecText = isRecommendationsTitle(prevTitle);
                 const isWarText = isWarrantyTitle(prevTitle);
+                const isObsText = isObservationTitle(prevTitle) || textSection.content.toLowerCase().startsWith('observaci');
                 const isEditing = editingSectionId === section.id;
 
                 if (isRecText) {
@@ -194,6 +202,25 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                         </div>
                     );
                 }
+
+                if (isObsText) {
+                    return (
+                        <div key={section.id} className="mb-6 p-4 rounded-2xl bg-purple-50/80 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-900/40 text-purple-950 dark:text-purple-200">
+                            <div className="flex items-start gap-3">
+                                <Eye className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                    <InlineEditableText
+                                        value={textSection.content}
+                                        onSave={handleSave}
+                                        disabled={!isInteractive}
+                                        className="text-sm font-medium leading-relaxed whitespace-pre-line"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
 
                 if (isWarText) {
                     return (
