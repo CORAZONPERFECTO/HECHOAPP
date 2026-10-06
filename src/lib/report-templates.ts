@@ -123,9 +123,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                     const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
                     if (hasPhotos) {
                         sections.push(createTitle(`Evidencias de Mantenimiento: ${area.name}`));
-                        if (area.notes) {
-                            sections.push(createText(`Observaciones: ${area.notes}`));
-                        }
+                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); } if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
                         // Fotos del trabajo en el área
                         (area.photos || []).forEach((photo) => {
                             if (photo.url) {
@@ -431,9 +429,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                     const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
                     if (hasPhotos) {
                         sections.push(createTitle(`Evidencias Fotográficas: ${area.name}`));
-                        if (area.notes) {
-                            sections.push(createText(`Observaciones: ${area.notes}`));
-                        }
+                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); } if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
                         // Fotos generales del área
                         (area.photos || []).forEach((photo) => {
                             if (photo.url) {

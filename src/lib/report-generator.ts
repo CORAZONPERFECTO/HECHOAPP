@@ -321,10 +321,16 @@ export function generateReportFromTicket(
         content: 'Diagnóstico y Hallazgos Técnicos'
     } as TitleSection);
 
+    const areaDiagnosis = (ticket.surveyAreas || []).filter(a => a.notes && a.notes.trim());
+    let diagnosisText = ticket.diagnosis || 'Se realizó inspección técnica completa de las condiciones operativas de los equipos e instalaciones.';
+    if (areaDiagnosis.length > 0) {
+        diagnosisText = areaDiagnosis.map(a => `**${a.name}**:\n${a.notes}`).join('\n\n');
+    }
+
     sections.push({
         id: uuid(),
         type: 'text',
-        content: ticket.diagnosis || 'Se realizó inspección técnica completa de las condiciones operativas de los equipos e instalaciones.'
+        content: diagnosisText
     } as TextSection);
 
     // --- 7. TRABAJO REALIZADO & SOLUCIÓN ---
@@ -347,14 +353,36 @@ export function generateReportFromTicket(
         content: 'Recomendaciones Técnicas para el Cliente'
     } as TitleSection);
 
-    const recommendationsText = ticket.recommendations || customPolicies?.defaultRecommendations || 
-        '• Se recomienda realizar mantenimiento preventivo cada 3 meses para asegurar el rendimiento óptimo del equipo y evitar sobrecostos energéticos.\n• Mantener los filtros de retorno libres de obstrucciones y limpios.\n• Notificar oportunamente cualquier sonido inusual o variación en la temperatura del sistema.';
+    const areaRecommendations = (ticket.surveyAreas || []).filter(a => a.recommendations && a.recommendations.trim());
+    let recommendationsText = ticket.recommendations || customPolicies?.defaultRecommendations || '';
+    if (areaRecommendations.length > 0) {
+        recommendationsText = areaRecommendations.map(a => `**${a.name}**:\n${a.recommendations}`).join('\n\n');
+    }
 
-    sections.push({
-        id: uuid(),
-        type: 'text',
-        content: recommendationsText
-    } as TextSection);
+    if (recommendationsText.trim()) {
+        sections.push({
+            id: uuid(),
+            type: 'text',
+            content: recommendationsText
+        } as TextSection);
+    }
+
+    // --- 8.5 RESUMEN DE MATERIALES REQUERIDOS (PARA COTIZACIÓN) ---
+    const allRequiredMaterials = (ticket.surveyAreas || []).flatMap(a => (a.requiredMaterials || []).map(m => ({ ...m, area: a.name })));
+    if (allRequiredMaterials.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Materiales y Repuestos Requeridos (Diagnóstico)'
+        } as TitleSection);
+
+        const matLines = allRequiredMaterials.map(m => `• ${m.quantity} ${m.unit} - ${m.description} (${m.area})`);
+        sections.push({
+            id: uuid(),
+            type: 'list',
+            items: matLines
+        } as ListSection);
+    }
 
     // --- 9. EVIDENCIA FOTOGRÁFICA EN 3 FASES ---
     const allPhotosForReport: any[] = [...(ticket.photos || [])];

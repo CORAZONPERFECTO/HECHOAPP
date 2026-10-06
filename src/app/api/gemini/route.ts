@@ -22,16 +22,32 @@ export async function POST(req: NextRequest) {
         let systemInstruction = "Eres un asistente de IA experto en redacción técnica para técnicos de refrigeración y mantenimiento. ";
 
         if (task === 'summarize-area') {
-            systemInstruction += `Tu tarea es analizar las notas previas y/o múltiples fotos de un área específica y generar un resumen técnico detallado.
+            // El resultado alimenta directamente el informe final por área y el resumen de
+            // materiales para cotización, por eso se separan hallazgos, recomendaciones y materiales.
+            systemInstruction += `Tu tarea es analizar las NOTAS DEL TÉCNICO y las FOTOS de un área específica de un servicio de climatización/refrigeración y documentarla para un informe técnico al cliente.
+
+Las notas del técnico son la fuente principal: NUNCA omitas un hallazgo, falla o recomendación que el técnico haya escrito. Complementa con lo que observes en las fotos.
+
 Debes devolver un JSON con esta estructura exacta:
 {
-  "notes": "Un resumen abundante, detallado y profesional documentando las observaciones, el estado encontrado, las recomendaciones, y cualquier otro detalle técnico relevante a nivel general de esta área.",
+  "notes": "Diagnóstico y hallazgos técnicos del área: estado encontrado de cada equipo/componente, fallas detectadas, mediciones mencionadas y su causa probable. Redacción abundante, profesional y concreta.",
+  "recommendations": "Recomendaciones ESPECÍFICAS de esta área, una por línea iniciando con '• '. Cada recomendación debe referirse a un hallazgo concreto (ej: '• Reemplazar filtro deshidratador soldable 3/8 obstruido, realizar vacío y recarga de R410A').",
+  "requiredMaterials": [
+    { "description": "Filtro deshidratador soldable 3/8", "quantity": 1, "unit": "Ud" },
+    { "description": "Refrigerante R410A", "quantity": 2, "unit": "Lbs" }
+  ],
   "photoDescriptions": [
     "Descripción técnica detallada y específica para la foto 1",
     "Descripción técnica detallada y específica para la foto 2"
   ]
 }
-Nota: El array de photoDescriptions debe tener exactamente la misma longitud y orden que las fotos enviadas. Devuelve SOLO JSON válido.`;
+
+REGLAS:
+1. PROHIBIDO dar recomendaciones genéricas (ej: "realizar mantenimiento preventivo cada 3 meses", "mantener filtros limpios") salvo que el técnico lo haya escrito.
+2. requiredMaterials: solo repuestos, refrigerante y materiales necesarios para corregir los hallazgos. Usa cantidades numéricas; si no se especifica, estima la cantidad mínima razonable. Si no se requiere nada, devuelve [].
+3. Unidades: "Ud" para piezas, "Lbs" para refrigerante, "Pies" para tubería/cable.
+4. El array photoDescriptions debe tener exactamente la misma longitud y orden que las fotos enviadas.
+5. Devuelve SOLO JSON válido.`;
         } else if (task === 'refine') {
             systemInstruction += "Tu tarea es tomar el texto proporcionado y reescribirlo de manera profesional. Corrige ortografía y gramática. Devuelve SOLO el texto corregido.";
         } else if (task === 'refine-technician-note') {

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Ticket, SurveyArea, TicketPhoto, SurveyBudget } from "@/types/tickets";
+import { Ticket, SurveyArea, TicketPhoto, SurveyBudget, SurveyRequiredMaterial } from "@/types/tickets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { authFetch } from "@/lib/api-client";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -125,59 +127,72 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
         }
     };
 
-        const handleGenerateAreaSummaryWithAI = async (areaId: string) => {
+    const handleGenerateAreaSummaryWithAI = async (areaId: string) => {
         const area = areasRef.current.find(a => a.id === areaId);
         if (!area) return;
-        
-        const imageUrls = area.photos.map(p => p.url).filter(Boolean);
-        if (imageUrls.length === 0 && !area.notes) {
+
+        const imageUrls = (area.photos || []).map(p => p.url).filter(Boolean);
+        if (imageUrls.length === 0 && !area.notes && !area.recommendations) {
             alert('Agrega fotos o algunas notas antes de generar el resumen.');
             return;
         }
-        
+
         setGeneratingAI(areaId);
-        
+
         try {
-            const { auth } = await import('@/lib/firebase');
-            const token = await auth.currentUser?.getIdToken();
-            
-            const response = await fetch('/api/gemini', {
+            // Se envían las notas y recomendaciones del técnico como fuente principal,
+            // para que la IA no las pierda al redactar.
+            const technicianContext = [
+                `Área: ${area.name}`,
+                area.notes ? `Notas del técnico: ${area.notes}` : '',
+                area.recommendations ? `Recomendaciones del técnico: ${area.recommendations}` : '',
+            ].filter(Boolean).join('\n');
+
+            const response = await authFetch('/api/gemini', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     task: 'summarize-area',
                     imageUrls,
-                    context: area.notes || ''
+                    context: technicianContext
                 })
             });
-            
+
             if (!response.ok) throw new Error('Error al generar resumen');
             const data = await response.json();
-            
-            if (data.output) {
-                const { notes, photoDescriptions } = data.output;
-                
-                const currentAreas = areasRef.current;
-                const updated = currentAreas.map(a => {
-                    if (a.id === areaId) {
-                        const newPhotos = [...a.photos];
-                        if (photoDescriptions && Array.isArray(photoDescriptions)) {
-                            newPhotos.forEach((p, idx) => {
-                                if (photoDescriptions[idx]) {
-                                    p.description = photoDescriptions[idx];
-                                }
-                            });
-                        }
-                        return { ...a, notes: notes || a.notes, photos: newPhotos };
-                    }
-                    return a;
-                });
-                
-                updateAreas(updated);
-            }
+            const output = data.output;
+            if (!output || typeof output !== 'object') throw new Error('Respuesta de IA inválida');
+
+            const requiredMaterials: SurveyRequiredMaterial[] = Array.isArray(output.requiredMaterials)
+                ? output.requiredMaterials
+                    .filter((m: any) => m && typeof m.description === 'string' && m.description.trim())
+                    .map((m: any) => ({
+                        description: m.description.trim(),
+                        quantity: Number(m.quantity) > 0 ? Number(m.quantity) : 1,
+                        unit: typeof m.unit === 'string' && m.unit.trim() ? m.unit.trim() : 'Ud',
+                    }))
+                : [];
+            const photoDescriptions: unknown[] = Array.isArray(output.photoDescriptions) ? output.photoDescriptions : [];
+
+            const updated = areasRef.current.map(a => {
+                if (a.id !== areaId) return a;
+                const newPhotos = (a.photos || []).map((p, idx) =>
+                    typeof photoDescriptions[idx] === 'string' && photoDescriptions[idx]
+                        ? { ...p, description: photoDescriptions[idx] as string }
+                        : p
+                );
+                return {
+                    ...a,
+                    notes: typeof output.notes === 'string' && output.notes.trim() ? output.notes : a.notes,
+                    recommendations: typeof output.recommendations === 'string' && output.recommendations.trim()
+                        ? output.recommendations
+                        : a.recommendations,
+                    requiredMaterials: requiredMaterials.length > 0 ? requiredMaterials : a.requiredMaterials,
+                    photos: newPhotos,
+                };
+            });
+
+            updateAreas(updated);
         } catch (e) {
             console.error(e);
             alert('Ocurrió un error al generar el resumen con IA.');
@@ -691,14 +706,106 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <Label className="text-[11px] font-bold">Notas & Observaciones Técnicas</Label>
-                                                <Input
-                                                    className="h-9 text-xs"
-                                                    placeholder="Ej: Drenaje existente en pared sur, pase de tubería despejado..."
-                                                    value={area.notes || ""}
-                                                    onChange={(e) => handleAreaChange(area.id, { notes: e.target.value })}
-                                                />
+                                            <div className="space-y-3 rounded-2xl border border-purple-200 bg-purple-50/40 p-3">
+                                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                    <span className="text-xs font-black text-purple-900">Diagnóstico del Área</span>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 text-[11px] px-2 border-purple-300 bg-white text-purple-700 hover:bg-purple-100 font-bold gap-1"
+                                                        onClick={() => handleGenerateAreaSummaryWithAI(area.id)}
+                                                        disabled={generatingAI === area.id}
+                                                    >
+                                                        {generatingAI === area.id ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <Sparkles className="w-3 h-3" />
+                                                        )}
+                                                        {generatingAI === area.id ? 'Analizando...' : 'Resumir Área con IA'}
+                                                    </Button>
+                                                </div>
+
+                                                <div>
+                                                    <Label className="text-[11px] font-bold">Hallazgos & Observaciones Técnicas</Label>
+                                                    <Textarea
+                                                        className="min-h-[80px] text-xs bg-white"
+                                                        placeholder="Ej: Filtro deshidratador soldable obstruido, escarcha en línea de líquido..."
+                                                        value={area.notes || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { notes: e.target.value })}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <Label className="text-[11px] font-bold">Recomendaciones del Área</Label>
+                                                    <Textarea
+                                                        className="min-h-[70px] text-xs bg-white"
+                                                        placeholder="Ej: • Reemplazar filtro soldable 3/8 y realizar vacío y recarga"
+                                                        value={area.recommendations || ""}
+                                                        onChange={(e) => handleAreaChange(area.id, { recommendations: e.target.value })}
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-[11px] font-bold">Materiales Requeridos (para cotización)</Label>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 text-[11px] px-2 text-purple-700 gap-1"
+                                                            onClick={() => handleAreaChange(area.id, {
+                                                                requiredMaterials: [...(area.requiredMaterials || []), { description: '', quantity: 1, unit: 'Ud' }]
+                                                            })}
+                                                        >
+                                                            <Plus className="w-3 h-3" /> Agregar
+                                                        </Button>
+                                                    </div>
+                                                    {(area.requiredMaterials || []).length === 0 ? (
+                                                        <p className="text-[11px] text-slate-500">Sin materiales. La IA los detecta de tus notas y fotos, o agrégalos manualmente.</p>
+                                                    ) : (
+                                                        (area.requiredMaterials || []).map((mat, mIdx) => {
+                                                            const updateMat = (patch: Partial<SurveyRequiredMaterial>) => {
+                                                                const list = [...(area.requiredMaterials || [])];
+                                                                list[mIdx] = { ...list[mIdx], ...patch };
+                                                                handleAreaChange(area.id, { requiredMaterials: list });
+                                                            };
+                                                            return (
+                                                                <div key={mIdx} className="flex items-center gap-1.5">
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={0}
+                                                                        className="h-8 w-16 text-xs font-mono bg-white"
+                                                                        value={mat.quantity}
+                                                                        onChange={(e) => updateMat({ quantity: Number(e.target.value) })}
+                                                                    />
+                                                                    <Input
+                                                                        className="h-8 w-16 text-xs bg-white"
+                                                                        value={mat.unit}
+                                                                        onChange={(e) => updateMat({ unit: e.target.value })}
+                                                                    />
+                                                                    <Input
+                                                                        className="h-8 flex-1 text-xs bg-white"
+                                                                        placeholder="Descripción del material"
+                                                                        value={mat.description}
+                                                                        onChange={(e) => updateMat({ description: e.target.value })}
+                                                                    />
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="h-8 w-8 text-rose-600"
+                                                                        onClick={() => handleAreaChange(area.id, {
+                                                                            requiredMaterials: (area.requiredMaterials || []).filter((_, i) => i !== mIdx)
+                                                                        })}
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
 

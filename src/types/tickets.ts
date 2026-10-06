@@ -48,6 +48,12 @@ export interface TicketPhoto {
     details?: string;
 }
 
+export interface SurveyRequiredMaterial {
+    description: string; // ej. "Filtro deshidratador soldable 3/8"
+    quantity: number;
+    unit: string; // ej. "Ud", "Lbs", "Pies"
+}
+
 export interface SurveyArea {
     id: string;
     name: string; // ej. "Habitación Master", "Sala / Comedor", "Techo / Condensadores"
@@ -63,6 +69,12 @@ export interface SurveyArea {
     electricalStatus?: string; // ej. "Breaker 20A disponible"
     drainStatus?: string; // ej. "Drenaje por gravedad existente"
     notes?: string;
+    // Recomendaciones específicas de esta área (redactadas por el técnico o por IA).
+    // Alimentan la sección de recomendaciones del informe final en lugar de un texto genérico.
+    recommendations?: string;
+    // Materiales/repuestos requeridos detectados en el área (filtros, refrigerante, etc.).
+    // Se consolidan al final del informe para servir de base a la cotización.
+    requiredMaterials?: SurveyRequiredMaterial[];
     photos: TicketPhoto[];
     // Ficha Técnica del Equipo (Opcional - Placa & Tarjeta)
     brand?: string;
