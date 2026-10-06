@@ -402,7 +402,8 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
     };
 
     return (
-        <div className="report-page bg-white dark:bg-zinc-950 p-6 md:p-10 rounded-2xl max-w-4xl mx-auto shadow-sm border border-slate-200/80 dark:border-zinc-800">
+        <>
+            <div className="report-page bg-white dark:bg-zinc-950 p-6 md:p-10 rounded-2xl max-w-4xl mx-auto shadow-sm border border-slate-200/80 dark:border-zinc-800">
             {/* Executive Header */}
             <header className="mb-8 pb-6 border-b-2 border-slate-200 dark:border-zinc-800">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
@@ -599,28 +600,46 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
             <style jsx global>{`
                 @media print {
                     @page {
-                        margin: 1.5cm;
-                        size: letter;
+                        margin: 15mm;
+                        size: A4 portrait;
                     }
                     body {
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        background: white !important;
                     }
-                    .break-inside-avoid {
-                        break-inside: avoid;
-                        page-break-inside: avoid;
+                    .report-page {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        max-width: 100% !important;
                     }
-                    .photo-container {
-                        display: block !important;
-                        visibility: visible !important;
+                    .break-inside-avoid, .photo-container {
+                        break-inside: avoid !important;
+                        page-break-inside: avoid !important;
+                    }
+                    .page-break-before {
+                        page-break-before: always !important;
+                        break-before: page !important;
+                    }
+                    h1, h2, h3 {
+                        page-break-after: avoid !important;
+                        break-after: avoid !important;
                     }
                     .photo-print {
                         display: block !important;
-                        max-width: 100%;
-                        height: auto;
+                        max-width: 100% !important;
+                        height: auto !important;
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                    }
+                    .print-hide {
+                        display: none !important;
                     }
                 }
             `}</style>
         </div>
+        </>
     );
 }
