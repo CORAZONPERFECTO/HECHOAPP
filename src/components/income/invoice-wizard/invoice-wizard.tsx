@@ -235,42 +235,41 @@ const handleSave = async () => {
 
         if (isQuote) {
             const qf = formData as QuoteFormData;
-            const generatedNumber = await generateNextNumber("COT");
+            const generatedNumber = editingId ? (initialData.number || initialData.name) : await generateNextNumber("COT");
 
-            const quoteDoc = {
-                // ── Campos ERP (fieldnames exactos) ──────────────────────
-                name: erpName || generatedNumber,           // SAL-QTN-XXXX si ya se creó en ERP, o CT-YYYY-MM-DD-XXX
-                quotation_to: qf.quotation_to,
-                party_name: qf.party_name,
-                transaction_date: qf.transaction_date,
-                valid_till: qf.valid_till,
-                currency: qf.currency,
-                selling_price_list: qf.selling_price_list,
-                items: qf.items,
+                        const quoteDoc = {
+                // 🔄 Campos ERP (fieldnames exactos) 🔄
+                name: erpName || generatedNumber || null,
+                quotation_to: qf.quotation_to || "Customer",
+                party_name: qf.party_name || "",
+                transaction_date: qf.transaction_date || null,
+                valid_till: qf.valid_till || null,
+                currency: qf.currency || "DOP",
+                selling_price_list: qf.selling_price_list || "Standard Selling",
+                items: qf.items || [],
                 terms: qf.terms || "",
                 note: qf.note || "",
 
-                // ── Totales de ERP (no calculados localmente) ─────────────
-                net_total: erpTotals?.net_total ?? qf.net_total,
-                total_taxes_and_charges:
-                    erpTotals?.total_taxes_and_charges ?? qf.total_taxes_and_charges,
-                grand_total: erpTotals?.grand_total ?? qf.grand_total,
-                total_qty: erpTotals?.total_qty ?? qf.total_qty,
+                // 🔄 Totales de ERP (no calculados localmente) 🔄
+                net_total: erpTotals?.net_total ?? qf.net_total ?? 0,
+                total_taxes_and_charges: erpTotals?.total_taxes_and_charges ?? qf.total_taxes_and_charges ?? 0,
+                grand_total: erpTotals?.grand_total ?? qf.grand_total ?? 0,
+                total_qty: erpTotals?.total_qty ?? qf.total_qty ?? 0,
 
-                // ── Estado ERP oficial ────────────────────────────────────
-                status: "Draft",           // Estado ERP: Draft | Open | Expired | Ordered
-                docstatus: 0,              // 0=Draft en ERPNext
+                // 🔄 Estado ERP oficial 🔄
+                status: "Draft",
+                docstatus: 0,
 
-                // ── Campos locales HECHOAPP ───────────────────────────────
-                number: generatedNumber,
-                clientId: qf.clientId,
+                // 🔄 Campos locales HECHOAPP 🔄
+                number: generatedNumber || null,
+                clientId: qf.clientId || null,
                 clientRnc: qf.clientRnc || null,
                 ticketId: qf.ticketId || null,
                 ticketNumber: qf.ticketNumber || null,
                 erpQuotationId: erpName || null,
                 erpSyncedAt: erpName ? serverTimestamp() : null,
 
-                // ── Timeline ─────────────────────────────────────────────
+                // 🔄 Timeline 🔄
                 timeline: editingId
                     ? (initialData.timeline || []).concat([{
                         status: "Draft",
@@ -284,10 +283,10 @@ const handleSave = async () => {
                         timestamp: Timestamp.now(),
                         userId: user.uid,
                         userName: user.displayName || "Usuario",
-                        note: "Cotización creada (Wizard)",
+                        note: "Cotización creada",
                     }],
 
-                // ── Audit ─────────────────────────────────────────────────
+                // 🔄 Audit 🔄
                 sellerId: user.uid,
                 sellerName: user.displayName || "Usuario",
                 ...(editingId ? { updatedBy: user.uid, updatedAt: serverTimestamp() } : { createdBy: user.uid, createdAt: serverTimestamp(), updatedBy: user.uid, updatedAt: serverTimestamp() })
@@ -302,7 +301,7 @@ const handleSave = async () => {
         } else {
             // ── Factura (mantiene flujo original) ────────────────────────
             const invF = formData as InvoiceFormData;
-            const generatedNumber = await generateNextNumber("FACT");
+            const generatedNumber = editingId ? (initialData.number || initialData.invoiceNumber || initialData.id) : await generateNextNumber("FACT");
             const localTotals = (invF.items || []).reduce(
                 (acc, item) => ({
                     subtotal: acc.subtotal + item.qty * item.rate,
