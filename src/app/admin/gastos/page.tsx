@@ -42,7 +42,7 @@ interface PurchaseWithClient extends Purchase {
     userName?: string;
 }
 
-export default function GastosPage() {
+function GastosPageContent() {
     const [purchases, setPurchases] = useState<PurchaseWithClient[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -745,5 +745,14 @@ export default function GastosPage() {
                 clientName={selectedPurchaseForPrint?.clientName}
             />
         </div>
+    );
+}
+
+
+export default function GastosPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <GastosPageContent />
+        </RoleGuard>
     );
 }

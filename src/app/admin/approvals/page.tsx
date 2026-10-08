@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, FileText, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
-export default function AdminApprovalsPage() {
+function AdminApprovalsPageContent() {
     const [tickets, setTickets] = useState<ServiceTicket[]>([]);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
@@ -157,5 +157,14 @@ export default function AdminApprovalsPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+
+export default function AdminApprovalsPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <AdminApprovalsPageContent />
+        </RoleGuard>
     );
 }

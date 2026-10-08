@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+import { RoleGuard } from "@/components/auth/role-guard";
     HardDrive,
     Shield,
     AlertTriangle,
@@ -26,7 +27,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export default function AdminAlmacenamientoPage() {
+function AdminAlmacenamientoPageContent() {
     const router = useRouter();
     const [locations, setLocations] = useState<Location[]>([]);
     const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -407,5 +408,14 @@ export default function AdminAlmacenamientoPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+
+export default function AdminAlmacenamientoPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <AdminAlmacenamientoPageContent />
+        </RoleGuard>
     );
 }

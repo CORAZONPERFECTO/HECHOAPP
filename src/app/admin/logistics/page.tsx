@@ -13,8 +13,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { CheckCircle, Truck, Plus, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { RoleGuard } from "@/components/auth/role-guard";
 
-export default function LogisticsAdminPage() {
+function LogisticsAdminPageContent() {
     const [tasks, setTasks] = useState<any[]>([]);
     const [technicians, setTechnicians] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -248,5 +249,14 @@ export default function LogisticsAdminPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+
+export default function LogisticsAdminPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <LogisticsAdminPageContent />
+        </RoleGuard>
     );
 }

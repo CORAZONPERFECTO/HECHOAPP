@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
-export default function ManualGerencialPage() {
+function ManualGerencialPageContent() {
     const handlePrint = () => {
         window.print();
     };
@@ -368,5 +368,14 @@ export default function ManualGerencialPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+
+export default function ManualGerencialPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <ManualGerencialPageContent />
+        </RoleGuard>
     );
 }

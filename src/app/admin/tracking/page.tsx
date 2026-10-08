@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, Clock, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { RoleGuard } from "@/components/auth/role-guard";
 
-export default function TrackingPage() {
+function TrackingPageContent() {
     const [technicians, setTechnicians] = useState<User[]>([]);
 
     useEffect(() => {
@@ -99,5 +100,14 @@ export default function TrackingPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+
+export default function TrackingPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <TrackingPageContent />
+        </RoleGuard>
     );
 }

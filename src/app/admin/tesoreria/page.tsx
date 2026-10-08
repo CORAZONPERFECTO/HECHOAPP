@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function TreasuryPage() {
+function TreasuryPageContent() {
     const [accounts, setAccounts] = useState<BankAccount[]>([]);
     const [movements, setMovements] = useState<TreasuryMovement[]>([]);
     const [loading, setLoading] = useState(true);
@@ -186,5 +186,14 @@ export default function TreasuryPage() {
                 </DialogContent>
             </Dialog>
         </div>
+    );
+}
+
+
+export default function TreasuryPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <TreasuryPageContent />
+        </RoleGuard>
     );
 }

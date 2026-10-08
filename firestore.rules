@@ -233,13 +233,38 @@ service cloud.firestore {
       allow write: if isManager() || isAuth();
     }
 
+    // 8) MÓDULOS ADMINISTRATIVOS, FINANCIEROS Y DE VENTAS (Sensibles)
+    match /clients/{clientId} {
+      allow read, write: if isManager();
+    }
+    match /quotes/{quoteId} {
+      allow read, write: if isManager();
+    }
+    match /invoices/{invoiceId} {
+      allow read, write: if isManager();
+    }
+    match /payments/{paymentId} {
+      allow read, write: if isManager();
+    }
+    match /expenses/{expenseId} {
+      allow read, write: if isManager();
+    }
+    match /receipts/{receiptId} {
+      allow read, write: if isManager();
+    }
+    match /company_settings/{settingId} {
+      allow read: if isAuth(); // Algunos componentes visuales necesitan leer los settings (logo, nombre)
+      allow write: if isManager();
+    }
+
+    // 9) FALLBACK SEGURO PARA OTRAS COLECCIONES
+    // Solo permitimos lectura a colecciones no especificadas si es gerente. 
+    // Falla seguro: Bloquear por defecto a los técnicos para colecciones desconocidas.
     match /{colId}/{docId} {
-      allow read: if isAuth() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
-      allow write: if isManager() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
+      allow read, write: if isManager();
       
       match /{document=**} {
-        allow read: if isAuth() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
-        allow write: if isManager() && colId != 'users' && colId != 'personnel' && colId != 'locations' && colId != 'equipment' && colId != 'interventions';
+        allow read, write: if isManager();
       }
     }
   }

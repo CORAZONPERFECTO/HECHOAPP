@@ -13,7 +13,7 @@ import { OperationsAdvisoryPanel } from "@/components/advisory/operations-adviso
 import { FinancialAdvisoryPanel } from "@/components/advisory/financial-advisory-panel";
 import { TalentAdvisoryPanel } from "@/components/advisory/talent-advisory-panel";
 
-export default function AsesoresPage() {
+function AsesoresPageContent() {
     const [metrics, setMetrics] = useState<AdvisoryMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("overview");
@@ -211,5 +211,14 @@ export default function AsesoresPage() {
                 </TabsContent>
             </Tabs>
         </div>
+    );
+}
+
+
+export default function AsesoresPage() {
+    return (
+        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+            <AsesoresPageContent />
+        </RoleGuard>
     );
 }
