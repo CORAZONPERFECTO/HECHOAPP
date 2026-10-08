@@ -414,7 +414,7 @@ return (
         </div>
 
         {/* ERP error banner */}
-        {erpError && isQuote && (
+        {erpError && erpError !== "internal" && isQuote && (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>No se pudo calcular el ITBIS en ERP: {erpError}</span>
