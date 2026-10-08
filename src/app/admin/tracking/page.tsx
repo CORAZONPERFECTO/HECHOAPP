@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useEffect, useState } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -9,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, Clock, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { RoleGuard } from "@/components/auth/role-guard";
 
 function TrackingPageContent() {
     const [technicians, setTechnicians] = useState<User[]>([]);
@@ -106,7 +106,7 @@ function TrackingPageContent() {
 
 export default function TrackingPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <TrackingPageContent />
         </RoleGuard>
     );

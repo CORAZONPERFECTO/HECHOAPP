@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useEffect, useState, useMemo } from "react";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
@@ -8,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-import { RoleGuard } from "@/components/auth/role-guard";
     HardDrive,
     Shield,
     AlertTriangle,
@@ -414,7 +414,7 @@ function AdminAlmacenamientoPageContent() {
 
 export default function AdminAlmacenamientoPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <AdminAlmacenamientoPageContent />
         </RoleGuard>
     );

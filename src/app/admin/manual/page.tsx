@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -374,7 +375,7 @@ function ManualGerencialPageContent() {
 
 export default function ManualGerencialPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <ManualGerencialPageContent />
         </RoleGuard>
     );

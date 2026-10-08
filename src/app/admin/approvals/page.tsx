@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, updateDoc, doc, serverTimestamp, addDoc } from "firebase/firestore";
@@ -163,7 +164,7 @@ function AdminApprovalsPageContent() {
 
 export default function AdminApprovalsPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <AdminApprovalsPageContent />
         </RoleGuard>
     );

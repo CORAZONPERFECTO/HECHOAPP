@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { authFetch } from "@/lib/api-client";
 import { useState, useEffect } from "react";
@@ -751,7 +752,7 @@ function GastosPageContent() {
 
 export default function GastosPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <GastosPageContent />
         </RoleGuard>
     );

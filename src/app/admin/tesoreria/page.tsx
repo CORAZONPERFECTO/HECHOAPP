@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useState, useEffect } from "react";
 import { BankAccount, TreasuryMovement } from "@/types/treasury";
@@ -192,7 +193,7 @@ function TreasuryPageContent() {
 
 export default function TreasuryPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <TreasuryPageContent />
         </RoleGuard>
     );

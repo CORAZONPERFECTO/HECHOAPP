@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useState, useEffect } from "react";
 import { collection, query, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, where } from "firebase/firestore";
@@ -13,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { CheckCircle, Truck, Plus, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { RoleGuard } from "@/components/auth/role-guard";
 
 function LogisticsAdminPageContent() {
     const [tasks, setTasks] = useState<any[]>([]);
@@ -255,7 +255,7 @@ function LogisticsAdminPageContent() {
 
 export default function LogisticsAdminPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <LogisticsAdminPageContent />
         </RoleGuard>
     );

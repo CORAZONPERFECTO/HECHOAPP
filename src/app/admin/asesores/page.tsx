@@ -1,4 +1,5 @@
 "use client";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 import { useState, useEffect } from "react";
 import { AdvisoryMetrics, AIAdvisoryAuditResult } from "@/types/advisory";
@@ -217,7 +218,7 @@ function AsesoresPageContent() {
 
 export default function AsesoresPage() {
     return (
-        <RoleGuard allowedRoles={["ADMIN", "MANAGER"]}>
+        <RoleGuard allowedRoles={["ADMIN", "GERENTE"]}>
             <AsesoresPageContent />
         </RoleGuard>
     );
