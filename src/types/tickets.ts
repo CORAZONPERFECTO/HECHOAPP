@@ -187,6 +187,7 @@ export interface Ticket {
     clientSignature?: string;
     clientSignatureName?: string; // Legible name of the person who signed
     allowGalleryUpload?: boolean;
+    surveyGeneralNotes?: string;
     equipmentId?: string; // ID of the equipment being serviced
     equipmentIds?: string[]; // IDs de todos los equipos incluidos en el alcance del ticket (ej. mantenimiento de villa)
     interventionId?: string; // ID of the RIT Intervention created
@@ -301,4 +302,5 @@ export interface TicketCrewToken {
     createdBy?: string;
     createdByName?: string;
 }
+
 

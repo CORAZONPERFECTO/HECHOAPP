@@ -72,6 +72,40 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
 
     const [expandedAreaId, setExpandedAreaId] = useState<string | null>(localAreas[0]?.id || null);
     const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
+    const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+    const handleGenerateSummary = async () => {
+        const areasData = ticket.surveyAreas?.map(a => 
+            `Area: ${a.name}\nHallazgos: ${a.notes || "Ninguno"}\nRecomendaciones locales: ${(a as any).recommendations || "Ninguna"}`
+        ).join("\n\n");
+
+        if (!areasData || areasData.trim() === "") {
+            alert("No hay hallazgos o notas en las áreas para resumir.");
+            return;
+        }
+
+        setIsGeneratingSummary(true);
+        try {
+            const prompt = `Analiza estos hallazgos técnicos de diferentes áreas de un levantamiento de refrigeración/climatización:\n\n${areasData}\n\nRedacta un único resumen ejecutivo consolidado que describa el estado general del proyecto y liste las recomendaciones globales más importantes para el cliente. Sé profesional y técnico, pero claro.`;
+            
+            const response = await fetch("/api/gemini", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt, task: "summarize" })
+            });
+            const data = await response.json();
+            if (data.output) {
+                onChange({ ...ticket, recommendations: data.output });
+            } else {
+                throw new Error("No output from AI");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Hubo un error al generar el resumen con IA.");
+        } finally {
+            setIsGeneratingSummary(false);
+        }
+    };
     const [newAreaName, setNewAreaName] = useState("");
     const [isBudgetOpen, setIsBudgetOpen] = useState(false);
     const [uploadingAreaId, setUploadingAreaId] = useState<string | null>(null);
@@ -1083,6 +1117,43 @@ export function TicketSurveyAreas({ ticket, onChange, onPhotoUpload }: TicketSur
                         );
                     })
                 )}
+            </div>
+
+            {/* Consolidado y Observaciones Generales */}
+            <div className="mt-8">
+                <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden bg-slate-50">
+                    <div className="p-4 bg-slate-800 text-white flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-blue-400" />
+                            <h3 className="font-bold text-sm">Resumen y Observaciones Generales</h3>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="bg-blue-600 hover:bg-blue-700 text-white border-0 h-8 text-xs font-bold gap-1.5"
+                            onClick={handleGenerateSummary}
+                            disabled={isGeneratingSummary}
+                        >
+                            {isGeneratingSummary ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Resumiendo...</>
+                            ) : (
+                                <><Sparkles className="w-3.5 h-3.5" /> Generar con IA</>
+                            )}
+                        </Button>
+                    </div>
+                    <CardContent className="p-4">
+                        <p className="text-xs text-slate-500 mb-3">
+                            Anota aquí el consolidado de hallazgos, diagnóstico global y observaciones que aplican a todo el levantamiento. Este resumen aparecerá al final del informe en lugar del texto genérico.
+                        </p>
+                        <Textarea
+                            value={ticket.recommendations || ""}
+                            onChange={(e) => onChange({ ...ticket, recommendations: e.target.value })}
+                            placeholder="Escribe el resumen consolidado de las áreas aquí..."
+                            className="min-h-[120px] text-sm bg-white border-slate-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+                        />
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Modal para ver foto ampliada */}
