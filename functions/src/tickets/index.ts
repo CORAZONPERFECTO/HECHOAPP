@@ -17,6 +17,16 @@ interface CreateTicketData {
  * This function is designed to be called via HTTPS or directly from other internal functions.
  */
 export const createTicketFromChannel = onCall(async (request) => {
+    // 🔴 SEGURIDAD AÑADIDA: Requerir autenticación
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Debes estar autenticado para crear tickets.");
+    }
+    const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    const role = callerDoc.data()?.role;
+    if (role !== "ADMIN" && role !== "MANAGER") {
+        throw new HttpsError("permission-denied", "Solo ADMIN o MANAGER pueden usar este endpoint.");
+    }
+
     const data = request.data as CreateTicketData;
     const context = { auth: request.auth };
     // 1. Validate Input
@@ -100,12 +110,18 @@ interface CreateTicketInternalData {
 }
 
 export const createTicket = onCall(async (request) => {
+    // 🔴 SEGURIDAD AÑADIDA: Requerir autenticación y rol
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Debes estar autenticado para crear tickets.");
+    }
+    const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    const role = callerDoc.data()?.role;
+    if (role !== "ADMIN" && role !== "MANAGER") {
+        throw new HttpsError("permission-denied", "Solo ADMIN o MANAGER pueden crear tickets.");
+    }
+
     const data = request.data as CreateTicketInternalData;
     const auth = request.auth;
-
-    if (!auth) {
-        throw new HttpsError("unauthenticated", "User must be logged in");
-    }
 
     try {
         const ticketCount = (await db.collection("tickets").count().get()).data().count;

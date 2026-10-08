@@ -27,10 +27,24 @@ export const getErpCacheStatus = onCall(async (req) => {
     return getCacheStatus();
 });
 
-export const createAdminUser = onCall(async (data) => {
-    const { email, password } = data.data as { email: string; password: string };
+export const createAdminUser = onCall(async (request) => {
+    // 🔴 SEGURIDAD AÑADIDA: Requerir autenticación y rol de ADMIN
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Debes estar autenticado para crear usuarios.");
+    }
+    const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+    if (!callerDoc.exists || callerDoc.data()?.role !== "ADMIN") {
+        throw new HttpsError("permission-denied", "Solo un ADMIN puede crear usuarios de sistema.");
+    }
+
+    const { email, password } = request.data as { email: string; password: string };
     try {
         const user = await admin.auth().createUser({ email, password });
+        return { success: true, uid: user.uid };
+    } catch (error: any) {
+        return { error: error.message };
+    }
+});
         return { success: true, uid: user.uid };
     } catch (error: any) {
         return { error: error.message };
