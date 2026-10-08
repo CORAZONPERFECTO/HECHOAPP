@@ -71,6 +71,23 @@ export default function TicketDetailPage() {
     const [editedDescription, setEditedDescription] = useState("");
     const [isSavingDescription, setIsSavingDescription] = useState(false);
 
+    const [isSavingManual, setIsSavingManual] = useState(false);
+    const handleManualSave = async () => {
+        if (!ticket || !ticketId) return;
+        setIsSavingManual(true);
+        try {
+            const toSave = ticketRef.current || ticket;
+            await setDoc(doc(db, "tickets", ticketId), toSave, { merge: true });
+            setIsDirty(false);
+            isDirtyRef.current = false;
+        } catch (error) {
+            console.error("Error manual save:", error);
+            alert("Error al guardar.");
+        } finally {
+            setTimeout(() => setIsSavingManual(false), 1000);
+        }
+    };
+
     const canViewFinalReport = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS';
     const canEditTicketInfo = currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS' || currentUserRole === 'GERENTE';
 
@@ -446,23 +463,7 @@ export default function TicketDetailPage() {
         );
     }
 
-    const [isSavingManual, setIsSavingManual] = useState(false);
 
-    const handleManualSave = async () => {
-        if (!ticket || !ticketId) return;
-        setIsSavingManual(true);
-        try {
-            const toSave = ticketRef.current || ticket;
-            await setDoc(doc(db, "tickets", ticketId), toSave, { merge: true });
-            setIsDirty(false);
-            isDirtyRef.current = false;
-        } catch (error) {
-            console.error("Error manual save:", error);
-            alert("Error al guardar.");
-        } finally {
-            setTimeout(() => setIsSavingManual(false), 1000);
-        }
-    };
 
     const handleDeleteTicket = async () => {
         if (!confirm("¿ESTÁS SEGURO? Esta acción eliminará el ticket permanentemente.")) return;
