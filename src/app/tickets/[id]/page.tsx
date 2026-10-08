@@ -446,6 +446,24 @@ export default function TicketDetailPage() {
         );
     }
 
+    const [isSavingManual, setIsSavingManual] = useState(false);
+
+    const handleManualSave = async () => {
+        if (!ticket || !ticketId) return;
+        setIsSavingManual(true);
+        try {
+            const toSave = ticketRef.current || ticket;
+            await setDoc(doc(db, "tickets", ticketId), toSave, { merge: true });
+            setIsDirty(false);
+            isDirtyRef.current = false;
+        } catch (error) {
+            console.error("Error manual save:", error);
+            alert("Error al guardar.");
+        } finally {
+            setTimeout(() => setIsSavingManual(false), 1000);
+        }
+    };
+
     const handleDeleteTicket = async () => {
         if (!confirm("¿ESTÁS SEGURO? Esta acción eliminará el ticket permanentemente.")) return;
 
@@ -490,6 +508,17 @@ export default function TicketDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button 
+                        variant={isSavingManual ? "default" : "outline"}
+                        className={`hidden sm:flex ${isSavingManual ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
+                        size="sm" 
+                        onClick={handleManualSave}
+                        disabled={isSavingManual}
+                    >
+                        {isSavingManual ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                        {isSavingManual ? "Guardado" : "Guardar"}
+                    </Button>
+
                     {/* GENERATE QUOTE BUTTON */}
                     {(currentUserRole === 'ADMIN' || currentUserRole === 'SUPERVISOR' || currentUserRole === 'GERENTE_TICKETS') && (
                         <Button
