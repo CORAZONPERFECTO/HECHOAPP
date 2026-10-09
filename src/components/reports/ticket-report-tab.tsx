@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { TemplatePickerDialog } from "@/components/reports/template-picker-dialog";
 import { ReportTemplate } from "@/types/reports";
 import { DEFAULT_REPORT_POLICIES, ReportPolicySettings } from "@/components/settings/report-policy-settings";
+import { persistReportWithMedia } from "@/lib/report-storage";
 
 interface TicketReportTabProps {
     ticket: Ticket;
@@ -106,39 +107,21 @@ export function TicketReportTab({ ticket, currentUserRole }: TicketReportTabProp
         try {
             if (!isAutoSave) setSaving(true);
 
-            if (!updatedReport.ticketId || !updatedReport.sections) {
-                throw new Error("Datos del informe incompletos");
+            const effectiveTicketId = ticket.id || updatedReport.ticketId;
+            if (!effectiveTicketId) {
+                throw new Error("ID de ticket no encontrado");
             }
 
-            type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-            const sanitizeData = (obj: unknown): JsonValue => {
-                if (obj === null || obj === undefined) return null;
-                if (Array.isArray(obj)) {
-                    return obj.map(item => sanitizeData(item)).filter(item => item !== null && item !== undefined);
-                }
-                if (typeof obj === 'object') {
-                    const cleaned: Record<string, JsonValue> = {};
-                    Object.keys(obj as Record<string, unknown>).forEach(key => {
-                        const value = sanitizeData((obj as Record<string, unknown>)[key]);
-                        if (value !== undefined && value !== null) {
-                            cleaned[key] = value;
-                        }
-                    });
-                    return cleaned;
-                }
-                return obj as JsonValue;
-            };
-
-            const cleanedReport = sanitizeData(updatedReport) as unknown as TicketReportNew;
-            await setDoc(doc(db, "ticketReports", ticket.id), cleanedReport);
-            setLastSavedReport(updatedReport);
+            const savedReport = await persistReportWithMedia(updatedReport, effectiveTicketId);
+            setReport(savedReport);
+            setLastSavedReport(savedReport);
 
             if (!isAutoSave) {
                 toast({ title: "Guardado", description: "Informe guardado correctamente", variant: "default" });
             }
         } catch (error: unknown) {
             console.error("Error al guardar:", error);
-            if (!isAutoSave) toast({ title: "Error", description: "No se pudo guardar el informe", variant: "destructive" });
+            if (!isAutoSave) toast({ title: "Error", description: "No se pudo guardar el informe. Compruebe la conexión.", variant: "destructive" });
         } finally {
             if (!isAutoSave) setSaving(false);
         }

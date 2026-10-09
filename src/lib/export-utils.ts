@@ -443,17 +443,47 @@ export async function exportToPDFModern(report: TicketReportNew) {
         pdf.text(addrLines, col1X, yPos + 28.5);
     }
 
-    yPos += metaBoxHeight + 8;
+    yPos += metaBoxHeight + 5;
 
-    // --- FORMATEADOR INTELIGENTE DE SECCIONES (DEDUPLICACIÓN ACTIVA) ---
+    // --- FORMATEADOR INTELIGENTE DE SECCIONES (DEDUPLICACIÓN ACTIVA Y LOOKAHEAD ANTI-HUÉRFANOS) ---
     const cleanSections = deduplicateReportSections(report.sections || []);
-    for (const section of cleanSections) {
+    for (let sIdx = 0; sIdx < cleanSections.length; sIdx++) {
+        const section = cleanSections[sIdx];
+        const nextSection = sIdx + 1 < cleanSections.length ? cleanSections[sIdx + 1] : null;
+
         if (section.type === 'h1' || section.type === 'h2') {
             const titleSection = section as TitleSection;
             const headingText = cleanPDFText(titleSection.content || '');
             if (!headingText.trim()) continue;
 
-            await checkAndAddPage(20);
+            const lines = pdf.splitTextToSize(headingText, contentWidth - 8);
+            const headingHeight = (lines.length * 5.5) + 3;
+
+            // LOOKAHEAD INTELIGENTE: Calcular espacio para Título + su Contenido inmediato
+            // Evita que el título quede huérfano al final de página y sus fotos pasen a la siguiente
+            let lookaheadContentHeight = 25;
+
+            if (nextSection) {
+                if (nextSection.type === 'gallery') {
+                    const gal = nextSection as GallerySection;
+                    const validCount = (gal.photos || []).filter(p => p.photoUrl && p.photoUrl.trim().length > 10).length;
+                    if (validCount > 0) {
+                        // Al menos 1 fila de galería (55mm foto + 13mm pie de foto = 68mm)
+                        lookaheadContentHeight = 68;
+                    }
+                } else if (nextSection.type === 'photo') {
+                    lookaheadContentHeight = 84;
+                } else if (nextSection.type === 'beforeAfter') {
+                    lookaheadContentHeight = 76;
+                } else if (nextSection.type === 'text') {
+                    lookaheadContentHeight = 24;
+                } else if (nextSection.type === 'list') {
+                    lookaheadContentHeight = 20;
+                }
+            }
+
+            // Si el título + su contenido no caben juntos en esta página, forzamos salto ahora
+            await checkAndAddPage(headingHeight + lookaheadContentHeight);
 
             // Marcador decorativo izquierdo
             pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -463,9 +493,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
             pdf.setFont(FONTS.header, 'bold');
             pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
             
-            const lines = pdf.splitTextToSize(headingText, contentWidth - 8);
             pdf.text(lines, margin + 6, yPos + 5.5);
-            yPos += (lines.length * 6) + 4;
+            yPos += headingHeight + 2;
         }
         else if (section.type === 'text') {
             const textSection = section as TextSection;
@@ -512,7 +541,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     const valLines = pdf.splitTextToSize(val, contentWidth - 16);
                     const boxH = (valLines.length * 4.6) + 12;
 
-                    await checkAndAddPage(boxH + 4);
+                    await checkAndAddPage(boxH + 3);
 
                     pdf.setFillColor(248, 250, 252);
                     pdf.setDrawColor(203, 213, 225);
@@ -532,7 +561,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setTextColor(51, 65, 85);
                     pdf.text(valLines, margin + 8, yPos + 10.5);
 
-                    yPos += boxH + 4;
+                    yPos += boxH + 3;
                     continue;
                 }
 
@@ -690,28 +719,28 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 }
                 yPos += 1;
             }
-            yPos += 3;
+            yPos += 2;
         }
         else if (section.type === 'beforeAfter') {
             const baSection = section as BeforeAfterSection;
             if (!baSection.beforePhotoUrl && !baSection.afterPhotoUrl) continue;
 
-            const cardH = 82;
-            await checkAndAddPage(cardH + 6);
+            const cardH = 76;
+            await checkAndAddPage(cardH + 4);
 
             pdf.setFillColor(248, 250, 252);
             pdf.setDrawColor(226, 232, 240);
             pdf.setLineWidth(0.3);
             pdf.roundedRect(margin, yPos, contentWidth, cardH, 2, 2, 'FD');
 
-            pdf.setFontSize(9);
+            pdf.setFontSize(8.5);
             pdf.setFont(FONTS.header, 'bold');
             pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-            pdf.text("EVIDENCIA COMPARATIVA (ANTES / DESPUÉS)", margin + 6, yPos + 6);
+            pdf.text("EVIDENCIA COMPARATIVA (ANTES / DESPUÉS)", margin + 5, yPos + 5.5);
 
-            const photoBoxW = (contentWidth - 16) / 2;
-            const photoBoxH = 54;
-            const photoY = yPos + 9;
+            const photoBoxW = (contentWidth - 14) / 2;
+            const photoBoxH = 48;
+            const photoY = yPos + 8;
 
             if (baSection.beforePhotoUrl) {
                 try {
@@ -719,16 +748,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, photoBoxW, photoBoxH);
                     
                     pdf.setFillColor(241, 245, 249);
-                    pdf.roundedRect(margin + 5, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
+                    pdf.roundedRect(margin + 4, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
                     
-                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 5 + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 4 + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
                     pdf.setFillColor(225, 29, 72);
-                    pdf.rect(margin + 5, photoY, 18, 5, 'F');
+                    pdf.rect(margin + 4, photoY, 18, 4.5, 'F');
                     pdf.setFontSize(7.5);
                     pdf.setFont(FONTS.header, 'bold');
                     pdf.setTextColor(255, 255, 255);
-                    pdf.text("ANTES", margin + 7, photoY + 3.8);
+                    pdf.text("ANTES", margin + 6, photoY + 3.3);
                 } catch { }
             }
 
@@ -738,40 +767,40 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     const fit = getAspectFitDimensions(imgData.width, imgData.height, photoBoxW, photoBoxH);
                     
                     pdf.setFillColor(241, 245, 249);
-                    pdf.roundedRect(margin + 11 + photoBoxW, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
+                    pdf.roundedRect(margin + 10 + photoBoxW, photoY, photoBoxW, photoBoxH, 1.5, 1.5, 'F');
                     
-                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 11 + photoBoxW + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
+                    pdf.addImage(imgData.dataUrl, 'JPEG', margin + 10 + photoBoxW + fit.offsetX, photoY + fit.offsetY, fit.renderW, fit.renderH, undefined, 'FAST');
 
                     pdf.setFillColor(16, 185, 129);
-                    pdf.rect(margin + 11 + photoBoxW, photoY, 20, 5, 'F');
+                    pdf.rect(margin + 10 + photoBoxW, photoY, 20, 4.5, 'F');
                     pdf.setFontSize(7.5);
                     pdf.setFont(FONTS.header, 'bold');
                     pdf.setTextColor(255, 255, 255);
-                    pdf.text("DESPUÉS", margin + 13 + photoBoxW, photoY + 3.8);
+                    pdf.text("DESPUÉS", margin + 12 + photoBoxW, photoY + 3.3);
                 } catch { }
             }
 
             if (baSection.description) {
-                pdf.setFontSize(8.5);
+                pdf.setFontSize(8);
                 pdf.setTextColor(71, 85, 105);
                 pdf.setFont(FONTS.body, 'normal');
-                const descLines = pdf.splitTextToSize(cleanPDFText(baSection.description), contentWidth - 12);
-                pdf.text(descLines, margin + 6, photoY + photoBoxH + 5);
+                const descLines = pdf.splitTextToSize(cleanPDFText(baSection.description), contentWidth - 10);
+                pdf.text(descLines, margin + 5, photoY + photoBoxH + 4.5);
             }
 
-            yPos += cardH + 6;
+            yPos += cardH + 4;
         }
         else if (section.type === 'photo') {
             const photoSec = section as PhotoSection;
-            if (!photoSec.photoUrl) continue;
+            if (!photoSec.photoUrl || photoSec.photoUrl.trim().length < 10) continue;
 
-            // Foto amplia y nítida (Full width de la página)
+            // Foto amplia y nítida
             const boxW = contentWidth; // 180mm
-            const boxH = 85; // 85mm de altura para visualización nítida de placas y detalles
+            const boxH = 80; // 80mm de altura
             const hasDesc = !!photoSec.description;
-            const cardH = boxH + (hasDesc ? 14 : 4);
+            const cardH = boxH + (hasDesc ? 11 : 2);
 
-            await checkAndAddPage(cardH + 4);
+            await checkAndAddPage(cardH + 3);
 
             try {
                 const imgData = await loadImage(photoSec.photoUrl);
@@ -792,13 +821,13 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setFont(FONTS.body, 'normal');
                     pdf.setTextColor(71, 85, 105);
                     const descLines = pdf.splitTextToSize(cleanPDFText(photoSec.description), contentWidth - 4);
-                    pdf.text(descLines, margin + 2, yPos + boxH + 5);
+                    pdf.text(descLines, margin + 2, yPos + boxH + 4.5);
                 }
             } catch (e) {
                 console.warn("Error dibujando foto en PDF:", e);
             }
 
-            yPos += cardH + 6;
+            yPos += cardH + 4;
         }
         else if (section.type === 'gallery') {
             const galSection = section as GallerySection;
@@ -807,15 +836,15 @@ export async function exportToPDFModern(report: TicketReportNew) {
             const cols = 2;
             const gap = 6;
             const photoBoxW = (contentWidth - gap) / cols; // 87mm
-            const photoBoxH = 62;
-            const rowH = photoBoxH + 16;
+            const photoBoxH = 55; // 55mm de alto: proporción áurea 87x55mm
+            const rowH = photoBoxH + 13; // 68mm por fila
 
-            // Solo fotos con URL real (https://...) — omitir placeholders vacíos
-            const validPhotos = galSection.photos.filter(p => p.photoUrl && p.photoUrl.trim().startsWith('http'));
+            // Soporta URLs http/https, data URLs base64 y blob URLs
+            const validPhotos = galSection.photos.filter(p => p.photoUrl && p.photoUrl.trim().length > 10);
             if (validPhotos.length === 0) continue;
 
             for (let i = 0; i < validPhotos.length; i += cols) {
-                await checkAndAddPage(rowH + 4);
+                await checkAndAddPage(rowH + 3);
 
                 for (let c = 0; c < cols; c++) {
                     const photoIdx = i + c;
@@ -855,14 +884,14 @@ export async function exportToPDFModern(report: TicketReportNew) {
                             pdf.setFont(FONTS.body, 'normal');
                             pdf.setTextColor(71, 85, 105);
                             const descLines = pdf.splitTextToSize(cleanPDFText(photo.description), photoBoxW);
-                            pdf.text(descLines.slice(0, 2), x, yPos + photoBoxH + 4);
+                            pdf.text(descLines.slice(0, 2), x, yPos + photoBoxH + 3.5);
                         }
                     } catch (e) {
                         console.warn("Error dibujando galería en PDF:", e);
                     }
                 }
 
-                yPos += rowH + 4;
+                yPos += rowH + 3;
             }
         }
     }

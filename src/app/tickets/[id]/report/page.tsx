@@ -5,8 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, Timestamp } from "firebase/firestore"; // Added updateDoc, onSnapshot, Timestamp
 import { db, auth } from "@/lib/firebase"; // Added auth
 import { Ticket, TicketReport, ReportSection, TicketReportSection, TicketReportNew } from "@/types/schema";
-import { generateReportFromTicket, generateAndSaveTicketReport, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
+import { generateReportFromTicket, updatePhotosFromTicket, deduplicateReportSections } from "@/lib/report-generator";
 import { TicketReportEditor } from "@/components/reports/ticket-report-editor";
+import { persistReportWithMedia } from "@/lib/report-storage";
 import { TicketReportView } from "@/components/reports/ticket-report-view";
 import { ExportMenu } from "@/components/reports/export-menu";
 import { Button } from "@/components/ui/button";
@@ -205,42 +206,16 @@ export default function TicketReportPage() {
         try {
             if (!isAutoSave) setSaving(true);
 
-            // Validación
-            if (!updatedReport.ticketId || !updatedReport.sections) {
-                throw new Error("Datos del informe incompletos");
+            const effectiveTicketId = ticketId || updatedReport.ticketId;
+            if (!effectiveTicketId) {
+                throw new Error("ID de ticket no encontrado");
             }
 
-            // Sanitizar datos: remover undefined values que Firestore no acepta
-            const sanitizeData = (obj: any): any => {
-                if (obj === null || obj === undefined) return null;
-                if (Array.isArray(obj)) {
-                    return obj.map(item => sanitizeData(item)).filter(item => item !== null && item !== undefined);
-                }
-                if (typeof obj === 'object') {
-                    const cleaned: any = {};
-                    Object.keys(obj).forEach(key => {
-                        const value = sanitizeData(obj[key]);
-                        if (value !== undefined && value !== null) {
-                            cleaned[key] = value;
-                        }
-                    });
-                    return cleaned;
-                }
-                return obj;
-            };
-
-            const cleanedReport = sanitizeData(updatedReport);
-
-            if (!isAutoSave) console.log("Guardando informe:", ticketId, cleanedReport);
-            await setDoc(doc(db, "ticketReports", ticketId), cleanedReport);
-
-            // Only update local state if it's a manual save to avoid resetting undo history (?)
-            // Actually, we don't need to update state here because it's already updated via onChange.
-            // We just update the lastSaved reference.
-            setLastSavedReport(updatedReport);
+            const savedReport = await persistReportWithMedia(updatedReport, effectiveTicketId);
+            setReport(savedReport);
+            setLastSavedReport(savedReport);
 
             if (!isAutoSave) {
-                // Show success toast for manual save
                 const toast = document.createElement('div');
                 toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity duration-500';
                 toast.textContent = '✓ Informe guardado correctamente';
@@ -252,7 +227,7 @@ export default function TicketReportPage() {
             }
         } catch (error: any) {
             console.error("Error completo al guardar:", error);
-            if (!isAutoSave) alert("Error al guardar el informe");
+            if (!isAutoSave) alert("Error al guardar el informe. Compruebe la conexión.");
         } finally {
             if (!isAutoSave) setSaving(false);
         }
