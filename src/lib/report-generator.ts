@@ -202,7 +202,7 @@ export function generateReportFromTicket(
         specs: {
             brand: area.brand || 'Genérica',
             model: area.modelNumber || area.model || '',
-            btu: area.btuCapacity || 18000,
+            btu: (area.requiredBtu && area.requiredBtu > 0) ? area.requiredBtu : (area.btuCapacity || 18000),
             refrigerant: area.refrigerant || 'R410A'
         },
         status: 'OPERATIONAL'
@@ -221,9 +221,10 @@ export function generateReportFromTicket(
             const brand = eq.specs?.brand || (eq as any).marca || 'AC';
             const model = eq.specs?.model || (eq as any).modelo || '';
             const btu = eq.specs?.btu || (eq as any).capacidadBTU || '18,000';
+            const parsedBtu = typeof btu === 'number' ? btu.toLocaleString() : btu;
             const gas = eq.specs?.refrigerant || (eq as any).refrigerante || 'R410A';
             const statusLabel = eq.status === 'OPERATIONAL' ? 'Operativo' : (eq.status || 'Revisado');
-            return `[${code}] ${area}: ${brand} ${model ? `${model} ` : ''}- ${btu} BTU (${gas}) | Estado: ${statusLabel}`;
+            return `[${code}] ${area}: ${brand} ${model ? `${model} ` : ''}- ${parsedBtu} BTU (${gas}) | Estado: ${statusLabel}`;
         });
 
         sections.push({
@@ -367,8 +368,25 @@ export function generateReportFromTicket(
         } as TextSection);
     }
 
-    // --- 8.5 RESUMEN DE MATERIALES REQUERIDOS (PARA COTIZACIÓN) ---
+    // --- 8.5 RESUMEN DE MATERIALES REQUERIDOS (PARA COTIZACION) ---
     const allRequiredMaterials = (ticket.surveyAreas || []).flatMap(a => (a.requiredMaterials || []).map(m => ({ ...m, area: a.name })));
+    const allRecommendedEquipments = (ticket.surveyAreas || []).filter(a => a.recommendedEquipment && a.recommendedEquipment.trim() !== "");
+
+    if (allRecommendedEquipments.length > 0) {
+        sections.push({
+            id: uuid(),
+            type: 'h2',
+            content: 'Equipos Recomendados (Cálculo de Carga Térmica)'
+        } as TitleSection);
+
+        const eqLines = allRecommendedEquipments.map(a => `  📍 ${a.name}: ${a.recommendedEquipment}`);
+        sections.push({
+            id: uuid(),
+            type: 'list',
+            items: eqLines
+        } as ListSection);
+    }
+
     if (allRequiredMaterials.length > 0) {
         sections.push({
             id: uuid(),
@@ -417,30 +435,80 @@ export function generateReportFromTicket(
     }
 
     if (allPhotosForReport.length > 0) {
-        sections.push({
-            id: uuid(),
-            type: 'h2',
-            content: 'Evidencia Fotográfica de los Trabajos (Antes / Durante / Después)'
-        } as TitleSection);
+        const photosByArea: Record<string, any[]> = {};
+        const generalPhotos: any[] = [];
+        
+        allPhotosForReport.forEach(photo => {
+            if (photo.area) {
+                if (!photosByArea[photo.area]) photosByArea[photo.area] = [];
+                photosByArea[photo.area].push(photo);
+            } else {
+                generalPhotos.push(photo);
+            }
+        });
 
-        sections.push({
-            id: uuid(),
-            type: 'gallery',
-            photos: allPhotosForReport.map(photo => ({
-                photoUrl: photo.url,
-                description: photo.description || photo.details || (
-                    photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : 
-                    photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 
-                    photo.type === 'SURVEY' ? 'Placa / Relevamiento Técnico' :
-                    'Durante la Ejecución'
-                ),
-                photoMeta: {
-                    originalId: (photo as { id?: string }).id || uuid(),
-                    area: photo.area,
-                    phase: photo.type || 'EVIDENCE'
-                }
-            }))
-        } as GallerySection);
+        const areaNames = Object.keys(photosByArea);
+        if (areaNames.length > 0) {
+            sections.push({
+                id: uuid(),
+                type: 'h2',
+                content: 'Evidencia Fotográfica de los Trabajos por Área'
+            } as TitleSection);
+
+            areaNames.forEach(areaName => {
+                sections.push({
+                    id: uuid(),
+                    type: 'text',
+                    content: `**📍 Área: ${areaName}**`
+                } as TextSection);
+                
+                sections.push({
+                    id: uuid(),
+                    type: 'gallery',
+                    photos: photosByArea[areaName].map(photo => ({
+                        photoUrl: photo.url,
+                        description: photo.description || photo.details || (
+                            photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : 
+                            photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 
+                            photo.type === 'SURVEY' ? 'Placa / Relevamiento Técnico' :
+                            'Durante la Ejecución'
+                        ),
+                        photoMeta: {
+                            originalId: photo.id || uuid(),
+                            area: photo.area,
+                            phase: photo.type || 'EVIDENCE'
+                        }
+                    }))
+                } as GallerySection);
+            });
+        }
+
+        if (generalPhotos.length > 0) {
+            sections.push({
+                id: uuid(),
+                type: 'h2',
+                content: areaNames.length > 0 ? 'Otras Evidencias Generales' : 'Evidencia Fotográfica de los Trabajos (Antes / Durante / Después)'
+            } as TitleSection);
+
+            sections.push({
+                id: uuid(),
+                type: 'gallery',
+                photos: generalPhotos.map(photo => ({
+                    photoUrl: photo.url,
+                    description: photo.description || photo.details || (
+                        photo.type === 'BEFORE' ? 'Condición Inicial (Antes)' : 
+                        photo.type === 'AFTER' ? 'Trabajo Finalizado (Después)' : 
+                        photo.type === 'SURVEY' ? 'Placa / Relevamiento Técnico' :
+                        'Durante la Ejecución'
+                    ),
+                    photoMeta: {
+                        originalId: photo.id || uuid(),
+                        area: photo.area,
+                        phase: photo.type || 'EVIDENCE'
+                    }
+                }))
+            } as GallerySection);
+        }
     }
 
     // --- 10. POLÍTICAS DE GARANTÍA Y TÉRMINOS ---
@@ -782,3 +850,5 @@ export async function generateAndSaveTicketReport(
         throw error;
     }
 }
+
+
