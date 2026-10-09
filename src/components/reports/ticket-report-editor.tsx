@@ -12,7 +12,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool, Sparkles, Undo2, Redo2, ShieldCheck } from "lucide-react";
 import { TicketReportView } from "./ticket-report-view";
 import { authFetch } from "@/lib/api-client";
 import { BeforeAfterSelector } from "./before-after-selector";
@@ -279,6 +279,21 @@ export function TicketReportEditor({
         setActiveBlockId(duplicated.id);
     };
 
+    const DEFAULT_WARRANTY_TEXT =
+        "1. Garantía de 30 días sobre la mano de obra del servicio realizado.\n" +
+        "2. Las garantías no cubren fallas por variaciones de voltaje, descargas eléctricas o manipulación por personal ajeno a HECHO SRL.\n" +
+        "3. Los repuestos e insumos nuevos cuentan con la garantía directa del fabricante.";
+
+    const isWarrantySection = (s: TicketReportSection) =>
+        (s.type === 'h1' || s.type === 'h2') && /garant|término.*garant|termino.*garant|condicion.*servicio/i.test((s as TitleSection).content || '');
+
+    const hasWarranty = report.sections.some(isWarrantySection);
+
+    const getInsertionIndex = () => {
+        const wIdx = report.sections.findIndex(isWarrantySection);
+        return wIdx !== -1 ? wIdx : report.sections.length;
+    };
+
     const addSection = (type: TicketReportSection['type']) => {
         let newSection: TicketReportSection;
 
@@ -311,7 +326,11 @@ export function TicketReportEditor({
                 return;
         }
 
-        onChange({ ...report, sections: [...report.sections, newSection] });
+        const insertAt = getInsertionIndex();
+        const newSections = [...report.sections];
+        newSections.splice(insertAt, 0, newSection);
+
+        onChange({ ...report, sections: newSections });
         setActiveBlockId(newSection.id);
 
         // Auto scroll to bottom
@@ -325,7 +344,11 @@ export function TicketReportEditor({
         const textSection = { id: crypto.randomUUID(), type: 'text', content: 'Recomendación: ' } as TextSection;
         const photoSection = { id: crypto.randomUUID(), type: 'photo', photoUrl: '', description: 'Evidencia recomendación' } as PhotoSection;
         
-        onChange({ ...report, sections: [...report.sections, textSection, photoSection] });
+        const insertAt = getInsertionIndex();
+        const newSections = [...report.sections];
+        newSections.splice(insertAt, 0, textSection, photoSection);
+
+        onChange({ ...report, sections: newSections });
         setActiveBlockId(textSection.id);
         
         // Auto scroll to bottom
@@ -339,7 +362,11 @@ export function TicketReportEditor({
         const textSection = { id: crypto.randomUUID(), type: 'text', content: 'Observación: ' } as TextSection;
         const photoSection = { id: crypto.randomUUID(), type: 'photo', photoUrl: '', description: 'Evidencia de la observación' } as PhotoSection;
         
-        onChange({ ...report, sections: [...report.sections, textSection, photoSection] });
+        const insertAt = getInsertionIndex();
+        const newSections = [...report.sections];
+        newSections.splice(insertAt, 0, textSection, photoSection);
+
+        onChange({ ...report, sections: newSections });
         setActiveBlockId(textSection.id);
         
         // Auto scroll to bottom
@@ -347,6 +374,60 @@ export function TicketReportEditor({
             const element = document.getElementById('report-bottom');
             element?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
+    };
+
+    const addWarrantyTerms = () => {
+        const existingIdx = report.sections.findIndex(isWarrantySection);
+        if (existingIdx !== -1) {
+            setActiveBlockId(report.sections[existingIdx].id);
+            return;
+        }
+
+        const warrantyTitleSection: TitleSection = {
+            id: crypto.randomUUID(),
+            type: 'h2',
+            content: 'Términos de Garantía y Condiciones'
+        };
+        const warrantyTextSection: TextSection = {
+            id: crypto.randomUUID(),
+            type: 'text',
+            content: DEFAULT_WARRANTY_TEXT
+        };
+
+        const newSections = [...report.sections, warrantyTitleSection, warrantyTextSection];
+        onChange({ ...report, sections: newSections });
+        setActiveBlockId(warrantyTitleSection.id);
+
+        setTimeout(() => {
+            const element = document.getElementById('report-bottom');
+            element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    };
+
+    const removeWarrantyTerms = () => {
+        const newSections: TicketReportSection[] = [];
+        for (let i = 0; i < report.sections.length; i++) {
+            const s = report.sections[i];
+            if (isWarrantySection(s)) {
+                if (i + 1 < report.sections.length && report.sections[i + 1].type === 'text') {
+                    i++;
+                }
+            } else {
+                newSections.push(s);
+            }
+        }
+        onChange({ ...report, sections: newSections });
+        setActiveBlockId(null);
+    };
+
+    const toggleWarrantyTerms = () => {
+        if (hasWarranty) {
+            if (confirm("¿Deseas quitar los Términos de Garantía y Condiciones de este informe? Podrás volver a agregarlos cuando quieras con un solo clic.")) {
+                removeWarrantyTerms();
+            }
+        } else {
+            addWarrantyTerms();
+        }
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -483,6 +564,22 @@ export function TicketReportEditor({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant={hasWarranty ? "outline" : "ghost"}
+                            size="sm"
+                            onClick={toggleWarrantyTerms}
+                            disabled={saving || readOnly}
+                            className={`gap-1.5 text-xs h-7 px-2.5 hidden sm:flex ${
+                                hasWarranty
+                                    ? 'text-emerald-700 bg-emerald-50/80 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 hover:bg-emerald-100'
+                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                            }`}
+                            title={hasWarranty ? "Términos de garantía activos (clic para quitar)" : "Agregar términos de garantía al informe"}
+                        >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            <span className="hidden xl:inline">{hasWarranty ? "Garantía Activa" : "+ Garantía"}</span>
+                        </Button>
+
                         {onSyncTicketData && (
                             <Button
                                 variant="outline"
@@ -614,6 +711,21 @@ export function TicketReportEditor({
                         >
                             <Sparkles className="h-4 w-4" />
                             <span className="text-[8px] font-bold leading-tight text-center">Rec</span>
+                        </button>
+
+                        <button
+                            onClick={toggleWarrantyTerms}
+                            title={hasWarranty ? "Términos de Garantía Activos (Clic para quitar)" : "Añadir Términos de Garantía y Condiciones"}
+                            className={`flex flex-col items-center gap-0.5 w-11 h-11 rounded-lg transition-colors justify-center mt-1 border-t pt-2 ${
+                                hasWarranty
+                                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold border-emerald-200 dark:border-emerald-800/60'
+                                    : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-slate-400'
+                            }`}
+                        >
+                            <ShieldCheck className="h-4 w-4" />
+                            <span className="text-[8px] font-bold leading-tight text-center">
+                                {hasWarranty ? "Garantía ✓" : "+ Garantía"}
+                            </span>
                         </button>
 
                         <button

@@ -117,13 +117,36 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                     items: summaryItems
                 });
 
-                // 3. Evidencias Fotográficas por Ambiente / Aire
+                // 3. Protocolo y Checklist de Actividades
+                sections.push(createTitle('Protocolo de Mantenimiento Ejecutado'));
+                const checklistItems = formatChecklistItems(ticket.checklist || []);
+                sections.push({
+                    id: crypto.randomUUID(),
+                    type: 'list',
+                    items: checklistItems.length > 0 && checklistItems[0] !== 'No se realizó checklist.' ? checklistItems : [
+                        "[OK] Lavado a presión de serpentines evaporadores y condensadores",
+                        "[OK] Limpieza y desinfección de filtros de aire",
+                        "[OK] Desobstrucción y lavado de bandejas de drenaje",
+                        "[OK] Chequeo de conexiones eléctricas y voltaje de alimentación",
+                        "[OK] Medición de consumo eléctrico (amperaje) y presiones de gas",
+                        "[OK] Verificación de flujo de aire y rendimiento térmico"
+                    ]
+                });
+
+                // 4. Diagnóstico Técnico & Estado
+                if (ticket.diagnosis) {
+                    sections.push(createTitle('Diagnóstico Técnico & Estado'));
+                    sections.push(createText(ticket.diagnosis));
+                }
+
+                // 5. Evidencias Fotográficas por Ambiente / Aire
                 const areaPhotoUrls = new Set<string>();
                 areas.forEach((area) => {
                     const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
                     if (hasPhotos) {
                         sections.push(createTitle(`Evidencias de Mantenimiento: ${area.name}`));
-                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); } if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
+                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); }
+                        if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
                         // Fotos del trabajo en el área
                         (area.photos || []).forEach((photo) => {
                             if (photo.url) {
@@ -169,28 +192,6 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                     sections.push(...createPhotoSections(extraPhotos));
                 }
 
-                // 4. Protocolo y Checklist de Actividades
-                sections.push(createTitle('Protocolo de Mantenimiento Ejecutado'));
-                const checklistItems = formatChecklistItems(ticket.checklist || []);
-                sections.push({
-                    id: crypto.randomUUID(),
-                    type: 'list',
-                    items: checklistItems.length > 0 && checklistItems[0] !== 'No se realizó checklist.' ? checklistItems : [
-                        "[OK] Lavado a presión de serpentines evaporadores y condensadores",
-                        "[OK] Limpieza y desinfección de filtros de aire",
-                        "[OK] Desobstrucción y lavado de bandejas de drenaje",
-                        "[OK] Chequeo de conexiones eléctricas y voltaje de alimentación",
-                        "[OK] Medición de consumo eléctrico (amperaje) y presiones de gas",
-                        "[OK] Verificación de flujo de aire y rendimiento térmico"
-                    ]
-                });
-
-                // 5. Diagnóstico Técnico
-                if (ticket.diagnosis) {
-                    sections.push(createTitle('Diagnóstico Técnico & Estado'));
-                    sections.push(createText(ticket.diagnosis));
-                }
-
                 // 6. Recomendaciones Técnicas
                 sections.push(createTitle('Recomendaciones Técnicas'));
                 if (ticket.recommendations) {
@@ -214,14 +215,7 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             sections.push(createTitle('Reporte de Mantenimiento Preventivo', 'h1'));
             sections.push(createText(`Se realizó el servicio de mantenimiento preventivo al equipo ubicado en ${ticket.locationName}${ticket.locationArea ? ` - ${ticket.locationArea}` : ''}. El objetivo del servicio es asegurar el óptimo funcionamiento.`));
 
-            // 2. Estado Inicial (Fotos Antes)
-            if (before.length > 0) {
-                sections.push(createTitle('Estado Inicial del Equipo'));
-                sections.push(createText('Condiciones encontradas antes de iniciar el servicio:'));
-                sections.push(...createPhotoSections(before));
-            }
-
-            // 3. Actividades Realizadas (Checklist)
+            // 2. Actividades Realizadas (Checklist)
             sections.push(createTitle('Actividades Realizadas'));
             const checklistItems = formatChecklistItems(ticket.checklist || []);
             sections.push({
@@ -230,27 +224,33 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                 items: checklistItems
             });
 
-            // 4. Proceso (Fotos Durante)
-            if (during.length > 0) {
-                sections.push(createTitle('Durante el Servicio'));
-                sections.push(...createPhotoSections(during));
-            }
-
-            // 5. Diagnóstico Técnico
+            // 3. Diagnóstico Técnico
             if (ticket.diagnosis) {
                 sections.push(createTitle('Diagnóstico Técnico'));
                 sections.push(createText(ticket.diagnosis));
             }
 
-            // 6. Resultado Final (Fotos Después)
-            sections.push(createTitle('Resultado Final'));
-            if (after.length > 0) {
-                sections.push(...createPhotoSections(after));
+            // 4. Evidencia Fotográfica (Antes / Durante / Después)
+            if (before.length > 0 || during.length > 0 || after.length > 0) {
+                sections.push(createTitle('Evidencia Fotográfica del Servicio'));
+                if (before.length > 0) {
+                    sections.push(createText('Estado Inicial:'));
+                    sections.push(...createPhotoSections(before));
+                }
+                if (during.length > 0) {
+                    sections.push(createText('Durante el Servicio:'));
+                    sections.push(...createPhotoSections(during));
+                }
+                if (after.length > 0) {
+                    sections.push(createText('Resultado Final:'));
+                    sections.push(...createPhotoSections(after));
+                }
             } else {
+                sections.push(createTitle('Resultado Final'));
                 sections.push(createText('El equipo quedó operativo y limpio.'));
             }
 
-            // 7. Recomendaciones
+            // 5. Recomendaciones
             if (ticket.recommendations) {
                 sections.push(createTitle('Recomendaciones'));
                 sections.push(createText(ticket.recommendations));
@@ -422,14 +422,21 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
                 });
             }
 
-            // 3. Evidencias Fotográficas por Ambiente / Área (Tamaño proporcional)
+            // 3. Diagnóstico Técnico & Hallazgos
+            if (ticket.diagnosis) {
+                sections.push(createTitle('Diagnóstico Técnico & Estado Actual'));
+                sections.push(createText(ticket.diagnosis));
+            }
+
+            // 4. Evidencias Fotográficas por Ambiente / Área (Tamaño proporcional)
             const areaPhotoUrls = new Set<string>();
             if (areas.length > 0) {
                 areas.forEach((area) => {
                     const hasPhotos = (area.photos && area.photos.length > 0) || area.platePhotoUrl || area.boardPhotoUrl;
                     if (hasPhotos) {
                         sections.push(createTitle(`Evidencias Fotográficas: ${area.name}`));
-                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); } if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
+                        if (area.notes) { sections.push(createText(`**Hallazgos:** ${area.notes}`)); }
+                        if ((area as any).recommendations) { sections.push(createText(`**Recomendaciones:** ${(area as any).recommendations}`)); }
                         // Fotos generales del área
                         (area.photos || []).forEach((photo) => {
                             if (photo.url) {
@@ -474,12 +481,6 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
             if (extraPhotos.length > 0) {
                 sections.push(createTitle('Otras Evidencias Fotográficas'));
                 sections.push(...createPhotoSections(extraPhotos));
-            }
-
-            // 4. Diagnóstico Técnico & Hallazgos
-            if (ticket.diagnosis) {
-                sections.push(createTitle('Diagnóstico Técnico & Estado Actual'));
-                sections.push(createText(ticket.diagnosis));
             }
 
             // 5. Recomendaciones Técnicas

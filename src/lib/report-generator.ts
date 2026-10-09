@@ -347,27 +347,6 @@ export function generateReportFromTicket(
         content: ticket.solution || 'Mantenimiento preventivo, limpieza y trabajos técnicos ejecutados conforme a los protocolos institucionales de HECHO SRL.'
     } as TextSection);
 
-    // --- 8. RECOMENDACIONES TÉCNICAS AL CLIENTE ---
-    sections.push({
-        id: uuid(),
-        type: 'h2',
-        content: 'Recomendaciones Técnicas para el Cliente'
-    } as TitleSection);
-
-    const areaRecommendations = (ticket.surveyAreas || []).filter(a => a.recommendations && a.recommendations.trim());
-    let recommendationsText = ticket.recommendations || customPolicies?.defaultRecommendations || '';
-    if (areaRecommendations.length > 0) {
-        recommendationsText = areaRecommendations.map(a => `**${a.name}**:\n${a.recommendations}`).join('\n\n');
-    }
-
-    if (recommendationsText.trim()) {
-        sections.push({
-            id: uuid(),
-            type: 'text',
-            content: recommendationsText
-        } as TextSection);
-    }
-
     // --- 8.5 RESUMEN DE MATERIALES REQUERIDOS (PARA COTIZACION) ---
     const allRequiredMaterials = (ticket.surveyAreas || []).flatMap(a => (a.requiredMaterials || []).map(m => ({ ...m, area: a.name })));
     const allRecommendedEquipments = (ticket.surveyAreas || []).filter(a => a.recommendedEquipment && a.recommendedEquipment.trim() !== "");
@@ -511,6 +490,27 @@ export function generateReportFromTicket(
         }
     }
 
+    // --- 9. RECOMENDACIONES TÉCNICAS AL CLIENTE ---
+    sections.push({
+        id: uuid(),
+        type: 'h2',
+        content: 'Recomendaciones Técnicas para el Cliente'
+    } as TitleSection);
+
+    const areaRecommendations = (ticket.surveyAreas || []).filter(a => a.recommendations && a.recommendations.trim());
+    let recommendationsText = ticket.recommendations || customPolicies?.defaultRecommendations || '';
+    if (areaRecommendations.length > 0) {
+        recommendationsText = areaRecommendations.map(a => `**${a.name}**:\n${a.recommendations}`).join('\n\n');
+    }
+
+    if (recommendationsText.trim()) {
+        sections.push({
+            id: uuid(),
+            type: 'text',
+            content: recommendationsText
+        } as TextSection);
+    }
+
     // --- 10. POLÍTICAS DE GARANTÍA Y TÉRMINOS ---
     sections.push({
         id: uuid(),
@@ -558,7 +558,7 @@ export function generateReportFromTicket(
 export function deduplicateReportSections(sections: TicketReportSection[]): TicketReportSection[] {
     if (!sections || sections.length === 0) return [];
 
-    const cleanedSections: TicketReportSection[] = [];
+    let cleanedSections: TicketReportSection[] = [];
     const seenTextContent = new Set<string>();
 
     const normalizeText = (t: string): string => {
@@ -641,6 +641,31 @@ export function deduplicateReportSections(sections: TicketReportSection[]): Tick
 
     while (cleanedSections.length > 0 && (cleanedSections[cleanedSections.length - 1].type === 'h1' || cleanedSections[cleanedSections.length - 1].type === 'h2')) {
         cleanedSections.pop();
+    }
+
+    // Normalización de posición: los Términos de Garantía siempre deben ubicarse al final del informe (antes de firmas)
+    const isWarrantyHeading = (s: TicketReportSection) => 
+        (s.type === 'h1' || s.type === 'h2') && /garant|término.*garant|termino.*garant|condicion.*servicio/i.test((s as TitleSection).content || '');
+
+    const hasWarranty = cleanedSections.some(isWarrantyHeading);
+    if (hasWarranty) {
+        const warrantyBlocks: TicketReportSection[] = [];
+        const nonWarrantySections: TicketReportSection[] = [];
+
+        for (let i = 0; i < cleanedSections.length; i++) {
+            const current = cleanedSections[i];
+            if (isWarrantyHeading(current)) {
+                warrantyBlocks.push(current);
+                if (i + 1 < cleanedSections.length && cleanedSections[i + 1].type === 'text') {
+                    warrantyBlocks.push(cleanedSections[i + 1]);
+                    i++;
+                }
+            } else {
+                nonWarrantySections.push(current);
+            }
+        }
+
+        cleanedSections = [...nonWarrantySections, ...warrantyBlocks];
     }
 
     return cleanedSections;
@@ -739,20 +764,40 @@ export function updatePhotosFromTicket(
         }))
     };
 
-    let insertIndex = -1;
-    const finalObsIndex = updatedSections.findIndex(s => s.type === 'h2' && (s as TitleSection).content === 'Observaciones Finales');
-
-    if (finalObsIndex !== -1) {
-        insertIndex = finalObsIndex;
-    } else {
-        insertIndex = updatedSections.length;
+    // Ubicar el punto de inserción idóneo:
+    // 1. Después de la última foto existente si la hay
+    let lastPhotoIdx = -1;
+    for (let i = 0; i < updatedSections.length; i++) {
+        const t = updatedSections[i].type;
+        if (t === 'photo' || t === 'gallery' || t === 'beforeAfter') {
+            lastPhotoIdx = i;
+        }
     }
 
-    updatedSections.splice(insertIndex, 0, newGallerySection);
+    if (lastPhotoIdx !== -1) {
+        updatedSections.splice(lastPhotoIdx + 1, 0, newGallerySection);
+    } else {
+        // 2. Si no hay fotos previas, insertar antes de recomendaciones, observaciones o garantías
+        const bottomIdx = updatedSections.findIndex(s => {
+            if (s.type === 'h1' || s.type === 'h2') {
+                const title = ((s as TitleSection).content || '').toLowerCase();
+                return title.includes('garant') || title.includes('política') || title.includes('termino') || title.includes('término') || title.includes('recomendaci') || title.includes('observaci');
+            }
+            return false;
+        });
+
+        if (bottomIdx !== -1) {
+            updatedSections.splice(bottomIdx, 0, newGallerySection);
+        } else {
+            updatedSections.push(newGallerySection);
+        }
+    }
+
+    const finalSections = deduplicateReportSections(updatedSections);
 
     return {
         ...report,
-        sections: updatedSections
+        sections: finalSections
     };
 }
 
