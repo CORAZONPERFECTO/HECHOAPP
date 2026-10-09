@@ -491,7 +491,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setFontSize(10.5);
                     pdf.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                     
-                    const numTitleLines = pdf.splitTextToSize(line, contentWidth);
+                    const cleanNumTitle = line.replace(/^\*\*|\*\*$/g, '');
+                    const numTitleLines = pdf.splitTextToSize(cleanNumTitle, contentWidth);
                     pdf.text(numTitleLines, margin, yPos + 4);
                     yPos += (numTitleLines.length * 5) + 2;
 
@@ -506,7 +507,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 const calloutMatch = line.match(/^(Evaluación general|Dictamen técnico|Advertencia|Nota crítica|Conclusión):\s*(.*)$/i);
                 if (calloutMatch) {
                     const tag = cleanPDFText(calloutMatch[1]);
-                    const val = cleanPDFText(calloutMatch[2]);
+                    const val = cleanPDFText(calloutMatch[2]).replace(/\*\*/g, '');
 
                     const valLines = pdf.splitTextToSize(val, contentWidth - 16);
                     const boxH = (valLines.length * 4.6) + 12;
@@ -526,7 +527,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.setTextColor(30, 41, 59);
                     pdf.text(`${tag.toUpperCase()}:`, margin + 8, yPos + 5.5);
 
-                    pdf.setFont(FONTS.body, 'italic');
+                    pdf.setFont(FONTS.body, 'normal');
                     pdf.setFontSize(9);
                     pdf.setTextColor(51, 65, 85);
                     pdf.text(valLines, margin + 8, yPos + 10.5);
@@ -535,11 +536,24 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     continue;
                 }
 
-                // 3. CAMPOS CON DOS PUNTOS (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
-                const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                // 3. CLAVE / ÁREA CON DOS PUNTOS (Ej: "**Habitaciones 1,3,4,5**:", "**Habitación 4**: Unidad...", "Estudio: 12,000 BTU")
+                const colonMatch = line.match(/^(\*\*[^*]+\*\*|[^:\n]{2,45}):\s*(.*)$/);
                 if (colonMatch) {
-                    const key = cleanPDFText(colonMatch[1].trim());
-                    const val = cleanPDFText(colonMatch[2].trim());
+                    const rawKey = colonMatch[1].trim();
+                    const key = cleanPDFText(rawKey.replace(/^\*\*|\*\*$/g, '').trim());
+                    const rawVal = colonMatch[2].trim();
+                    const val = cleanPDFText(rawVal.replace(/\*\*/g, '').trim());
+
+                    if (!val) {
+                        // Título de área o sección aislado (ej: "**Habitaciones 1,3,4,5**:")
+                        await checkAndAddPage(6);
+                        pdf.setFont(FONTS.header, 'bold');
+                        pdf.setFontSize(9.5);
+                        pdf.setTextColor(30, 41, 59);
+                        pdf.text(`${key}:`, margin, yPos);
+                        yPos += 5.2;
+                        continue;
+                    }
 
                     const keyStr = `${key}: `;
                     pdf.setFont(FONTS.header, 'bold');
@@ -553,9 +567,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
                         pdf.setTextColor(30, 41, 59);
                         pdf.text(keyStr, margin, yPos);
 
-                        pdf.setFont(FONTS.body, 'italic');
+                        pdf.setFont(FONTS.body, 'normal');
                         pdf.setFontSize(9.5);
-                        pdf.setTextColor(71, 85, 105);
+                        pdf.setTextColor(51, 65, 85);
                         pdf.text(val, margin + keyWidth, yPos);
                         yPos += 4.8;
                     } else {
@@ -569,9 +583,9 @@ export async function exportToPDFModern(report: TicketReportNew) {
                         const valLines = pdf.splitTextToSize(val, contentWidth - 4);
                         for (const vLine of valLines) {
                             await checkAndAddPage(5);
-                            pdf.setFont(FONTS.body, 'italic');
-                            pdf.setFontSize(9);
-                            pdf.setTextColor(71, 85, 105);
+                            pdf.setFont(FONTS.body, 'normal');
+                            pdf.setFontSize(9.5);
+                            pdf.setTextColor(51, 65, 85);
                             pdf.text(vLine, margin + 4, yPos);
                             yPos += 4.5;
                         }
@@ -580,8 +594,22 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     continue;
                 }
 
-                // 4. TEXTO PLANO ESTÁNDAR
-                const normalLines = pdf.splitTextToSize(line, contentWidth);
+                // 4. LÍNEA EN NEGRITA PURA (Ej: "**Habitaciones 1,3,4,5**")
+                const pureBoldMatch = line.match(/^\*\*([^*]+)\*\*$/);
+                if (pureBoldMatch) {
+                    await checkAndAddPage(6);
+                    const cleanBold = cleanPDFText(pureBoldMatch[1]);
+                    pdf.setFont(FONTS.header, 'bold');
+                    pdf.setFontSize(9.5);
+                    pdf.setTextColor(30, 41, 59);
+                    pdf.text(cleanBold, margin, yPos);
+                    yPos += 5.2;
+                    continue;
+                }
+
+                // 5. TEXTO PLANO ESTÁNDAR
+                const cleanNormalLine = cleanPDFText(line.replace(/\*\*/g, ''));
+                const normalLines = pdf.splitTextToSize(cleanNormalLine, contentWidth);
                 for (const nLine of normalLines) {
                     await checkAndAddPage(5.2);
                     pdf.setFont(FONTS.body, 'normal');
@@ -602,11 +630,13 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 if (!rawItem || !rawItem.trim()) continue;
                 const item = cleanPDFText(rawItem.trim());
 
-                const itemColonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                const itemColonMatch = item.match(/^(\*\*[^*]+\*\*|[^:\n]{2,45}):\s*(.*)$/);
 
                 if (itemColonMatch) {
-                    const key = cleanPDFText(itemColonMatch[1].trim());
-                    const val = cleanPDFText(itemColonMatch[2].trim());
+                    const rawKey = itemColonMatch[1].trim();
+                    const key = cleanPDFText(rawKey.replace(/^\*\*|\*\*$/g, '').trim());
+                    const rawVal = itemColonMatch[2].trim();
+                    const val = cleanPDFText(rawVal.replace(/\*\*/g, '').trim());
                     const keyStr = `${key}: `;
 
                     pdf.setFont(FONTS.header, 'bold');
@@ -622,8 +652,8 @@ export async function exportToPDFModern(report: TicketReportNew) {
                     pdf.text(keyStr, margin + 6, yPos);
 
                     if (keyWidth + pdf.getTextWidth(val) <= contentWidth - 12) {
-                        pdf.setFont(FONTS.body, 'italic');
-                        pdf.setTextColor(71, 85, 105);
+                        pdf.setFont(FONTS.body, 'normal');
+                        pdf.setTextColor(51, 65, 85);
                         pdf.text(val, margin + 6 + keyWidth, yPos);
                         yPos += 4.8;
                     } else {
@@ -631,15 +661,16 @@ export async function exportToPDFModern(report: TicketReportNew) {
                         const valLines = pdf.splitTextToSize(val, contentWidth - 10);
                         for (const vl of valLines) {
                             await checkAndAddPage(5);
-                            pdf.setFont(FONTS.body, 'italic');
-                            pdf.setFontSize(9);
-                            pdf.setTextColor(71, 85, 105);
+                            pdf.setFont(FONTS.body, 'normal');
+                            pdf.setFontSize(9.5);
+                            pdf.setTextColor(51, 65, 85);
                             pdf.text(vl, margin + 10, yPos);
                             yPos += 4.5;
                         }
                     }
                 } else {
-                    const lines = pdf.splitTextToSize(item, contentWidth - 8);
+                    const cleanItem = cleanPDFText(item.replace(/\*\*/g, ''));
+                    const lines = pdf.splitTextToSize(cleanItem, contentWidth - 8);
                     for (let i = 0; i < lines.length; i++) {
                         await checkAndAddPage(5.2);
                         pdf.setFont(FONTS.body, 'normal');
@@ -723,7 +754,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
             if (baSection.description) {
                 pdf.setFontSize(8.5);
                 pdf.setTextColor(71, 85, 105);
-                pdf.setFont(FONTS.body, 'italic');
+                pdf.setFont(FONTS.body, 'normal');
                 const descLines = pdf.splitTextToSize(cleanPDFText(baSection.description), contentWidth - 12);
                 pdf.text(descLines, margin + 6, photoY + photoBoxH + 5);
             }
@@ -758,7 +789,7 @@ export async function exportToPDFModern(report: TicketReportNew) {
                 // Pie de foto descriptivo
                 if (photoSec.description) {
                     pdf.setFontSize(8.5);
-                    pdf.setFont(FONTS.body, 'italic');
+                    pdf.setFont(FONTS.body, 'normal');
                     pdf.setTextColor(71, 85, 105);
                     const descLines = pdf.splitTextToSize(cleanPDFText(photoSec.description), contentWidth - 4);
                     pdf.text(descLines, margin + 2, yPos + boxH + 5);
@@ -1130,6 +1161,33 @@ export async function exportToPDFWith2Photos(report: TicketReportNew) {
     pdf.save(`informe-simple-${report.header.ticketNumber}.pdf`);
 }
 
+function parseWordMarkdownRuns(text: string): TextRun[] {
+    if (!text) return [];
+    const runs: TextRun[] = [];
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+            runs.push(new TextRun({ text: text.substring(lastIdx, match.index) }));
+        }
+        const token = match[0];
+        if (token.startsWith('**') && token.endsWith('**')) {
+            runs.push(new TextRun({ text: token.slice(2, -2), bold: true }));
+        } else if (token.startsWith('*') && token.endsWith('*')) {
+            runs.push(new TextRun({ text: token.slice(1, -1), italics: true }));
+        }
+        lastIdx = regex.lastIndex;
+    }
+
+    if (lastIdx < text.length) {
+        runs.push(new TextRun({ text: text.substring(lastIdx) }));
+    }
+
+    return runs.length > 0 ? runs : [new TextRun({ text })];
+}
+
 /**
  * Exporta el informe como documento Word (.docx)
  */
@@ -1139,12 +1197,23 @@ export async function exportToWord(report: TicketReportNew) {
 
     report.sections.forEach(sec => {
         if (sec.type === 'h1' || sec.type === 'h2') {
-            children.push(new Paragraph({ text: (sec as TitleSection).content, heading: HeadingLevel.HEADING_2 }));
+            const cleanTitle = (sec as TitleSection).content?.replace(/^\*\*|\*\*$/g, '') || '';
+            children.push(new Paragraph({ text: cleanTitle, heading: HeadingLevel.HEADING_2 }));
         } else if (sec.type === 'text') {
-            children.push(new Paragraph({ text: (sec as TextSection).content }));
+            const content = (sec as TextSection).content || '';
+            const lines = content.split('\n');
+            lines.forEach(line => {
+                if (!line.trim()) {
+                    children.push(new Paragraph({ text: '' }));
+                } else {
+                    children.push(new Paragraph({ children: parseWordMarkdownRuns(line) }));
+                }
+            });
         } else if (sec.type === 'list') {
             (sec as ListSection).items.forEach(item => {
-                children.push(new Paragraph({ text: `• ${item}` }));
+                if (!item || !item.trim()) return;
+                const itemRuns = parseWordMarkdownRuns(item.trim());
+                children.push(new Paragraph({ children: [new TextRun({ text: '• ' }), ...itemRuns] }));
             });
         }
     });

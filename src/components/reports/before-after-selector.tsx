@@ -25,8 +25,10 @@ export function BeforeAfterSelector({
 
     const handleSelect = (photo: TicketPhoto) => {
         onSelect(photo.url, {
-            originalId: photo.url, // Usando URL como ID por ahora si no hay ID explícito
+            originalId: photo.url,
             area: photo.area,
+            phase: photo.type,
+            description: photo.description,
             timestamp: photo.timestamp
         });
         setIsOpen(false);

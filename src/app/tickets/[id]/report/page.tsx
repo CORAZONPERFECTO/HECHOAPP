@@ -537,6 +537,10 @@ export default function TicketReportPage() {
                                             availablePhotos={ticket?.photos || []}
                                             saving={saving}
                                             readOnly={isLocked}
+                                            undo={undo}
+                                            redo={redo}
+                                            canUndo={canUndo}
+                                            canRedo={canRedo}
                                         />
                                     ) : null}
                                 </div>

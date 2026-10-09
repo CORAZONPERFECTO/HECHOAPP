@@ -18,13 +18,47 @@ interface TicketReportViewProps {
     onUpdateHeader?: (updates: Partial<TicketReportNew['header']>) => void;
 }
 
-// ... existing code in SmartFormattedReportContent ...
+function renderFormattedInline(text: string) {
+    if (!text) return null;
+    const parts: (string | React.ReactNode)[] = [];
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIdx) {
+            parts.push(text.substring(lastIdx, match.index));
+        }
+        const token = match[0];
+        if (token.startsWith('**') && token.endsWith('**')) {
+            parts.push(
+                <strong key={match.index} className="font-bold text-slate-900 dark:text-zinc-100">
+                    {token.slice(2, -2)}
+                </strong>
+            );
+        } else if (token.startsWith('*') && token.endsWith('*')) {
+            parts.push(
+                <em key={match.index} className="italic text-slate-700 dark:text-zinc-300">
+                    {token.slice(1, -1)}
+                </em>
+            );
+        }
+        lastIdx = regex.lastIndex;
+    }
+
+    if (lastIdx < text.length) {
+        parts.push(text.substring(lastIdx));
+    }
+
+    return parts.length > 0 ? parts : text;
+}
+
 function SmartFormattedReportContent({ text }: { text: string }) {
     if (!text) return null;
     const lines = text.split('\n');
 
     return (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 font-sans">
             {lines.map((rawLine, idx) => {
                 const line = rawLine.trim();
                 if (!line) {
@@ -34,11 +68,12 @@ function SmartFormattedReportContent({ text }: { text: string }) {
                 // 1. TÍTULOS NUMERADOS (Ej: "1. Capacidad de los Equipos", "2. Verificación...")
                 const numMatch = line.match(/^(\d+[\.\)]\s+)(.*)$/);
                 if (numMatch) {
+                    const cleanNumTitle = line.replace(/^\*\*|\*\*$/g, '');
                     return (
                         <div key={idx} className="pt-3 pb-1 mt-3 border-b-2 border-emerald-600/30 dark:border-emerald-500/30 flex items-center gap-2">
                             <span className="w-2 h-4 bg-emerald-700 dark:bg-emerald-500 rounded-sm inline-block shrink-0" />
                             <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-base md:text-lg tracking-tight">
-                                {line}
+                                {cleanNumTitle}
                             </h3>
                         </div>
                     );
@@ -54,34 +89,47 @@ function SmartFormattedReportContent({ text }: { text: string }) {
                             <span className="font-extrabold text-slate-900 dark:text-zinc-100 block mb-1 text-xs tracking-wider uppercase">
                                 {tag}:
                             </span>
-                            <p className="text-sm italic text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
-                                {val}
+                            <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed font-normal">
+                                {renderFormattedInline(val)}
                             </p>
                         </div>
                     );
                 }
 
-                // 3. CLAVE: VALOR (Ej: "Estudio: 12,000 BTU...", "Área de la Entrada: El Fan Coil...")
-                const colonMatch = line.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                // 3. CLAVE / ÁREA CON DOS PUNTOS (Ej: "**Habitaciones 1,3,4,5**:", "**Habitación 4**: Unidad...", "Estudio: 12,000 BTU")
+                const colonMatch = line.match(/^(\*\*[^*]+\*\*|[^:\n]{2,45}):\s*(.*)$/);
                 if (colonMatch) {
-                    const key = colonMatch[1].trim();
+                    const rawKey = colonMatch[1].trim();
+                    const key = rawKey.replace(/^\*\*|\*\*$/g, '').trim();
                     const val = colonMatch[2].trim();
                     return (
                         <div key={idx} className="py-1 text-sm leading-relaxed flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-1.5">
                             <span className="font-bold text-slate-900 dark:text-zinc-100 shrink-0">
                                 {key}:
                             </span>
-                            <span className="italic text-slate-600 dark:text-zinc-300 font-medium">
-                                {val}
-                            </span>
+                            {val && (
+                                <span className="text-slate-700 dark:text-zinc-300 font-normal">
+                                    {renderFormattedInline(val)}
+                                </span>
+                            )}
                         </div>
                     );
                 }
 
-                // 4. TEXTO PLANO
+                // 4. LÍNEA EN NEGRITA PURA (Ej: "**Habitaciones 1,3,4,5**")
+                const pureBoldMatch = line.match(/^\*\*([^*]+)\*\*$/);
+                if (pureBoldMatch) {
+                    return (
+                        <div key={idx} className="pt-2 pb-0.5 font-bold text-slate-900 dark:text-zinc-100 text-sm">
+                            {pureBoldMatch[1]}
+                        </div>
+                    );
+                }
+
+                // 5. TEXTO PLANO CON FORMATO INLINE
                 return (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-700 dark:text-zinc-300">
-                        {line}
+                    <p key={idx} className="text-sm leading-relaxed text-slate-700 dark:text-zinc-300 font-normal">
+                        {renderFormattedInline(line)}
                     </p>
                 );
             })}
@@ -300,16 +348,17 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                                 );
                             }
 
-                            const colonMatch = item.match(/^([^:\n]{2,45}):\s*(.*)$/);
+                            const colonMatch = item.match(/^(\*\*[^*]+\*\*|[^:\n]{2,45}):\s*(.*)$/);
                             if (colonMatch) {
-                                const key = colonMatch[1].trim();
+                                const rawKey = colonMatch[1].trim();
+                                const key = rawKey.replace(/^\*\*|\*\*$/g, '').trim();
                                 const val = colonMatch[2].trim();
                                 return (
                                     <li key={i} className="flex items-start gap-2.5 leading-relaxed">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
                                         <div className="flex-1">
                                             <span className="font-bold text-slate-900 dark:text-zinc-100">{key}:</span>{' '}
-                                            <span className="italic text-slate-600 dark:text-zinc-300">{val}</span>
+                                            <span className="text-slate-700 dark:text-zinc-300 font-normal">{renderFormattedInline(val)}</span>
                                         </div>
                                     </li>
                                 );
@@ -317,7 +366,7 @@ export function TicketReportView({ report, isInteractive = false, onUpdateSectio
                             return (
                                 <li key={i} className="flex items-start gap-2.5 leading-relaxed text-slate-700 dark:text-zinc-300">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2 shrink-0" />
-                                    <span>{item}</span>
+                                    <span>{renderFormattedInline(item)}</span>
                                 </li>
                             );
                         })}

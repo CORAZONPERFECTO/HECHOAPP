@@ -12,7 +12,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool, Sparkles } from "lucide-react";
+import { Save, RefreshCw, RotateCcw, Plus, Type, List, Image as ImageIcon, Minus, Loader2, Moon, Sun, Columns, Smartphone, Eye, Layout, PenTool, Sparkles, Undo2, Redo2 } from "lucide-react";
 import { TicketReportView } from "./ticket-report-view";
 import { authFetch } from "@/lib/api-client";
 import { BeforeAfterSelector } from "./before-after-selector";
@@ -30,6 +30,10 @@ interface TicketReportEditorProps {
     availablePhotos?: TicketPhoto[]; // Photos from the ticket for selection
     saving?: boolean;
     readOnly?: boolean;
+    undo?: () => void;
+    redo?: () => void;
+    canUndo?: boolean;
+    canRedo?: boolean;
 }
 
 // Sortable wrapper for sections
@@ -91,41 +95,11 @@ function SortableSection({
                 onMoveDown={() => { }}
                 isFirst={isFirst}
                 isLast={isLast}
+                availablePhotos={availablePhotos}
                 dragAttributes={attributes}
                 dragListeners={listeners}
                 readOnly={readOnly}
             />
-
-            {/* Custom Editor for Before/After Block */}
-            {section.type === 'beforeAfter' && (
-                <div className="px-4 pb-4">
-                    <Card className="border-dashed">
-                        <CardContent className="pt-4 grid grid-cols-2 gap-4">
-                            <BeforeAfterSelector
-                                label="Foto Antes"
-                                photoUrl={(section as BeforeAfterSection).beforePhotoUrl}
-                                onSelect={(url, meta) => onChange({ ...section, beforePhotoUrl: url, beforeMeta: meta } as BeforeAfterSection)}
-                                availablePhotos={availablePhotos}
-                            />
-                            <BeforeAfterSelector
-                                label="Foto Después"
-                                photoUrl={(section as BeforeAfterSection).afterPhotoUrl}
-                                onSelect={(url, meta) => onChange({ ...section, afterPhotoUrl: url, afterMeta: meta } as BeforeAfterSection)}
-                                availablePhotos={availablePhotos}
-                            />
-                            <div className="col-span-2">
-                                <Label className="text-xs text-gray-500">Descripción / Comentario</Label>
-                                <Input
-                                    className="mt-1"
-                                    placeholder="Descripción de la mejora..."
-                                    value={(section as BeforeAfterSection).description || ''}
-                                    onChange={(e) => onChange({ ...section, description: e.target.value } as BeforeAfterSection)}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
         </div>
     );
 }
@@ -139,7 +113,11 @@ export function TicketReportEditor({
     onSyncTicketData,
     availablePhotos = [],
     saving = false,
-    readOnly = false
+    readOnly = false,
+    undo,
+    redo,
+    canUndo = false,
+    canRedo = false
 }: TicketReportEditorProps) {
     const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
     const [darkMode, setDarkMode] = useState(false);
@@ -474,6 +452,34 @@ export function TicketReportEditor({
                                 Preview
                             </Button>
                         </div>
+
+                        {/* Deshacer / Retroceder y Rehacer (Report Level) */}
+                        {undo && (
+                            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-zinc-800 p-1 rounded-lg">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={undo}
+                                    disabled={!canUndo || readOnly}
+                                    className="h-7 px-2 text-xs gap-1 text-slate-700 dark:text-zinc-300 disabled:opacity-30 hover:bg-white dark:hover:bg-zinc-700 shadow-xs"
+                                    title="Retroceder / Deshacer (Ctrl+Z)"
+                                >
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                    <span className="hidden xl:inline text-[11px]">Retroceder</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={redo}
+                                    disabled={!canRedo || readOnly}
+                                    className="h-7 px-2 text-xs gap-1 text-slate-700 dark:text-zinc-300 disabled:opacity-30 hover:bg-white dark:hover:bg-zinc-700 shadow-xs"
+                                    title="Rehacer (Ctrl+Y)"
+                                >
+                                    <Redo2 className="h-3.5 w-3.5" />
+                                    <span className="hidden xl:inline text-[11px]">Rehacer</span>
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2">

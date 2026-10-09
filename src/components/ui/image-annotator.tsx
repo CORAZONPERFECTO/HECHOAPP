@@ -3,8 +3,9 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Circle, Square, ArrowUpRight, PenTool, Undo, Save, X, RotateCw } from "lucide-react";
+import { Circle, Square, ArrowUpRight, PenTool, Undo, Save, X, RotateCw, Loader2, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { authFetch } from "@/lib/api-client";
 
 interface ImageAnnotatorProps {
   open: boolean;
@@ -23,13 +24,19 @@ interface DrawAction {
     startY: number;
     endX: number;
     endY: number;
-    points?: {x: number, y: number}[];
+    points?: { x: number; y: number }[];
 }
 
 export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAnnotatorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
   const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
   const [tool, setTool] = useState<Tool>("rect");
   const [color, setColor] = useState<Color>("#ef4444");
   
@@ -37,20 +44,123 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
   const [currentAction, setCurrentAction] = useState<DrawAction | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [rotation, setRotation] = useState<number>(0);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Cargar imagen
-  useEffect(() => {
-    if (open && imageUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        setImageObj(img);
-        setActions([]);
-        setCurrentAction(null);
-      };
-      img.src = imageUrl;
+  // Limpieza de Object URLs para evitar fugas de memoria
+  const cleanupBlobUrl = useCallback(() => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
     }
-  }, [open, imageUrl]);
+  }, []);
+
+  // Cargar imagen de forma resiliente con soporte multi-nivel (Directo / Blob / Proxy)
+  useEffect(() => {
+    if (!open || !imageUrl) {
+      setImageObj(null);
+      setIsLoading(false);
+      setLoadError(null);
+      cleanupBlobUrl();
+      return;
+    }
+
+    let isCancelled = false;
+    setIsLoading(true);
+    setLoadError(null);
+    setImageObj(null);
+    setActions([]);
+    setCurrentAction(null);
+    setRotation(0);
+    cleanupBlobUrl();
+
+    const loadImgFromSource = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        if (!src.startsWith("data:") && !src.startsWith("blob:")) {
+          img.crossOrigin = "anonymous";
+        }
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(err);
+        img.src = src;
+      });
+    };
+
+    const fetchImageResiliently = async () => {
+      // 1. Data URLs o Blobs locales -> Carga directa
+      if (imageUrl.startsWith("data:") || imageUrl.startsWith("blob:")) {
+        try {
+          const img = await loadImgFromSource(imageUrl);
+          if (!isCancelled) {
+            setImageObj(img);
+            setIsLoading(false);
+          }
+          return;
+        } catch (err) {
+          console.error("Error al cargar data/blob URL:", err);
+        }
+      }
+
+      // 2. Fetch directo como Blob (Garantiza que el Canvas no se ensucie con CORS)
+      try {
+        const res = await fetch(imageUrl, { mode: "cors" });
+        if (res.ok) {
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          blobUrlRef.current = objUrl;
+          const img = await loadImgFromSource(objUrl);
+          if (!isCancelled) {
+            setImageObj(img);
+            setIsLoading(false);
+          }
+          return;
+        }
+      } catch (directErr) {
+        console.warn("Fallo fetch directo, intentando fallback proxy...", directErr);
+      }
+
+      // 3. Fallback a proxy autenticado /api/proxy-image
+      try {
+        const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+        const res = await authFetch(proxyUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          blobUrlRef.current = objUrl;
+          const img = await loadImgFromSource(objUrl);
+          if (!isCancelled) {
+            setImageObj(img);
+            setIsLoading(false);
+          }
+          return;
+        }
+      } catch (proxyErr) {
+        console.warn("Fallo proxy authFetch, intentando carga directa de imagen...", proxyErr);
+      }
+
+      // 4. Último recurso: Image() directo con crossOrigin
+      try {
+        const img = await loadImgFromSource(imageUrl);
+        if (!isCancelled) {
+          setImageObj(img);
+          setIsLoading(false);
+        }
+        return;
+      } catch (finalErr) {
+        if (!isCancelled) {
+          console.error("No se pudo cargar la imagen para anotación:", finalErr);
+          setLoadError("No se pudo cargar la fotografía. Verifique la conexión o el enlace.");
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchImageResiliently();
+
+    return () => {
+      isCancelled = true;
+      cleanupBlobUrl();
+    };
+  }, [open, imageUrl, reloadKey, cleanupBlobUrl]);
 
   const drawArrow = (ctx: CanvasRenderingContext2D, fromx: number, fromy: number, tox: number, toy: number) => {
       const headlen = 15;
@@ -98,7 +208,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
         if (action.points.length > 0) {
             ctx.moveTo(action.points[0].x, action.points[0].y);
             for (let i = 1; i < action.points.length; i++) {
-            ctx.lineTo(action.points[i].x, action.points[i].y);
+                ctx.lineTo(action.points[i].x, action.points[i].y);
             }
         }
         ctx.stroke();
@@ -110,7 +220,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
         const centerX = action.startX + (action.endX - action.startX) / 2;
         const centerY = action.startY + (action.endY - action.startY) / 2;
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.ellipse(centerX, centerY, Math.max(1, radiusX), Math.max(1, radiusY), 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else if (action.tool === "arrow") {
         drawArrow(ctx, action.startX, action.startY, action.endX, action.endY);
@@ -120,7 +230,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
     actions.forEach(draw);
     if (currentAction) draw(currentAction);
 
-  }, [actions, currentAction, imageObj]);
+  }, [actions, currentAction, imageObj, rotation]);
 
   useEffect(() => {
     if (imageObj && canvasRef.current && containerRef.current) {
@@ -132,9 +242,9 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
         const imgH = isRotated ? imageObj.width : imageObj.height;
 
         // Escalar el canvas al contenedor manteniendo el aspect ratio
-        const ratio = imgW / imgH;
-        const maxWidth = container.clientWidth;
-        const maxHeight = container.clientHeight;
+        const ratio = (imgW && imgH) ? (imgW / imgH) : 1;
+        const maxWidth = Math.max(200, container.clientWidth - 16);
+        const maxHeight = Math.max(200, container.clientHeight - 16);
         
         let newWidth = maxWidth;
         let newHeight = newWidth / ratio;
@@ -144,8 +254,8 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
             newWidth = newHeight * ratio;
         }
 
-        canvas.width = newWidth;
-        canvas.height = newHeight;
+        canvas.width = Math.round(newWidth);
+        canvas.height = Math.round(newHeight);
         
         redrawCanvas();
     }
@@ -155,12 +265,13 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
     const rect = canvasRef.current.getBoundingClientRect();
-    let clientX, clientY;
+    let clientX = 0;
+    let clientY = 0;
     
-    if ('touches' in e) {
+    if ('touches' in e && e.touches.length > 0) {
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
-    } else {
+    } else if ('clientX' in e) {
       clientX = (e as React.MouseEvent).clientX;
       clientY = (e as React.MouseEvent).clientY;
     }
@@ -230,17 +341,28 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
 
   const handleSave = () => {
     if (!canvasRef.current) return;
-    // Exportamos a máxima calidad JPG
-    const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.9);
-    onSave(dataUrl);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      // Exportamos a calidad JPG
+      const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.92);
+      onSave(dataUrl);
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Error al exportar imagen anotada:", err);
+      alert("Error al exportar la imagen. Intente nuevamente.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-2 md:p-4 bg-zinc-950 text-white border-zinc-800">
         <DialogHeader className="px-2">
-          <DialogTitle>Marcar Fotografía</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-zinc-100 font-semibold">
+            <PenTool className="w-5 h-5 text-emerald-500" />
+            Marcar Fotografía
+          </DialogTitle>
         </DialogHeader>
         
         {/* Toolbar superior */}
@@ -254,6 +376,7 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
                 ].map((t) => (
                     <Button
                         key={t.id}
+                        type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setTool(t.id as Tool)}
@@ -265,14 +388,16 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
                 ))}
             </div>
 
-            <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg">
+            <div className="flex items-center gap-1.5 bg-zinc-900 p-1.5 rounded-lg">
                 {(["#ef4444", "#eab308", "#22c55e", "#3b82f6", "#ffffff", "#000000"] as Color[]).map(c => (
                     <button
                         key={c}
+                        type="button"
                         onClick={() => setColor(c)}
+                        aria-label={`Color ${c}`}
                         className={cn(
                             "w-6 h-6 rounded-full transition-transform",
-                            color === c ? "scale-110 ring-2 ring-white ring-offset-1 ring-offset-zinc-900" : "hover:scale-110"
+                            color === c ? "scale-110 ring-2 ring-white ring-offset-1 ring-offset-zinc-900" : "hover:scale-110 opacity-80 hover:opacity-100"
                         )}
                         style={{ backgroundColor: c }}
                     />
@@ -280,20 +405,54 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
             </div>
             
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setRotation((r) => (r + 90) % 360)} className="text-zinc-400 hover:text-white">
-                  <RotateCw className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Rotar</span>
+              <Button 
+                type="button"
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setRotation((r) => (r + 90) % 360)} 
+                className="text-zinc-400 hover:text-white"
+                disabled={isLoading || !imageObj}
+              >
+                  <RotateCw className="w-4 h-4 mr-1.5" />
+                  <span className="hidden sm:inline text-xs">Rotar</span>
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleUndo} disabled={actions.length === 0} className="text-zinc-400 hover:text-white">
-                  <Undo className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Deshacer</span>
+              <Button 
+                type="button"
+                variant="ghost" 
+                size="sm" 
+                onClick={handleUndo} 
+                disabled={actions.length === 0 || isLoading} 
+                className="text-zinc-400 hover:text-white"
+              >
+                  <Undo className="w-4 h-4 mr-1.5" />
+                  <span className="hidden sm:inline text-xs">Deshacer</span>
               </Button>
             </div>
         </div>
 
         {/* Canvas Area */}
-        <div ref={containerRef} className="flex-1 overflow-hidden relative flex items-center justify-center bg-zinc-950/50 rounded-lg my-2 select-none touch-none">
-            {imageObj ? (
+        <div ref={containerRef} className="flex-1 overflow-hidden relative flex items-center justify-center bg-zinc-950/60 rounded-lg my-2 select-none touch-none border border-zinc-900">
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center gap-3 text-zinc-400">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                    <span className="text-sm font-medium">Cargando imagen en alta resolución...</span>
+                </div>
+            ) : loadError ? (
+                <div className="flex flex-col items-center justify-center gap-3 p-6 text-center max-w-md">
+                    <AlertCircle className="w-10 h-10 text-rose-500" />
+                    <p className="text-sm text-zinc-300">{loadError}</p>
+                    <Button 
+                        type="button"
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setReloadKey(k => k + 1)}
+                        className="text-xs bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                        Reintentar carga
+                    </Button>
+                </div>
+            ) : imageObj ? (
                  <canvas
                  ref={canvasRef}
                  onMouseDown={handleStart}
@@ -303,20 +462,37 @@ export function ImageAnnotator({ open, onOpenChange, imageUrl, onSave }: ImageAn
                  onTouchStart={handleStart}
                  onTouchMove={handleMove}
                  onTouchEnd={handleEnd}
-                 className="shadow-2xl border border-zinc-800 bg-black cursor-crosshair touch-none"
+                 className="shadow-2xl border border-zinc-800 bg-black cursor-crosshair touch-none rounded"
                />
-            ) : (
-                <div className="text-zinc-500 animate-pulse">Cargando imagen...</div>
-            )}
+            ) : null}
         </div>
 
-        <DialogFooter className="px-2 flex-row justify-between sm:justify-between items-center mt-auto">
-            <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-zinc-400 hover:text-white">
+        <DialogFooter className="px-2 flex-row justify-between sm:justify-between items-center mt-auto border-t border-zinc-900 pt-2">
+            <Button 
+                type="button"
+                variant="ghost" 
+                onClick={() => onOpenChange(false)} 
+                className="text-zinc-400 hover:text-white"
+            >
                 Cancelar
             </Button>
-            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                <Save className="w-4 h-4 mr-2" />
-                Guardar Cambios
+            <Button 
+                type="button"
+                onClick={handleSave} 
+                disabled={isLoading || !imageObj || isSaving}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            >
+                {isSaving ? (
+                    <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Guardando...
+                    </>
+                ) : (
+                    <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Guardar Fotografía
+                    </>
+                )}
             </Button>
         </DialogFooter>
       </DialogContent>
